@@ -16,6 +16,9 @@ application/logs/
 siberkah_sumut_v4_setup.sql
 landing_migration.sql
 
+# Seed data — JANGAN commit, berisi data sensitif dari DB lokal
+database/seed_data.sql
+
 # IDE
 .vscode/
 .idea/
