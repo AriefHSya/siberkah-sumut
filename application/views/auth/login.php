@@ -25,9 +25,22 @@ input:focus{outline:none;border-color:#1A5EA8;box-shadow:0 0 0 3px rgba(26,94,16
 </style>
 </head>
 <body>
+<!-- Tombol kembali ke landing -->
+<a href="<?= site_url('/') ?>" style="
+  position:fixed;top:16px;left:16px;z-index:10;
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,0.15);backdrop-filter:blur(4px);
+  border:1px solid rgba(255,255,255,0.3);border-radius:8px;
+  padding:8px 14px;font-size:13px;color:#fff;text-decoration:none;
+  transition:background 0.15s">
+  <i class="ti ti-arrow-left" style="font-size:16px"></i> Beranda
+</a>
+
 <div class="login-wrap">
   <div class="login-header">
-    <h1><i class="ti ti-globe"></i> SIBERKAH SUMUT</h1>
+    <img src="<?= base_url('assets/img/logo-siberkah.png') ?>" alt="Logo SIBERKAH"
+         style="width:72px;height:72px;object-fit:contain;margin-bottom:10px">
+    <h1>SIBERKAH SUMUT</h1>
     <p>Platform Kolaborasi Bantuan Keuangan Provinsi dan Kab/Kota</p>
   </div>
   <div class="login-card">

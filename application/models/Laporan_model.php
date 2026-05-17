@@ -98,10 +98,11 @@ class Laporan_model extends CI_Model
     {
         return $this->db
             ->select('k.nama, k.id as kabkota_id,
-                      COUNT(p.id) as total_pekerjaan,
+                      COUNT(DISTINCT b.id) as total_bkp,
+                      COUNT(DISTINCT p.id) as total_pekerjaan,
                       SUM(p.nilai_kontrak) as total_kontrak,
                       SUM(pd.nilai_transfer) as total_disalurkan,
-                      COUNT(pd.id) as total_sp2d')
+                      COUNT(DISTINCT pd.id) as total_sp2d')
             ->from('ref_kabkota k')
             ->join('ref_bkp b',   'b.kabkota_id = k.id AND b.tahun = '.$this->db->escape($tahun).' AND b.is_active = 1', 'left')
             ->join('trx_pekerjaan p', 'p.bkp_id = b.id', 'left')
@@ -194,5 +195,88 @@ class Laporan_model extends CI_Model
             ->where('b.tahun', $tahun)->where('b.is_active', 1);
         if ($kabkota_id) $this->db->where('b.kabkota_id', $kabkota_id);
         return $this->db->get()->row();
+    }
+
+    // ─── LAPORAN AKHIR KAB/KOTA ───────────────────────────────
+
+    /**
+     * Data lengkap BKP beserta pekerjaan, tahapan, penyaluran, dan capaian
+     * untuk laporan akhir per kabupaten/kota.
+     */
+    public function get_laporan_akhir_kab($tahun, $kabkota_id)
+    {
+        $bkp_list = $this->db
+            ->select('b.id as bkp_id, b.kode_bkp, b.uraian_bkp, b.nilai as nilai_bkp,
+                      k.nama as nama_kabkota, bid.nama as nama_bidang, bid.kode as kode_bidang,
+                      p.id as pekerjaan_id, p.status, p.jenis_penyaluran,
+                      p.nama_kegiatan_dok, p.nilai_kontrak, p.nama_penyedia,
+                      p.no_dok_pekerjaan, p.tgl_dok_pekerjaan,
+                      p.no_spmk, p.tgl_spmk, p.no_bast, p.tgl_bast,
+                      p.lokasi_deskripsi, p.latitude, p.longitude')
+            ->from('ref_bkp b')
+            ->join('ref_kabkota k',   'k.id = b.kabkota_id')
+            ->join('ref_bidang bid',  'bid.id = b.bidang_id')
+            ->join('trx_pekerjaan p', 'p.bkp_id = b.id', 'left')
+            ->where('b.tahun',      $tahun)
+            ->where('b.kabkota_id', $kabkota_id)
+            ->where('b.is_active',  1)
+            ->order_by('bid.nama', 'ASC')
+            ->order_by('b.kode_bkp', 'ASC')
+            ->get()->result();
+
+        // Untuk setiap BKP, ambil detail tahapan + penyaluran + capaian
+        foreach ($bkp_list as &$bkp) {
+            if (!$bkp->pekerjaan_id) {
+                $bkp->tahapan = [];
+                continue;
+            }
+
+            $tahapan = $this->db
+                ->select('t.id, t.kode_tahap, t.urutan, t.persen_nilai, t.status as status_tahapan,
+                          pd.no_sp2d, pd.tgl_sp2d, pd.nilai_transfer, pd.status_transfer,
+                          c.persen_fisik, c.tgl_realisasi, c.no_ba_kemajuan,
+                          c.tgl_ba_kemajuan, c.keterangan as keterangan_capaian, c.foto_path')
+                ->from('trx_tahapan_penyaluran t')
+                ->join('trx_penyaluran_dana pd', 'pd.tahapan_id = t.id', 'left')
+                ->join('trx_capaian_output c',   'c.tahapan_id = t.id', 'left')
+                ->where('t.pekerjaan_id', $bkp->pekerjaan_id)
+                ->order_by('t.urutan', 'ASC')
+                ->get()->result();
+
+            $bkp->tahapan        = $tahapan;
+            $bkp->total_disalurkan = array_sum(array_column((array)$tahapan, 'nilai_transfer'));
+        }
+        unset($bkp);
+
+        return $bkp_list;
+    }
+
+    /** Summary statistik untuk header laporan akhir kab */
+    public function get_summary_laporan_kab($tahun, $kabkota_id)
+    {
+        $total_bkp = $this->db->where(['tahun'=>$tahun,'kabkota_id'=>$kabkota_id,'is_active'=>1])
+                              ->count_all_results('ref_bkp');
+
+        $agg = $this->db
+            ->select('SUM(b.nilai) as total_nilai_bkp,
+                      SUM(p.nilai_kontrak) as total_kontrak,
+                      SUM(pd.nilai_transfer) as total_disalurkan,
+                      COUNT(DISTINCT p.id) as total_pekerjaan')
+            ->from('ref_bkp b')
+            ->join('trx_pekerjaan p', 'p.bkp_id = b.id', 'left')
+            ->join('trx_tahapan_penyaluran t', 't.pekerjaan_id = p.id', 'left')
+            ->join('trx_penyaluran_dana pd', 'pd.tahapan_id = t.id', 'left')
+            ->where('b.tahun', $tahun)
+            ->where('b.kabkota_id', $kabkota_id)
+            ->where('b.is_active', 1)
+            ->get()->row();
+
+        return (object)[
+            'total_bkp'        => $total_bkp,
+            'total_nilai_bkp'  => $agg->total_nilai_bkp   ?? 0,
+            'total_kontrak'    => $agg->total_kontrak       ?? 0,
+            'total_disalurkan' => $agg->total_disalurkan    ?? 0,
+            'total_pekerjaan'  => $agg->total_pekerjaan     ?? 0,
+        ];
     }
 }

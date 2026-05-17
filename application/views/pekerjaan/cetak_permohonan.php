@@ -6,7 +6,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Times New Roman',Times,serif;font-size:12pt;color:#000;line-height:1.6;padding:2cm}
-.kop{text-align:center;border-bottom:3px solid #000;padding-bottom:10px;margin-bottom:20px}
+.kop{border-bottom:3px double #000;padding-bottom:8px;margin-bottom:16px;display:flex;align-items:center;gap:14px}.kop-logo{flex-shrink:0}.kop-text{flex:1;text-align:center}
 .kop h1{font-size:14pt;text-transform:uppercase}
 .kop p{font-size:11pt}
 h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:20px 0 8px}
@@ -38,9 +38,10 @@ p{margin-bottom:10px;text-align:justify}
 
 <!-- KOP SURAT -->
 <div class="kop">
-  <h1>PEMERINTAH <?= strtoupper(htmlspecialchars($p->nama_kabkota)) ?></h1>
+  <div class="kop-logo"><img src="<?= base_url('assets/img/logo-siberkah.png') ?>" alt="Logo SIBERKAH" style="height:64px;width:64px;object-fit:contain"></div>
+  <div class="kop-text"><h1>PEMERINTAH <?= strtoupper(htmlspecialchars($p->nama_kabkota)) ?></h1>
   <p><?= htmlspecialchars($p->opd_nama ?? 'DINAS TEKNIS') ?></p>
-  <p>Alamat: ................................................................</p>
+  <p>Alamat: ................................................................</p></div>
 </div>
 
 <!-- NOMOR SURAT -->

@@ -32,8 +32,9 @@ class Reviu extends Auth_Controller
             'q'          => $this->input->get('q'),
         ];
 
-        if ($this->role_kode === 'inspektorat' && $this->kabkota_id) {
-            $filters['kabkota_id'] = $this->kabkota_id;
+        // Semua role kabkota hanya lihat antrian milik kabkotanya sendiri
+        if ($this->rbac->isKabkota()) {
+            $filters['kabkota_id'] = (int)$this->kabkota_id ?: -1;
         }
 
         $total        = $this->Reviu_model->count_filtered($filters);

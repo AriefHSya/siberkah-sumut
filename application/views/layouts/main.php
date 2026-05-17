@@ -14,8 +14,14 @@
     <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <h1><i class="ti ti-globe"></i> SIBERKAH</h1>
-        <p>BKP Provinsi Sumatera Utara</p>
+        <div style="display:flex;align-items:center;gap:10px">
+          <img src="<?= base_url('assets/img/logo-siberkah.png') ?>" alt="Logo SIBERKAH"
+               style="width:36px;height:36px;object-fit:contain;flex-shrink:0">
+          <div>
+            <h1 style="font-size:15px;letter-spacing:1px">SIBERKAH</h1>
+            <p style="margin-top:0">BKP Provinsi Sumatera Utara</p>
+          </div>
+        </div>
       </div>
       <nav class="sidebar-nav">
         <?php foreach ($this->rbac->getMenus() as $m): ?>

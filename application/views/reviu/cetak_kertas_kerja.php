@@ -6,7 +6,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Times New Roman',Times,serif;font-size:11pt;color:#000;padding:1.5cm 2cm;line-height:1.5}
-.kop{text-align:center;border-bottom:3px double #000;padding-bottom:8px;margin-bottom:16px}
+.kop{border-bottom:3px double #000;padding-bottom:8px;margin-bottom:16px;display:flex;align-items:center;gap:14px}.kop-logo{flex-shrink:0}.kop-text{flex:1;text-align:center}
 .kop h1{font-size:13pt;text-transform:uppercase;font-weight:bold}
 .kop p{font-size:10pt}
 h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;font-weight:bold}
@@ -40,8 +40,9 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
 
 <!-- KOP -->
 <div class="kop">
-  <h1>INSPEKTORAT <?= strtoupper(htmlspecialchars($p->nama_kabkota)) ?></h1>
-  <p>Pemerintah <?= htmlspecialchars($p->nama_kabkota) ?></p>
+  <div class="kop-logo"><img src="<?= base_url('assets/img/logo-siberkah.png') ?>" alt="Logo SIBERKAH" style="height:64px;width:64px;object-fit:contain"></div>
+  <div class="kop-text"><h1>INSPEKTORAT <?= strtoupper(htmlspecialchars($p->nama_kabkota)) ?></h1>
+  <p>Pemerintah <?= htmlspecialchars($p->nama_kabkota) ?></p></div>
 </div>
 
 <h2>KERTAS KERJA REVIU<br>BANTUAN KEUANGAN PROVINSI SUMATERA UTARA<br>TAHUN ANGGARAN <?= $p->tahun ?></h2>

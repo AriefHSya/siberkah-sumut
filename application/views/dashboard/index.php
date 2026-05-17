@@ -218,6 +218,7 @@ $sp2d_obj = $stats['sp2d'] ?? (object)['total_sp2d'=>0,'total_transfer'=>0,'sele
 
 <!-- ── TABEL PER KAB/KOTA (PROVINSI) ── -->
 <?php if ($is_provinsi && !empty($per_kabkota)): ?>
+<?php $total_kab = count($per_kabkota); $per_kab_page = 15; ?>
 <div class="card">
   <div class="card-title">
     <i class="ti ti-map"></i> Realisasi per Kab/Kota TA <?= $tahun ?>
@@ -225,7 +226,7 @@ $sp2d_obj = $stats['sp2d'] ?? (object)['total_sp2d'=>0,'total_transfer'=>0,'sele
        class="btn btn-outline btn-xs" style="margin-left:auto">Lihat Laporan Lengkap</a>
   </div>
   <div class="table-wrap">
-    <table class="tbl">
+    <table class="tbl" id="tbl-kab">
       <thead>
         <tr>
           <th>Kabupaten/Kota</th>
@@ -238,13 +239,13 @@ $sp2d_obj = $stats['sp2d'] ?? (object)['total_sp2d'=>0,'total_transfer'=>0,'sele
         </tr>
       </thead>
       <tbody>
-      <?php foreach (array_slice($per_kabkota, 0, 15) as $kab):
+      <?php foreach ($per_kabkota as $idx => $kab):
         $pct_sal = ($kab->total_kontrak > 0 && $kab->total_disalurkan > 0)
           ? min(100, round($kab->total_disalurkan / $kab->total_kontrak * 100)) : 0;
       ?>
-      <tr>
+      <tr class="kab-row" data-idx="<?= $idx ?>" <?= $idx >= $per_kab_page ? 'style="display:none"' : '' ?>>
         <td class="text-sm fw-500"><?= htmlspecialchars($kab->nama) ?></td>
-        <td class="center text-sm"><?= $kab->total_pekerjaan > 0 ? $kab->total_pekerjaan . ' BKP' : '<span class="text-muted">—</span>' ?></td>
+        <td class="center text-sm"><?= $kab->total_bkp > 0 ? $kab->total_bkp . ' BKP' : '<span class="text-muted">—</span>' ?></td>
         <td class="center text-sm"><?= $kab->total_pekerjaan ?></td>
         <td class="text-sm" style="text-align:right"><?= $kab->total_kontrak ? rupiah_juta($kab->total_kontrak) : '—' ?></td>
         <td class="text-sm fw-500" style="text-align:right;color:var(--teal-mid)"><?= $kab->total_disalurkan ? rupiah_juta($kab->total_disalurkan) : '—' ?></td>
@@ -264,6 +265,54 @@ $sp2d_obj = $stats['sp2d'] ?? (object)['total_sp2d'=>0,'total_transfer'=>0,'sele
       </tbody>
     </table>
   </div>
+
+  <?php if ($total_kab > $per_kab_page): ?>
+  <!-- Pagination client-side -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 2px;flex-wrap:wrap;gap:8px">
+    <div style="font-size:13px;color:var(--abu)" id="kab-info">
+      Menampilkan <strong>1–<?= min($per_kab_page, $total_kab) ?></strong> dari <strong><?= $total_kab ?></strong> kab/kota
+    </div>
+    <div style="display:flex;gap:4px;align-items:center">
+      <button onclick="kabPage(-1)" id="kab-prev" class="btn btn-outline btn-sm" disabled>
+        <i class="ti ti-chevron-left"></i>
+      </button>
+      <span id="kab-page-label" style="font-size:13px;padding:0 8px;color:var(--abu)">Hal 1</span>
+      <button onclick="kabPage(1)" id="kab-next" class="btn btn-outline btn-sm"
+              <?= $total_kab <= $per_kab_page ? 'disabled' : '' ?>>
+        <i class="ti ti-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+  <script>
+  (function(){
+    var page    = 0;
+    var perPage = <?= $per_kab_page ?>;
+    var total   = <?= $total_kab ?>;
+    var rows    = document.querySelectorAll('#tbl-kab .kab-row');
+
+    function render() {
+      var start = page * perPage;
+      var end   = Math.min(start + perPage, total);
+      rows.forEach(function(r) {
+        var idx = parseInt(r.getAttribute('data-idx'));
+        r.style.display = (idx >= start && idx < end) ? '' : 'none';
+      });
+      document.getElementById('kab-info').innerHTML =
+        'Menampilkan <strong>' + (start+1) + '–' + end + '</strong> dari <strong>' + total + '</strong> kab/kota';
+      document.getElementById('kab-page-label').textContent = 'Hal ' + (page+1);
+      document.getElementById('kab-prev').disabled = (page === 0);
+      document.getElementById('kab-next').disabled = (end >= total);
+    }
+
+    window.kabPage = function(dir) {
+      var maxPage = Math.ceil(total / perPage) - 1;
+      page = Math.max(0, Math.min(maxPage, page + dir));
+      render();
+    };
+  })();
+  </script>
+  <?php endif; ?>
+
 </div>
 <?php endif; ?>
 

@@ -166,4 +166,74 @@ class Laporan extends Auth_Controller
         fclose($f);
         exit;
     }
+
+    // ─── LAPORAN AKHIR KAB/KOTA ──────────────────────────────
+
+    public function laporan_akhir_kab()
+    {
+        $tahun      = $this->input->get('tahun') ?? $this->tahun;
+        $kabkota_id = $this->input->get('kabkota_id');
+
+        // Kab/Kota user hanya bisa lihat miliknya sendiri
+        if ($this->kabkota_id && !$this->rbac->isProvinsi()) {
+            $kabkota_id = $this->kabkota_id;
+        }
+
+        $kabkota_list = $this->Parameter_model->get_kabkota();
+        $kabkota      = $kabkota_id
+            ? $this->db->get_where('ref_kabkota', ['id' => $kabkota_id])->row()
+            : NULL;
+
+        // Data laporan hanya dimuat jika kabkota sudah dipilih
+        $data_laporan = NULL;
+        $summary      = NULL;
+        $pejabat      = [];
+        if ($kabkota_id) {
+            $data_laporan = $this->Laporan_model->get_laporan_akhir_kab($tahun, $kabkota_id);
+            $summary      = $this->Laporan_model->get_summary_laporan_kab($tahun, $kabkota_id);
+            $pejabat_rows = $this->db->where(['kabkota_id'=>$kabkota_id,'tahun'=>$tahun])
+                                     ->get('ref_pemda_pejabat')->result();
+            foreach ($pejabat_rows as $p) $pejabat[$p->jenis_jabatan] = $p;
+        }
+
+        $this->render('laporan/laporan_akhir_kab', array_merge($this->data, [
+            'title'        => 'Laporan Akhir Kab/Kota — SIBERKAH SUMUT',
+            'tahun'        => $tahun,
+            'kabkota_id'   => $kabkota_id,
+            'kabkota'      => $kabkota,
+            'kabkota_list' => $kabkota_list,
+            'data_laporan' => $data_laporan,
+            'summary'      => $summary,
+            'pejabat'      => $pejabat,
+        ]));
+    }
+
+    public function cetak_laporan_akhir_kab()
+    {
+        $tahun      = $this->input->get('tahun') ?? $this->tahun;
+        $kabkota_id = (int)$this->input->get('kabkota_id');
+
+        if ($this->kabkota_id && !$this->rbac->isProvinsi()) {
+            $kabkota_id = $this->kabkota_id;
+        }
+        if (!$kabkota_id) { redirect('laporan/laporan-akhir-kab'); return; }
+
+        $kabkota      = $this->db->get_where('ref_kabkota', ['id'=>$kabkota_id])->row();
+        $data_laporan = $this->Laporan_model->get_laporan_akhir_kab($tahun, $kabkota_id);
+        $summary      = $this->Laporan_model->get_summary_laporan_kab($tahun, $kabkota_id);
+        $pejabat_rows = $this->db->where(['kabkota_id'=>$kabkota_id,'tahun'=>$tahun])
+                                 ->get('ref_pemda_pejabat')->result();
+        $pejabat = [];
+        foreach ($pejabat_rows as $p) $pejabat[$p->jenis_jabatan] = $p;
+
+        $this->render_plain('laporan/cetak_laporan_akhir_kab', [
+            'tahun'        => $tahun,
+            'kabkota'      => $kabkota,
+            'data_laporan' => $data_laporan,
+            'summary'      => $summary,
+            'pejabat'      => $pejabat,
+            'tgl_cetak'    => date('Y-m-d'),
+            'user_nama'    => $this->data['current_user']->nama,
+        ]);
+    }
 }

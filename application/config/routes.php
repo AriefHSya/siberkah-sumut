@@ -38,7 +38,14 @@ $route['parameter/pemda']                     = 'parameter/pemda';
 $route['parameter/pemda/simpan-pejabat']      = 'parameter/pemda_simpan_pejabat';
 $route['parameter/pemda/simpan-dokumen']      = 'parameter/pemda_simpan_dokumen';
 $route['parameter/pemda/hapus-dokumen/(:num)']= 'parameter/pemda_hapus_dokumen/$1';
-$route['parameter/log']                       = 'parameter/log';
+$route['parameter/log']                            = 'parameter/log';
+$route['parameter/landing']                        = 'parameter/landing_pejabat';
+$route['parameter/landing/pejabat/simpan/(:any)']  = 'parameter/landing_pejabat_simpan/$1';
+$route['parameter/landing/pejabat/hapus/(:any)']   = 'parameter/landing_pejabat_hapus_foto/$1';
+$route['parameter/landing/slideshow']              = 'parameter/landing_slideshow';
+$route['parameter/landing/slideshow/tambah']       = 'parameter/landing_slideshow_tambah';
+$route['parameter/landing/slideshow/hapus/(:num)'] = 'parameter/landing_slideshow_hapus/$1';
+$route['parameter/landing/slideshow/urutan']       = 'parameter/landing_slideshow_urutan';
 
 // ─── ADMIN / PENGATURAN ───────────────────────────────────────
 $route['admin']                               = 'admin_users/index';
@@ -98,10 +105,17 @@ $route['verifikasi/prov/simpan-sp2d/(:num)']      = 'verif_prov/simpan_sp2d/$1';
 $route['verifikasi/prov/konfirmasi-transfer/(:num)'] = 'verif_prov/konfirmasi_transfer/$1';
 $route['verifikasi/prov/cetak-rekap']             = 'verif_prov/cetak_rekap';
 
+// ─── CAPAIAN OUTPUT ───────────────────────────────────────────
+$route['capaian']                    = 'capaian/index';
+$route['capaian/form/(:num)']        = 'capaian/form/$1';
+$route['capaian/simpan/(:num)']      = 'capaian/simpan/$1';
+
 // ─── LAPORAN ──────────────────────────────────────────────────
-$route['laporan']                    = 'laporan/index';
-$route['laporan/rekap-bkp']          = 'laporan/rekap_bkp';
-$route['laporan/cetak-rekap-bkp']    = 'laporan/cetak_rekap_bkp';
-$route['laporan/rekap-penyaluran']   = 'laporan/rekap_penyaluran';
-$route['laporan/export-bkp']         = 'laporan/export_bkp';
-$route['laporan/export-penyaluran']  = 'laporan/export_penyaluran';
+$route['laporan']                           = 'laporan/index';
+$route['laporan/rekap-bkp']                 = 'laporan/rekap_bkp';
+$route['laporan/cetak-rekap-bkp']           = 'laporan/cetak_rekap_bkp';
+$route['laporan/rekap-penyaluran']          = 'laporan/rekap_penyaluran';
+$route['laporan/export-bkp']                = 'laporan/export_bkp';
+$route['laporan/export-penyaluran']         = 'laporan/export_penyaluran';
+$route['laporan/laporan-akhir-kab']         = 'laporan/laporan_akhir_kab';
+$route['laporan/cetak-laporan-akhir-kab']   = 'laporan/cetak_laporan_akhir_kab';

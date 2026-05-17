@@ -31,8 +31,10 @@ class Pekerjaan extends Auth_Controller
             'q'               => $this->input->get('q'),
         ];
 
-        if (!$this->rbac->isProvinsi() && $this->kabkota_id) {
-            $filters['kabkota_id'] = $this->kabkota_id;
+        // Paksa filter kabkota untuk semua role kabkota (skpkd, inspektorat, opd)
+        // Gunakan -1 sebagai fallback jika kabkota_id tidak terset agar tidak tampil semua data
+        if ($this->rbac->isKabkota()) {
+            $filters['kabkota_id'] = (int)$this->kabkota_id ?: -1;
         }
 
         $total        = $this->Pekerjaan_model->count_filtered($filters);
@@ -283,8 +285,10 @@ class Pekerjaan extends Auth_Controller
         $pekerjaan = $this->Pekerjaan_model->get_by_id($id);
         if (!$pekerjaan) { show_404(); return; }
 
-        // Guard: OPD hanya bisa lihat pekerjaan milik kabkotanya
-        if (!$this->rbac->can('pekerjaan.view_all') && $pekerjaan->kabkota_id != $this->kabkota_id) {
+        // Kabkota role hanya bisa lihat pekerjaan milik kabkotanya sendiri
+        // isProvinsi dan pengawas (bukan isKabkota) bebas akses semua
+        if ($this->rbac->isKabkota()
+            && (int)$pekerjaan->kabkota_id !== (int)$this->kabkota_id) {
             $this->session->set_flashdata('error', 'Akses ditolak.');
             redirect('pekerjaan'); return;
         }
@@ -436,6 +440,15 @@ class Pekerjaan extends Auth_Controller
         if (!$tahapan) { show_404(); return; }
 
         $pekerjaan_id = $tahapan->pekerjaan_id;
+
+        // Guard kabkota
+        $pekerjaan_cek = $this->Pekerjaan_model->get_by_id($pekerjaan_id);
+        if ($this->rbac->isKabkota()
+            && $pekerjaan_cek
+            && (int)$pekerjaan_cek->kabkota_id !== (int)$this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('pekerjaan'); return;
+        }
         $jenis_dok    = $this->input->post('jenis_dokumen', TRUE);
         $keterangan   = $this->input->post('keterangan', TRUE);
 
@@ -479,8 +492,17 @@ class Pekerjaan extends Auth_Controller
         $dok = $this->Pekerjaan_model->get_dokumen_by_id($dok_id);
         if (!$dok) { show_404(); return; }
 
-        $tahapan = $this->Pekerjaan_model->get_tahapan_by_id($dok->tahapan_id);
+        $tahapan      = $this->Pekerjaan_model->get_tahapan_by_id($dok->tahapan_id);
         $pekerjaan_id = $tahapan ? $tahapan->pekerjaan_id : 0;
+
+        // Guard kabkota
+        if ($pekerjaan_id && $this->rbac->isKabkota()) {
+            $pekerjaan_cek = $this->Pekerjaan_model->get_by_id($pekerjaan_id);
+            if ($pekerjaan_cek && (int)$pekerjaan_cek->kabkota_id !== (int)$this->kabkota_id) {
+                $this->session->set_flashdata('error', 'Akses ditolak.');
+                redirect('pekerjaan'); return;
+            }
+        }
 
         $this->Pekerjaan_model->hapus_dokumen($dok_id);
         $this->session->set_flashdata('success', 'Dokumen berhasil dihapus.');

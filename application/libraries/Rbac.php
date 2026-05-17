@@ -85,6 +85,7 @@ class Rbac
             ['key'=>'reviu',      'url'=>'reviu',           'label'=>'Reviu',        'icon'=>'clipboard-check',  'perm'=>'reviu.view'],
             ['key'=>'verif_kab',  'url'=>'verifikasi/kab',  'label'=>'Verifikasi',   'icon'=>'shield-check',     'perm'=>'verif_kab.view'],
             ['key'=>'verif_prov', 'url'=>'verifikasi/prov', 'label'=>'Penyaluran',   'icon'=>'cash',             'perm'=>'verif_prov.view'],
+            ['key'=>'capaian',    'url'=>'capaian',         'label'=>'Capaian',      'icon'=>'chart-bar',        'perm'=>'capaian.view'],
             ['key'=>'laporan',    'url'=>'laporan',         'label'=>'Laporan',      'icon'=>'report',           'perm'=>'laporan.view'],
             ['key'=>'parameter',  'url'=>'parameter',       'label'=>'Parameter',    'icon'=>'adjustments-horizontal','perm'=>'parameter.view'],
             ['key'=>'admin',      'url'=>'admin/users',     'label'=>'Pengaturan',   'icon'=>'settings',         'perm'=>'admin.view'],
@@ -100,6 +101,7 @@ class Rbac
             ['key'=>'batas_waktu', 'url'=>'parameter/batas-waktu',  'label'=>'Batas Waktu',         'icon'=>'calendar-time', 'perm'=>'parameter.batas_waktu.view'],
             ['key'=>'bkp',         'url'=>'parameter/bkp',          'label'=>'Data BKP',            'icon'=>'database',      'perm'=>'parameter.bkp.view'],
             ['key'=>'pemda',       'url'=>'parameter/pemda',        'label'=>'Data Umum Pemda',     'icon'=>'building-community','perm'=>'parameter.pemda.view'],
+            ['key'=>'landing',     'url'=>'parameter/landing',      'label'=>'Tampilan Landing',    'icon'=>'photo',         'perm'=>'parameter.landing.view'],
             ['key'=>'log',         'url'=>'parameter/log',          'label'=>'Log Perubahan',       'icon'=>'history',       'perm'=>'parameter.tahun.view'],
         ];
         return array_values(array_filter($sub, fn($s) => $this->can($s['perm'])));

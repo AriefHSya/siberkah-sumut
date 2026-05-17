@@ -715,4 +715,184 @@ class Parameter extends Auth_Controller
         $d['tahun']      = $tahun;
         $this->render('parameter/log', $d);
     }
+
+    // ─── LANDING PAGE — FOTO PEJABAT ─────────────────────────
+
+    public function landing_pejabat()
+    {
+        $this->requirePerm('parameter.landing.view');
+        $pejabat_rows = $this->db->get('ref_landing_pejabat')->result();
+        $pejabat = [];
+        foreach ($pejabat_rows as $p) $pejabat[$p->jenis] = $p;
+
+        $d = $this->_d('Tampilan Landing — Foto Pejabat', 'landing');
+        $d['pejabat'] = $pejabat;
+        $this->render('parameter/landing_pejabat', $d);
+    }
+
+    public function landing_pejabat_simpan($jenis)
+    {
+        $this->requirePerm('parameter.landing.manage');
+
+        $valid_jenis = ['gubernur','wakil_gubernur','sekda','kepala_bkad'];
+        if (!in_array($jenis, $valid_jenis)) { show_404(); return; }
+
+        $nama    = $this->input->post('nama', TRUE);
+        $jabatan = $this->input->post('jabatan', TRUE);
+
+        $upload_dir = FCPATH . 'uploads/landing/pejabat/';
+        if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, TRUE);
+
+        $foto_path = NULL;
+        if (!empty($_FILES['foto']['name'])) {
+            // Tangani error PHP-level lebih dulu (file terlalu besar, dll)
+            if ($_FILES['foto']['error'] !== UPLOAD_ERR_OK) {
+                $php_errors = [
+                    UPLOAD_ERR_INI_SIZE   => 'File melebihi batas upload_max_filesize PHP (' . ini_get('upload_max_filesize') . '). Restart server dengan: php -S localhost:8080 -c php.ini router.php',
+                    UPLOAD_ERR_FORM_SIZE  => 'File melebihi batas MAX_FILE_SIZE form.',
+                    UPLOAD_ERR_PARTIAL    => 'File hanya terupload sebagian. Coba lagi.',
+                    UPLOAD_ERR_NO_FILE    => 'Tidak ada file yang dipilih.',
+                    UPLOAD_ERR_NO_TMP_DIR => 'Folder temp tidak ditemukan.',
+                    UPLOAD_ERR_CANT_WRITE => 'Gagal menulis file ke disk.',
+                ];
+                $err_msg = $php_errors[$_FILES['foto']['error']] ?? 'Error upload kode: ' . $_FILES['foto']['error'];
+                $this->session->set_flashdata('error', $err_msg);
+                redirect('parameter/landing'); return;
+            }
+
+            $this->load->library('upload');
+            $this->upload->initialize([
+                'upload_path'   => $upload_dir,
+                'allowed_types' => 'jpg|jpeg|png',
+                'max_size'      => 20480, // 20MB — PHP limit dikontrol oleh php.ini
+                'file_name'     => 'pejabat_' . $jenis . '_' . time(),
+            ]);
+            if (!$this->upload->do_upload('foto')) {
+                $this->session->set_flashdata('error',
+                    'Upload foto gagal: ' . $this->upload->display_errors('', ''));
+                redirect('parameter/landing'); return;
+            }
+            $up = $this->upload->data();
+
+            // Hapus foto lama jika ada
+            $lama = $this->db->get_where('ref_landing_pejabat', ['jenis' => $jenis])->row();
+            if ($lama && $lama->foto_path && file_exists(FCPATH . $lama->foto_path)) {
+                @unlink(FCPATH . $lama->foto_path);
+            }
+            $foto_path = 'uploads/landing/pejabat/' . $up['file_name'];
+        }
+
+        $data = ['nama' => $nama, 'jabatan' => $jabatan, 'updated_by' => $this->user_id];
+        if ($foto_path) $data['foto_path'] = $foto_path;
+
+        $this->db->where('jenis', $jenis)->update('ref_landing_pejabat', $data);
+        $this->log_aktivitas('parameter.landing.pejabat', 'Update foto ' . $jenis);
+        $this->session->set_flashdata('success', 'Data ' . ucfirst(str_replace('_',' ',$jenis)) . ' berhasil disimpan.');
+        redirect('parameter/landing');
+    }
+
+    public function landing_pejabat_hapus_foto($jenis)
+    {
+        $this->requirePerm('parameter.landing.manage');
+        $row = $this->db->get_where('ref_landing_pejabat', ['jenis' => $jenis])->row();
+        if ($row && $row->foto_path && file_exists(FCPATH . $row->foto_path)) {
+            @unlink(FCPATH . $row->foto_path);
+        }
+        $this->db->where('jenis', $jenis)->update('ref_landing_pejabat', ['foto_path' => NULL]);
+        $this->session->set_flashdata('success', 'Foto berhasil dihapus.');
+        redirect('parameter/landing');
+    }
+
+    // ─── LANDING PAGE — SLIDESHOW ─────────────────────────────
+
+    public function landing_slideshow()
+    {
+        $this->requirePerm('parameter.landing.view');
+        $list = $this->db->where('is_active', 1)
+                         ->order_by('urutan', 'ASC')
+                         ->get('ref_landing_slideshow')->result();
+
+        $d = $this->_d('Tampilan Landing — Slideshow', 'landing');
+        $d['list'] = $list;
+        $this->render('parameter/landing_slideshow', $d);
+    }
+
+    public function landing_slideshow_tambah()
+    {
+        $this->requirePerm('parameter.landing.manage');
+
+        $upload_dir = FCPATH . 'uploads/landing/slideshow/';
+        if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, TRUE);
+
+        // Cek PHP-level error
+        if (isset($_FILES['foto']) && $_FILES['foto']['error'] !== UPLOAD_ERR_OK && $_FILES['foto']['error'] !== UPLOAD_ERR_NO_FILE) {
+            $php_errors = [
+                UPLOAD_ERR_INI_SIZE  => 'File melebihi batas upload_max_filesize PHP (' . ini_get('upload_max_filesize') . '). Restart server dengan: php -S localhost:8080 -c php.ini router.php',
+                UPLOAD_ERR_PARTIAL   => 'File hanya terupload sebagian.',
+                UPLOAD_ERR_NO_TMP_DIR=> 'Folder temp tidak ditemukan.',
+                UPLOAD_ERR_CANT_WRITE=> 'Gagal menulis file ke disk.',
+            ];
+            $this->session->set_flashdata('error', $php_errors[$_FILES['foto']['error']] ?? 'Error upload kode: ' . $_FILES['foto']['error']);
+            redirect('parameter/landing/slideshow'); return;
+        }
+
+        $this->load->library('upload');
+        $this->upload->initialize([
+            'upload_path'   => $upload_dir,
+            'allowed_types' => 'jpg|jpeg|png',
+            'max_size'      => 20480, // 20MB
+            'file_name'     => 'slide_' . time(),
+        ]);
+
+        if (!$this->upload->do_upload('foto')) {
+            $this->session->set_flashdata('error',
+                'Upload gagal: ' . $this->upload->display_errors('', ''));
+            redirect('parameter/landing/slideshow'); return;
+        }
+
+        $up  = $this->upload->data();
+        $max = $this->db->select_max('urutan')->get('ref_landing_slideshow')->row();
+
+        $this->db->insert('ref_landing_slideshow', [
+            'judul'      => $this->input->post('judul', TRUE),
+            'foto_path'  => 'uploads/landing/slideshow/' . $up['file_name'],
+            'caption'    => $this->input->post('caption', TRUE),
+            'urutan'     => ($max->urutan ?? 0) + 1,
+            'created_by' => $this->user_id,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->log_aktivitas('parameter.landing.slideshow', 'Tambah foto slideshow');
+        $this->session->set_flashdata('success', 'Foto slideshow berhasil ditambahkan.');
+        redirect('parameter/landing/slideshow');
+    }
+
+    public function landing_slideshow_hapus($id)
+    {
+        $this->requirePerm('parameter.landing.manage');
+        $row = $this->db->get_where('ref_landing_slideshow', ['id' => $id])->row();
+        if (!$row) { show_404(); return; }
+
+        if ($row->foto_path && file_exists(FCPATH . $row->foto_path)) {
+            @unlink(FCPATH . $row->foto_path);
+        }
+        $this->db->delete('ref_landing_slideshow', ['id' => $id]);
+
+        $this->log_aktivitas('parameter.landing.slideshow', 'Hapus foto slideshow id=' . $id);
+        $this->session->set_flashdata('success', 'Foto berhasil dihapus.');
+        redirect('parameter/landing/slideshow');
+    }
+
+    public function landing_slideshow_urutan()
+    {
+        $this->requirePerm('parameter.landing.manage');
+        $ids = $this->input->post('ids');
+        if (!is_array($ids)) { $this->json(['ok' => FALSE]); return; }
+
+        foreach ($ids as $urutan => $id) {
+            $this->db->where('id', (int)$id)
+                     ->update('ref_landing_slideshow', ['urutan' => (int)$urutan]);
+        }
+        $this->json(['ok' => TRUE]);
+    }
 }

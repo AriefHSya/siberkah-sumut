@@ -37,8 +37,8 @@ class Verif_kab extends Auth_Controller
             'q'          => $this->input->get('q'),
         ];
 
-        if ($this->role_kode === 'skpkd_kabkota' && $this->kabkota_id) {
-            $filters['kabkota_id'] = $this->kabkota_id;
+        if ($this->rbac->isKabkota()) {
+            $filters['kabkota_id'] = (int)$this->kabkota_id ?: -1;
         }
 
         $total        = $this->Verifikasi_kab_model->count_filtered($filters);

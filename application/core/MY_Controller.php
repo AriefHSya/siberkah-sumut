@@ -112,6 +112,10 @@ class Guest_Controller extends MY_Controller
     public function __construct()
     {
         parent::__construct();
-        if ($this->session->userdata('logged_in')) { redirect('dashboard'); exit; }
+        // Izinkan logout meski sudah login; blokir halaman lain jika sudah login
+        if ($this->session->userdata('logged_in')
+            && $this->router->fetch_method() !== 'logout') {
+            redirect('dashboard'); exit;
+        }
     }
 }

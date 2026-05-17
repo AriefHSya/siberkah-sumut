@@ -6,7 +6,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Times New Roman',Times,serif;font-size:10.5pt;color:#000;padding:1cm 1.5cm;line-height:1.5}
-.kop{text-align:center;border-bottom:3px double #000;padding-bottom:8px;margin-bottom:14px}
+.kop{border-bottom:3px double #000;padding-bottom:8px;margin-bottom:16px;display:flex;align-items:center;gap:14px}.kop-logo{flex-shrink:0}.kop-text{flex:1;text-align:center}
 .kop h1{font-size:13pt;text-transform:uppercase;font-weight:bold}
 h2{font-size:11pt;text-align:center;text-transform:uppercase;margin:10px 0 8px;font-weight:bold}
 .filter-info{font-size:9pt;color:#555;margin-bottom:12px;text-align:center}
@@ -46,7 +46,8 @@ h2{font-size:11pt;text-align:center;text-transform:uppercase;margin:10px 0 8px;f
 </div>
 
 <div class="kop">
-  <h1>BADAN KEUANGAN DAN ASET DAERAH<br>PROVINSI SUMATERA UTARA</h1>
+  <div class="kop-logo"><img src="<?= base_url('assets/img/logo-siberkah.png') ?>" alt="Logo SIBERKAH" style="height:64px;width:64px;object-fit:contain"></div>
+  <div class="kop-text"><h1>BADAN KEUANGAN DAN ASET DAERAH<br>PROVINSI SUMATERA UTARA</h1></div>
 </div>
 
 <h2>REKAPITULASI PENYALURAN BANTUAN KEUANGAN PROVINSI<br>
