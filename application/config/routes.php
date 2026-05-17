@@ -66,6 +66,9 @@ $route['admin/roles/hapus/(:num)']            = 'admin_roles/hapus/$1';
 $route['admin/roles/permissions/(:num)']      = 'admin_roles/permissions/$1';
 $route['admin/roles/save-permissions/(:num)'] = 'admin_roles/save_permissions/$1';
 $route['admin/roles/logs']                    = 'admin_roles/logs';
+$route['admin/telegram']                      = 'admin_telegram/index';
+$route['admin/telegram/simpan-token']         = 'admin_telegram/simpan_token';
+$route['admin/telegram/test/(:num)']          = 'admin_telegram/test/$1';
 
 // ─── PEKERJAAN ────────────────────────────────────────────────
 $route['pekerjaan']                           = 'pekerjaan/index';

@@ -286,7 +286,7 @@ class Verif_kab extends Auth_Controller
             $pekerjaan->id
         );
 
-        // Jika disetujui → notifikasi Admin Provinsi
+        // Jika disetujui → notifikasi in-app + Telegram ke Admin Provinsi
         if ($hasil === 'disetujui') {
             $admin_prov_users = $this->db
                 ->select('u.id')->from('users u')
@@ -303,6 +303,55 @@ class Verif_kab extends Auth_Controller
                     $pekerjaan->id
                 );
             }
+
+            // ── Telegram Notification ──────────────────────────
+            // Hitung total pending dari kabkota ini (status skpkd_kab_approved)
+            $total_pending = $this->db
+                ->from('trx_pekerjaan p')
+                ->join('ref_bkp b', 'b.id = p.bkp_id')
+                ->where('b.kabkota_id', $pekerjaan->kabkota_id)
+                ->where('b.tahun', $pekerjaan->tahun)
+                ->where('p.status', 'skpkd_kab_approved')
+                ->count_all_results();
+
+            $total_nilai_pending = $this->db
+                ->select('SUM(p.nilai_kontrak) as total')
+                ->from('trx_pekerjaan p')
+                ->join('ref_bkp b', 'b.id = p.bkp_id')
+                ->where('b.kabkota_id', $pekerjaan->kabkota_id)
+                ->where('b.tahun', $pekerjaan->tahun)
+                ->where('p.status', 'skpkd_kab_approved')
+                ->get()->row();
+
+            $label_jenis = [
+                'bertahap'       => 'Bertahap',
+                'sekaligus'      => 'Sekaligus',
+                'khusus_mendesak'=> 'Khusus Mendesak',
+                'khusus_bencana' => 'Darurat Bencana',
+            ];
+            $jenis_label = $label_jenis[$pekerjaan->jenis_penyaluran] ?? $pekerjaan->jenis_penyaluran;
+            $kode_tahap  = strtoupper(str_replace('_',' ',$tahapan->kode_tahap ?? ''));
+            $jenis_full  = $kode_tahap ? $jenis_label . ' – ' . $kode_tahap : $jenis_label;
+
+            $waktu = date('d/m/Y \p\u\k\u\l H:i:s');
+
+            $msg  = "🏛 <b>PERMOHONAN PENCAIRAN BKP MASUK</b>\n\n";
+            $msg .= "📍 <b>Kab/Kota :</b> " . htmlspecialchars($pekerjaan->nama_kabkota) . "\n";
+            $msg .= "📋 <b>Jenis     :</b> " . $jenis_full . "\n";
+            $msg .= "🏗 <b>Kode BKP  :</b> " . htmlspecialchars($pekerjaan->kode_bkp) . "\n";
+            $msg .= "📌 <b>Kegiatan  :</b> " . htmlspecialchars($pekerjaan->nama_kegiatan_dok ?: $pekerjaan->uraian_bkp) . "\n";
+            $msg .= "💰 <b>Nilai     :</b> Rp " . number_format($pekerjaan->nilai_kontrak, 0, ',', '.') . "\n";
+            $msg .= "\n";
+            $msg .= "📊 <b>Total Pending dari " . htmlspecialchars($pekerjaan->nama_kabkota) . ":</b>\n";
+            $msg .= "   • <b>" . $total_pending . " kegiatan</b>";
+            if ($total_nilai_pending && $total_nilai_pending->total) {
+                $msg .= " | Rp " . number_format($total_nilai_pending->total, 0, ',', '.');
+            }
+            $msg .= "\n\n";
+            $msg .= "📅 <b>" . $waktu . " WIB</b>\n";
+            $msg .= "<i>— Sistem SIBERKAH SUMUT TA " . $pekerjaan->tahun . "</i>";
+
+            telegram_notif_admin_prov($msg);
         }
 
         $flash_map = [

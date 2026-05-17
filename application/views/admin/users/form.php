@@ -39,6 +39,13 @@
       </select>
     </div>
     <div class="form-group"><label>Nama OPD/Dinas <span class="text-xs text-muted">(jika OPD Teknis)</span></label><input type="text" name="opd_nama" class="form-control" value="<?= htmlspecialchars($user->opd_nama??'') ?>" placeholder="Dinas PUPR Kab. Samosir"></div>
+    <div class="form-group">
+      <label>Telegram Chat ID <span class="text-xs text-muted">(notifikasi — Admin Provinsi & Superadmin)</span></label>
+      <input type="text" name="telegram_chat_id" class="form-control fc"
+             value="<?= htmlspecialchars($user->telegram_chat_id??'') ?>"
+             placeholder="Contoh: 123456789">
+      <small class="text-muted">Cara dapat Chat ID: kirim /start ke bot → buka <code>t.me/userinfobot</code> atau gunakan <code>/getUpdates</code> di API bot.</small>
+    </div>
   </div>
   <div class="form-actions">
     <a href="<?= site_url('admin/users') ?>" class="btn btn-outline">Batal</a>

@@ -61,10 +61,11 @@ class Admin_users extends Auth_Controller
             'role_id'        => $this->input->post('role_id',TRUE),
             'kabkota_id'     => $this->input->post('kabkota_id',TRUE) ?: NULL,
             'instansi_jenis' => $this->input->post('instansi_jenis',TRUE),
-            'opd_nama'       => $this->input->post('opd_nama',TRUE),
-            'jabatan'        => $this->input->post('jabatan',TRUE),
-            'is_active'      => 1,
-            'created_by'     => $this->user_id,
+            'opd_nama'          => $this->input->post('opd_nama',TRUE),
+            'jabatan'           => $this->input->post('jabatan',TRUE),
+            'telegram_chat_id'  => $this->input->post('telegram_chat_id',TRUE) ?: NULL,
+            'is_active'         => 1,
+            'created_by'        => $this->user_id,
         ];
         $this->User_model->insert($data);
         $this->log_aktivitas('admin.user.tambah','Tambah user '.$username);
@@ -101,8 +102,9 @@ class Admin_users extends Auth_Controller
             'role_id'        => $this->input->post('role_id',TRUE),
             'kabkota_id'     => $this->input->post('kabkota_id',TRUE) ?: NULL,
             'instansi_jenis' => $this->input->post('instansi_jenis',TRUE),
-            'opd_nama'       => $this->input->post('opd_nama',TRUE),
-            'jabatan'        => $this->input->post('jabatan',TRUE),
+            'opd_nama'         => $this->input->post('opd_nama',TRUE),
+            'jabatan'          => $this->input->post('jabatan',TRUE),
+            'telegram_chat_id' => $this->input->post('telegram_chat_id',TRUE) ?: NULL,
         ];
         $pw = $this->input->post('password');
         if (!empty($pw)) $data['password'] = password_hash($pw, PASSWORD_BCRYPT);

@@ -111,8 +111,9 @@ class Rbac
     public function getSubPengaturan()
     {
         return [
-            ['key'=>'users', 'url'=>'admin/users', 'label'=>'Manajemen User',   'icon'=>'users'],
-            ['key'=>'roles', 'url'=>'admin/roles', 'label'=>'Role & Hak Akses', 'icon'=>'shield-lock'],
+            ['key'=>'users',    'url'=>'admin/users',    'label'=>'Manajemen User',   'icon'=>'users'],
+            ['key'=>'roles',    'url'=>'admin/roles',    'label'=>'Role & Hak Akses', 'icon'=>'shield-lock'],
+            ['key'=>'telegram', 'url'=>'admin/telegram', 'label'=>'Notif Telegram',   'icon'=>'brand-telegram'],
         ];
     }
 
