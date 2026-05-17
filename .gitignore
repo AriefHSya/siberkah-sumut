@@ -1,21 +1,25 @@
-# Konfigurasi dengan credentials
-application/config/database.php
-application/config/config.php
+# Config lokal dengan credentials hardcoded — jangan commit jika masih pakai nilai lokal
+# database.php dan config.php SUDAH AMAN di-commit karena pakai getenv()
 
-# Upload files — jangan commit ke git
+# Upload files — jangan commit ke git (data user)
 uploads/
 
-# Session & cache
+# Session & cache runtime
 application/cache/sessions/
-application/cache/
+application/cache/import_tmp/
 application/logs/
 
 # macOS
 .DS_Store
 
-# SQL setup (berisi password default)
+# SQL setup files (berisi password default)
 siberkah_sumut_v4_setup.sql
+landing_migration.sql
 
 # IDE
 .vscode/
 .idea/
+
+# PHP local config override
+php.ini
+.user.ini
