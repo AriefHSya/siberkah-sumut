@@ -1,0 +1,21 @@
+# Konfigurasi dengan credentials
+application/config/database.php
+application/config/config.php
+
+# Upload files — jangan commit ke git
+uploads/
+
+# Session & cache
+application/cache/sessions/
+application/cache/
+application/logs/
+
+# macOS
+.DS_Store
+
+# SQL setup (berisi password default)
+siberkah_sumut_v4_setup.sql
+
+# IDE
+.vscode/
+.idea/
