@@ -32,16 +32,17 @@ RUN echo '<Directory /var/www/html>\n\
 RUN mkdir -p application/cache/sessions \
              application/cache/import_tmp \
              application/logs \
-             uploads/dokumen \
-             uploads/lhr \
-             uploads/permohonan \
+             uploads/dokumen uploads/lhr uploads/permohonan \
              uploads/capaian \
-             uploads/landing/pejabat \
-             uploads/landing/slideshow \
+             uploads/landing/pejabat uploads/landing/slideshow \
     && chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html \
-    && chmod -R 777 application/cache \
-    && chmod -R 777 application/logs \
-    && chmod -R 777 uploads
+    && chmod -R 777 application/cache application/logs uploads
+
+# Entrypoint: handle Railway $PORT + logging
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 80
+
+CMD ["/docker-entrypoint.sh"]
