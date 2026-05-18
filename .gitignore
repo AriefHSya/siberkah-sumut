@@ -26,3 +26,7 @@ database/seed_data.sql
 # PHP local config override
 php.ini
 .user.ini
+
+# Docker files — hanya ada di branch railway-deploy
+Dockerfile
+docker-entrypoint.sh
