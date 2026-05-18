@@ -6,8 +6,9 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install mysqli pdo pdo_mysql zip gd \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Aktifkan mod_rewrite Apache
-RUN a2enmod rewrite
+# Fix MPM conflict: pastikan hanya mpm_prefork yang aktif (diperlukan PHP)
+RUN a2dismod mpm_event mpm_worker 2>/dev/null || true \
+    && a2enmod mpm_prefork rewrite
 
 # Set working directory
 WORKDIR /var/www/html
