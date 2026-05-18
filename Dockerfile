@@ -6,12 +6,12 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install mysqli pdo pdo_mysql zip gd \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Fix MPM conflict: hapus semua MPM symlink, aktifkan hanya mpm_prefork
-RUN rm -f /etc/apache2/mods-enabled/mpm_event.* \
-          /etc/apache2/mods-enabled/mpm_worker.* \
-          /etc/apache2/mods-enabled/mpm_prefork.* \
-    && ln -s /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load \
-    && ln -s /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf \
+# Fix MPM conflict: comment out SEMUA LoadModule mpm_* di seluruh apache2 config,
+# lalu tulis ulang hanya mpm_prefork
+RUN find /etc/apache2 -name "*.load" -exec \
+        sed -i 's/^\(LoadModule mpm_\)/#\1/' {} \; \
+    && echo "LoadModule mpm_prefork_module /usr/lib/apache2/modules/mod_mpm_prefork.so" \
+        > /etc/apache2/mods-enabled/mpm_prefork.load \
     && a2enmod rewrite
 
 # Set working directory
