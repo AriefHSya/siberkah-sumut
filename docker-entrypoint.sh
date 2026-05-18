@@ -21,4 +21,4 @@ chmod -R 777 /var/www/html/application/cache \
              /var/www/html/application/logs \
              /var/www/html/uploads
 
-exec apache2-foreground
+exec /usr/sbin/apache2ctl -DFOREGROUND
