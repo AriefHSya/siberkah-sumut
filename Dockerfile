@@ -6,10 +6,11 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install mysqli pdo pdo_mysql zip gd \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Fix MPM conflict: comment out SEMUA LoadModule mpm_* di seluruh apache2 config,
-# lalu tulis ulang hanya mpm_prefork
+# Fix MPM conflict: hapus .load + .conf event/worker, aktifkan hanya prefork
 RUN find /etc/apache2 -name "*.load" -exec \
         sed -i 's/^\(LoadModule mpm_\)/#\1/' {} \; \
+    && rm -f /etc/apache2/mods-enabled/mpm_event.conf \
+             /etc/apache2/mods-enabled/mpm_worker.conf \
     && echo "LoadModule mpm_prefork_module /usr/lib/apache2/modules/mod_mpm_prefork.so" \
         > /etc/apache2/mods-enabled/mpm_prefork.load \
     && a2enmod rewrite
