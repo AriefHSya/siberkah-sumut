@@ -148,7 +148,7 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
       <i class="ti ti-circle-half-2"></i> Realisasi Penyaluran Dana
     </div>
     <div style="position:relative;width:160px;height:160px;margin:8px auto;flex-shrink:0">
-      <canvas id="chartRealisasi" style="display:block;width:160px!important;height:160px!important"></canvas>
+      <canvas id="chartRealisasi" width="160" height="160" style="display:block"></canvas>
       <div style="position:absolute;inset:0;display:flex;flex-direction:column;
                   align-items:center;justify-content:center;pointer-events:none">
         <div style="font-size:22px;font-weight:700;color:<?= $pct_realisasi > 0 ? 'var(--teal-mid)' : 'var(--text-muted)' ?>;line-height:1"><?= $pct_realisasi ?>%</div>
@@ -177,7 +177,7 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
       <i class="ti ti-chart-pie"></i> Status Pekerjaan
     </div>
     <div style="width:160px;height:160px;margin:8px auto;flex-shrink:0">
-      <canvas id="chartStatus" style="display:block;width:160px!important;height:160px!important"></canvas>
+      <canvas id="chartStatus" width="160" height="160" style="display:block"></canvas>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11px;margin-top:6px;justify-content:center">
       <div style="display:flex;align-items:center;gap:4px">
@@ -297,29 +297,34 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
 <!-- ══════════════════════════════════════════════════════════════
      BARIS GRAFIK 2: Distribusi per Bidang + Grafik Bar Kab/Kota
      ══════════════════════════════════════════════════════════════ -->
-<?php if (!empty($per_bidang)): ?>
 <div class="<?= $is_provinsi && !empty($top_kab) ? 'g2' : '' ?> mb-2">
 
   <!-- Grafik Bar Horizontal — Per Bidang -->
   <div class="card">
     <div class="card-title"><i class="ti ti-chart-bar"></i> Distribusi Pekerjaan per Bidang</div>
-    <div style="position:relative;height:<?= min(400, max(200, count($per_bidang) * 36)) ?>px">
+    <?php if (!empty($per_bidang)): ?>
+    <div style="position:relative;height:<?= min(400, max(180, count($per_bidang) * 38)) ?>px">
       <canvas id="chartBidang"></canvas>
     </div>
+    <?php else: ?>
+    <div style="padding:32px;text-align:center;color:var(--text-muted)">
+      <i class="ti ti-chart-bar" style="font-size:36px;opacity:0.3;display:block;margin-bottom:8px"></i>
+      <div class="text-sm">Belum ada data pekerjaan TA <?= $tahun ?></div>
+    </div>
+    <?php endif; ?>
   </div>
 
   <?php if ($is_provinsi && !empty($top_kab)): ?>
-  <!-- Grafik Bar — Top Kab/Kota Realisasi -->
+  <!-- Grafik Bar — Top Kab/Kota Realisasi (hanya provinsi) -->
   <div class="card">
     <div class="card-title"><i class="ti ti-map-pin"></i> Realisasi Penyaluran per Kab/Kota (Top 10)</div>
-    <div style="position:relative;height:<?= min(400, max(200, count($top_kab) * 36)) ?>px">
+    <div style="position:relative;height:<?= min(400, max(180, count($top_kab) * 38)) ?>px">
       <canvas id="chartKabkota"></canvas>
     </div>
   </div>
   <?php endif; ?>
 
 </div>
-<?php endif; ?>
 
 <!-- ══════════════════════════════════════════════════════════════
      BARIS GRAFIK 3: Notifikasi + Akses Cepat
