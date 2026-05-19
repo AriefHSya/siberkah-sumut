@@ -22,6 +22,10 @@ RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/Allo
 # Set working directory
 WORKDIR /var/www/html
 
+# Hapus default Apache page — Apache prioritaskan index.html di atas index.php
+# Tanpa ini, Debian default page muncul alih-alih aplikasi kita
+RUN rm -f /var/www/html/index.html
+
 # Copy semua file project
 COPY . .
 
