@@ -1,4 +1,29 @@
 <?php
+/**
+ * Parameter_model.php — Model Data Referensi & Konfigurasi
+ *
+ * Model terbesar — akses semua tabel referensi yang dikontrol Parameter_controller.
+ *
+ * TABEL YANG DIKELOLA:
+ *   ref_tahun           — tahun anggaran multi-year
+ *   ref_batas_waktu     — deadline pengajuan per jenis per tahun (KRITIS: memblokir submit OPD)
+ *   ref_bkp             — data BKP per tahun per kab/kota
+ *   ref_kabkota         — 33 Kab/Kota Sumatera Utara (read-only dari sini)
+ *   ref_bidang          — 12 bidang kegiatan (read-only dari sini)
+ *   ref_pemda_pejabat   — KDH, Kepala BKAD, Inspektur per kab per tahun
+ *   ref_pemda_dokumen   — Perda/Pergub/Perkada per kab per tahun
+ *   batas_waktu_log     — audit trail perubahan batas waktu
+ *
+ * SECTION:
+ *   A. ref_tahun       — get_all_tahun(), get_tahun_aktif(), tahun_exists(), insert/hapus
+ *   B. ref_batas_waktu — get_batas_waktu(), cek_deadline(), insert/update
+ *   C. ref_bkp         — get_bkp(), bkp_exists(), insert/update/hapus, rekap
+ *   D. ref_pemda       — get_pejabat(), get_dokumen(), simpan/hapus
+ *   E. Shared          — get_kabkota(), get_bidang()
+ *
+ * CRITICAL: cek_deadline($tahun, $jenis) — dipanggil Pekerjaan::submit()
+ *   Jika deadline sudah lewat, submit DIBLOKIR (hard block, tidak bisa di-override).
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Parameter_model extends CI_Model

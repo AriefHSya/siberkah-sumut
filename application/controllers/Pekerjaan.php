@@ -2,8 +2,28 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Pekerjaan Controller — Sprint 2
- * Handles: daftar, input, edit, detail, upload dok, submit ke Inspektorat
+ * Pekerjaan.php — Controller Manajemen Pekerjaan BKP
+ *
+ * Menangani seluruh siklus data pekerjaan dari input OPD Teknis
+ * hingga submit ke Inspektorat untuk reviu.
+ *
+ * ROUTES (lihat config/routes.php untuk mapping lengkap):
+ *   GET  /pekerjaan                    → index()           — daftar pekerjaan (paginated + filter)
+ *   GET  /pekerjaan/input              → input()           — form tambah pekerjaan baru
+ *   POST /pekerjaan/simpan             → simpan()          — proses simpan pekerjaan baru
+ *   GET  /pekerjaan/edit/{id}          → edit()            — form edit pekerjaan
+ *   POST /pekerjaan/update/{id}        → update()          — proses update
+ *   GET  /pekerjaan/detail/{id}        → detail()          — detail + timeline status
+ *   POST /pekerjaan/submit/{id}        → submit()          — kirim ke Inspektorat
+ *   POST /pekerjaan/upload-dok         → upload_dok()      — upload dokumen persyaratan
+ *   POST /pekerjaan/hapus-dok          → hapus_dok()       — hapus dokumen
+ *   GET  /pekerjaan/cetak/{id}         → cetak_permohonan() — cetak PDF permohonan
+ *
+ * AKSES:
+ *   - Semua method memerlukan permission 'pekerjaan.view'
+ *   - input/simpan memerlukan 'pekerjaan.input'
+ *   - submit memerlukan 'pekerjaan.submit'
+ *   - Role kabkota hanya bisa melihat pekerjaan kabkota mereka sendiri (guard IDOR)
  */
 class Pekerjaan extends Auth_Controller
 {

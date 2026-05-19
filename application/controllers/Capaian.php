@@ -1,4 +1,23 @@
 <?php
+/**
+ * Capaian.php — Controller Input Capaian Output Fisik
+ *
+ * Menangani input realisasi capaian output fisik pekerjaan setelah
+ * Tahap I dikonfirmasi. Diperlukan sebelum pengajuan Tahap II (jenis bertahap).
+ *
+ * ALUR:
+ *   Dana Tahap I dikonfirmasi (status 'dikonfirmasi')
+ *   → OPD Teknis input capaian (% fisik, volume, keterangan)
+ *   → Notifikasi ke SKPKD Kab bahwa capaian sudah diisi
+ *
+ * ROUTES:
+ *   GET  /capaian                   → index()        — daftar pekerjaan perlu input capaian
+ *   GET  /capaian/form/{pekerjaan_id} → form()       — form input capaian
+ *   POST /capaian/simpan/{id}       → simpan()       — proses simpan capaian
+ *
+ * DATA MODEL: trx_capaian_output (kolom: persen_fisik, volume_realisasi, keterangan)
+ * AKSES: opd_teknis (input), skpkd_kabkota dan provinsi (view)
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Capaian extends Auth_Controller

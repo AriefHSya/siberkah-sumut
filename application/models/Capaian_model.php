@@ -2,9 +2,26 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Capaian_model
- * Schema DB: trx_tahapan_penyaluran.kode_tahap = 'tahap_1' (dengan underscore)
- *            kolom porsi: persen_nilai (bukan porsi_persen)
+ * Capaian_model.php — Model Capaian Output Fisik
+ *
+ * Akses data capaian realisasi output fisik pekerjaan.
+ * Capaian wajib diisi OPD setelah Tahap I dikonfirmasi,
+ * sebelum bisa mengajukan Tahap II (untuk jenis bertahap).
+ *
+ * TABEL UTAMA: trx_capaian_output
+ * JOIN       : trx_tahapan_penyaluran, trx_pekerjaan, ref_bkp
+ *
+ * SKEMA PENTING (jangan salah nama kolom):
+ *   trx_tahapan_penyaluran.kode_tahap = 'tahap_1' (DENGAN underscore, bukan 'tahap1')
+ *   trx_tahapan_penyaluran.persen_nilai (bukan porsi_persen)
+ *   Konstanta KODE_TAHAP1 = 'tahap_1' tersedia untuk referensi
+ *
+ * METHOD UTAMA:
+ *   get_list($filters)              — daftar pekerjaan perlu input capaian (paginated)
+ *   count_filtered($filters)        — hitung untuk pagination
+ *   get_detail($pekerjaan_id)       — detail pekerjaan + tahapan untuk form capaian
+ *   get_by_tahapan($tahapan_id)     — data capaian satu tahapan (jika sudah ada)
+ *   simpan($tahapan_id, $data)      — upsert capaian (insert atau update)
  */
 class Capaian_model extends CI_Model
 {

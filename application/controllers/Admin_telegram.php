@@ -1,4 +1,23 @@
 <?php
+/**
+ * Admin_telegram.php — Controller Konfigurasi Notifikasi Telegram
+ *
+ * Mengelola token bot Telegram dan chat_id per user admin,
+ * serta mengirim pesan test untuk verifikasi konfigurasi.
+ *
+ * Notifikasi Telegram dikirim secara otomatis oleh:
+ *   - Verif_kab::putuskan() → setelah permohonan disetujui kab
+ *
+ * ROUTES:
+ *   GET  /admin/telegram           → index()        — form pengaturan token bot
+ *   POST /admin/telegram/simpan    → simpan_token() — simpan BOT_TOKEN ke ref_config
+ *   GET  /admin/telegram/test/{id} → test()         — kirim pesan test ke user
+ *
+ * KONFIGURASI:
+ *   - BOT_TOKEN disimpan di tabel ref_config (key='telegram_bot_token')
+ *   - chat_id per user disimpan di tabel users.telegram_chat_id
+ *   - Helper: telegram_helper.php → telegram_send(), telegram_notif_admin_prov()
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Admin_telegram extends Auth_Controller

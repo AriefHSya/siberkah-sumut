@@ -1,4 +1,33 @@
 <?php
+/**
+ * siberkah_helper.php — Helper Functions Global SIBERKAH SUMUT
+ *
+ * Di-autoload via application/config/autoload.php.
+ * Tersedia di semua view dan controller tanpa perlu load manual.
+ *
+ * FUNGSI TERSEDIA:
+ *
+ *   FORMAT ANGKA:
+ *     rupiah($angka)          → "Rp 1.000.000"
+ *     rupiah_juta($angka)     → "Rp 1,00 Jt"
+ *
+ *   FORMAT TANGGAL:
+ *     tgl_indo($tgl)          → "15 Oktober 2026"  (dari 'Y-m-d')
+ *     tgl_short($tgl)         → "15/10/2026" atau "15/10/2026 14:30"
+ *
+ *   BADGE HTML (output HTML, selalu escape sebelum concat dengan user input):
+ *     badge_status($status)   → <span class="badge badge-{warna}">{label}</span>
+ *     badge_jenis($jenis)     → badge untuk jenis_penyaluran
+ *     badge_role($kode)       → badge untuk kode role
+ *
+ *   DEADLINE:
+ *     deadline_info($tgl)     → string keterangan sisa hari / sudah lewat
+ *     is_deadline_lewat($tgl) → bool: TRUE jika batas waktu sudah terlewati
+ *
+ *   DOKUMEN:
+ *     label_jenis_dok($jenis) → label teks untuk jenis dokumen
+ *     icon_file($path)        → class Tabler icon sesuai ekstensi file
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 // ── Format Angka ──────────────────────────────────────────────

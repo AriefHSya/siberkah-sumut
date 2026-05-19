@@ -1,4 +1,30 @@
 <?php
+/**
+ * Notifikasi_model.php — Model Notifikasi In-App
+ *
+ * Notifikasi antar user dalam sistem (bukan email/SMS/Telegram).
+ * Ditampilkan di top-bar — di-load setiap request via Auth_Controller.
+ *
+ * TABEL: trx_notifikasi
+ * KOLOM: user_id (penerima), judul, pesan, jenis, url, pekerjaan_id,
+ *        tahapan_id, is_read, created_at
+ *
+ * JENIS NOTIFIKASI: info | sukses | peringatan | error
+ *
+ * CARA KIRIM:
+ *   $this->Notifikasi_model->kirim(
+ *     $user_id,      // penerima
+ *     'Judul',
+ *     'Pesan...',
+ *     'info',        // jenis
+ *     site_url('url/tujuan'),
+ *     $pekerjaan_id, // opsional, untuk link langsung
+ *     $tahapan_id    // opsional
+ *   );
+ *
+ * CATATAN: Notifikasi hanya muncul saat page refresh (tidak realtime).
+ * Untuk realtime, perlu WebSocket atau polling JS (belum diimplementasi).
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Notifikasi_model extends CI_Model

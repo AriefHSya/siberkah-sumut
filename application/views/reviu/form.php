@@ -318,9 +318,6 @@
 <?php endif; ?>
 <?php endif; // end can reviu.input ?>
 
-<style>
-.ck-row-masalah td { background: #fff8f8; }
-</style>
 <script>
 function onNilaiChange(itemId, nilai) {
   const row = document.getElementById('row-' + itemId);

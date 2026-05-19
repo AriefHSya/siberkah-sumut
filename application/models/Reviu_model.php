@@ -2,8 +2,34 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Reviu_model — Sprint 3
- * Mengelola trx_reviu_inspektorat, trx_checklist_reviu
+ * Reviu_model.php — Model Reviu Inspektorat
+ *
+ * Akses data reviu oleh Inspektorat Kab/Kota.
+ * Setiap tahapan penyaluran memiliki satu record reviu (UNIQUE per tahapan).
+ *
+ * TABEL UTAMA:
+ *   trx_reviu_inspektorat  — record reviu per tahapan (1:1)
+ *   trx_checklist_reviu    — isian 21-item checklist per reviu
+ *   ref_checklist_item     — definisi item checklist (statis: CK-01 s/d CK-21)
+ *
+ * CHECKLIST:
+ *   21 item statis di ref_checklist_item — berbeda per jenis_penyaluran dan tahap.
+ *   Method get_checklist_items($jenis, $tahap) → filter item yang relevan.
+ *   Method hitung_checklist($reviu_id) → hitung % kelengkapan (ya/tidak/na).
+ *
+ * POLA UPSERT:
+ *   buat_atau_ambil($tahapan_id) — jika belum ada record reviu untuk tahapan ini,
+ *   buat record baru. Jika sudah ada, kembalikan yang existing.
+ *   Ini mencegah duplikat reviu untuk tahapan yang sama.
+ *
+ * METHOD UTAMA:
+ *   get_antrian($filters)              — daftar tahapan menunggu reviu
+ *   count_filtered($filters)           — hitung untuk pagination
+ *   get_checklist_items($jenis, $tahap)— item checklist yang relevan
+ *   get_isian($reviu_id)               — isian checklist per reviu
+ *   simpan_checklist($reviu_id, $data) — bulk insert/update checklist
+ *   hitung_checklist($reviu_id)        — skor kelengkapan
+ *   update_lhr($reviu_id, $path)       — simpan path file LHR
  */
 class Reviu_model extends CI_Model
 {

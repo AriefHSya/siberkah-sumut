@@ -2,8 +2,22 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Laporan Controller — Sprint 6
- * Rekap BKP, rekap penyaluran, export data
+ * Laporan.php — Controller Laporan & Rekap Data
+ *
+ * Menyediakan laporan rekap BKP, rekap penyaluran dana, dan
+ * laporan akhir kab/kota. Mendukung export CSV dan cetak PDF.
+ *
+ * ROUTES:
+ *   GET /laporan/rekap-bkp             → rekap_bkp()             — rekap semua BKP per kab/bidang
+ *   GET /laporan/rekap-bkp/cetak       → cetak_rekap_bkp()       — cetak versi print
+ *   GET /laporan/rekap-penyaluran      → rekap_penyaluran()      — rekap realisasi penyaluran dana
+ *   GET /laporan/export/bkp            → export_bkp()            — download CSV rekap BKP
+ *   GET /laporan/export/penyaluran     → export_penyaluran()     — download CSV penyaluran
+ *   GET /laporan/akhir/{kabkota_id}    → laporan_akhir_kab()     — laporan akhir per kab/kota
+ *   GET /laporan/akhir/{id}/cetak      → cetak_laporan_akhir_kab() — cetak laporan akhir
+ *
+ * AKSES: Semua role yang punya permission 'laporan.view'
+ *   Admin provinsi melihat semua kab/kota; role kabkota hanya kabkota sendiri
  */
 class Laporan extends Auth_Controller
 {

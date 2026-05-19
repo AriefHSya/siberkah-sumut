@@ -2,9 +2,26 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Verif_prov Controller — Sprint 5
- * Handles: antrian verifikasi provinsi, verifikasi final,
- *          input SP2D, konfirmasi transfer, cetak rekap penyaluran
+ * Verif_prov.php — Controller Verifikasi SKPKD Provinsi & Penyaluran Dana
+ *
+ * Menangani verifikasi final oleh Admin Provinsi/BKAD Provinsi,
+ * input nomor SP2D, dan konfirmasi transfer dana ke RKUD Kab/Kota.
+ *
+ * ALUR:
+ *   SKPKD Kab approve → status 'skpkd_kab_approved'
+ *   → Admin Provinsi verifikasi → putuskan (disetujui/ditolak/revisi)
+ *   → Input SP2D → konfirmasi transfer
+ *   → SKPKD Kab konfirmasi penerimaan RKUD → selesai
+ *
+ * ROUTES:
+ *   GET  /verifikasi/prov                   → index()              — antrian verifikasi
+ *   GET  /verifikasi/prov/form/{id}         → form()               — form verifikasi provinsi
+ *   POST /verifikasi/prov/putus/{id}        → putuskan()           — approve/tolak/revisi
+ *   POST /verifikasi/prov/sp2d/{id}         → simpan_sp2d()        — input nomor SP2D
+ *   POST /verifikasi/prov/transfer/{id}     → konfirmasi_transfer() — konfirmasi transfer dana
+ *   GET  /verifikasi/prov/rekap             → cetak_rekap()        — cetak rekap penyaluran
+ *
+ * AKSES: Hanya admin_provinsi dan superadmin
  */
 class Verif_prov extends Auth_Controller
 {

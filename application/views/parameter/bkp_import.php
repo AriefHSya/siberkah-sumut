@@ -286,20 +286,6 @@
 
 <?php endif; ?>
 
-<style>
-.drop-zone {
-  border: 2px dashed var(--biru);
-  border-radius: 8px;
-  padding: 32px 20px;
-  text-align: center;
-  cursor: pointer;
-  background: var(--biru-light);
-  transition: background .15s, border-color .15s;
-}
-.drop-zone:hover, .drop-zone.over { background: #cde4f5; border-color: var(--biru-dark); }
-.tr-error   td { background: var(--merah-light)  !important; }
-.tr-warning td { background: #fffbe6 !important; }
-</style>
 
 <script>
 // Drag & drop

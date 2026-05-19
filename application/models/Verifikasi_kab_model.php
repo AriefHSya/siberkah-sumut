@@ -2,8 +2,31 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Verifikasi_kab_model — Sprint 4
- * Mengelola trx_verifikasi_skpkd_kab, konfirmasi penerimaan (trx_bukti_transfer)
+ * Verifikasi_kab_model.php — Model Verifikasi SKPKD Kab/Kota
+ *
+ * Akses data verifikasi oleh SKPKD Kab/Kota dan konfirmasi penerimaan dana.
+ *
+ * TABEL UTAMA:
+ *   trx_verifikasi_skpkd_kab — record verifikasi per tahapan (UNIQUE)
+ *   trx_dokumen_persyaratan  — dokumen permohonan yang diupload SKPKD Kab
+ *   trx_penyaluran_dana      — data SP2D (dibaca saja dari model ini)
+ *   trx_bukti_transfer       — bukti penerimaan RKUD dari kab
+ *
+ * POLA UPSERT:
+ *   buat_atau_ambil($tahapan_id) — sama dengan Reviu_model,
+ *   mencegah duplikat verifikasi untuk tahapan yang sama.
+ *
+ * METHOD UTAMA:
+ *   get_antrian($filters)            — daftar tahapan perlu diverifikasi kab
+ *   count_filtered($filters)         — hitung untuk pagination
+ *   get_by_tahapan($tahapan_id)      — detail verifikasi satu tahapan
+ *   buat_atau_ambil($tahapan_id)     — upsert record verifikasi
+ *   update($id, $data)               — update hasil verifikasi
+ *   get_dokumen($tahapan_id)         — daftar dokumen yang diupload
+ *   get_penyaluran($tahapan_id)      — data SP2D terkait (jika sudah ada)
+ *   simpan_bukti_transfer()          — simpan bukti RKUD + update status
+ *   count_by_status()                — untuk statistik dashboard
+ *   rekap_nilai()                    — total nilai yang sudah diverifikasi kab
  */
 class Verifikasi_kab_model extends CI_Model
 {

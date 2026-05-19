@@ -2,8 +2,31 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Laporan_model — Sprint 6
- * Statistik dashboard lengkap + rekap BKP + rekap penyaluran
+ * Laporan_model.php — Model Laporan & Statistik
+ *
+ * Query kompleks untuk dashboard, rekap BKP, dan rekap penyaluran.
+ * Semua method menerima $tahun dan opsional $kabkota_id
+ * (NULL = semua kabkota, berlaku untuk role provinsi).
+ *
+ * TABEL YANG DI-JOIN:
+ *   trx_pekerjaan, trx_tahapan_penyaluran, trx_penyaluran_dana,
+ *   ref_bkp, ref_kabkota, ref_bidang
+ *
+ * METHOD UTAMA:
+ *   get_stats_provinsi($tahun)              — ringkasan total untuk admin provinsi
+ *   get_stats_kabkota($tahun, $kabkota_id)  — ringkasan untuk role kabkota
+ *   get_per_bidang($tahun, $kabkota_id)     — breakdown per bidang kegiatan
+ *   get_per_kabkota($tahun)                 — tabel per kab/kota (hanya provinsi)
+ *   get_funnel($tahun, $kabkota_id)         — jumlah per status (progress pipeline)
+ *   get_rekap_bkp($tahun, $kabkota_id)      — rekap BKP untuk halaman laporan
+ *   get_rekap_summary($tahun, $kabkota_id)  — total summary untuk cetak
+ *   get_laporan_akhir_kab($tahun, $kabkota_id) — laporan akhir komprehensif per kab
+ *   get_summary_laporan_kab($tahun, $kabkota_id) — summary untuk header laporan akhir
+ *
+ * CATATAN TEKNIS:
+ *   Query funnel menggunakan SUM(CASE WHEN) untuk hitung per-status dalam satu query.
+ *   get_laporan_akhir_kab menggunakan subquery persen_nilai (bukan porsi_persen) —
+ *   sesuai schema trx_tahapan_penyaluran.persen_nilai.
  */
 class Laporan_model extends CI_Model
 {

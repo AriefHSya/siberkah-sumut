@@ -1,4 +1,36 @@
 <?php
+/**
+ * Parameter.php — Controller Manajemen Data Referensi & Konfigurasi
+ *
+ * Controller terbesar — mengelola semua data referensi yang diperlukan
+ * sistem: tahun anggaran, batas waktu pengajuan, data BKP, data pemda
+ * pejabat, dan tampilan landing page.
+ *
+ * SECTION:
+ *   A. Tahun Anggaran   — CRUD tahun, set aktif
+ *   B. Batas Waktu      — kelola deadline per jenis penyaluran per tahun
+ *   C. Data BKP         — CRUD BKP, import Excel/CSV, cetak rekap
+ *   D. Data Pemda       — pejabat KDH & dokumen Perda per kab/kota
+ *   E. Tampilan Landing — foto pejabat + slideshow kinerja
+ *   F. Log              — log perubahan parameter
+ *
+ * ROUTES (lihat config/routes.php untuk mapping lengkap):
+ *   /parameter/tahun           → CRUD tahun anggaran
+ *   /parameter/batas-waktu     → kelola deadline
+ *   /parameter/bkp             → CRUD + import BKP
+ *   /parameter/pemda           → pejabat & dokumen pemda
+ *   /parameter/landing         → tampilan landing page
+ *   /parameter/log             → log aktivitas
+ *
+ * IMPORT BKP:
+ *   Upload .xlsx atau .csv → preview validasi → konfirmasi → proses import
+ *   Duplikat dapat di-skip atau di-update per baris
+ *   Library: application/libraries/XlsxReader.php (native, tanpa Composer)
+ *
+ * UPLOAD FOTO:
+ *   Foto pejabat → uploads/landing/pejabat/{jenis}.jpg
+ *   Foto slideshow → uploads/landing/slideshow/{timestamp}.jpg
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Parameter extends Auth_Controller
