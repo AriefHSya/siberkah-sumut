@@ -130,14 +130,15 @@ class Rbac
         return array_values(array_filter($sub, fn($s) => $this->can($s['perm'])));
     }
 
-    /** Sub-menu Pengaturan */
+    /** Sub-menu Pengaturan — difilter berdasarkan permission user */
     public function getSubPengaturan()
     {
-        return [
-            ['key'=>'users',    'url'=>'admin/users',    'label'=>'Manajemen User',   'icon'=>'users'],
-            ['key'=>'roles',    'url'=>'admin/roles',    'label'=>'Role & Hak Akses', 'icon'=>'shield-lock'],
-            ['key'=>'telegram', 'url'=>'admin/telegram', 'label'=>'Notif Telegram',   'icon'=>'brand-telegram'],
+        $sub = [
+            ['key'=>'users',    'url'=>'admin/users',    'label'=>'Manajemen User',   'icon'=>'users',         'perm'=>'admin.user.view'],
+            ['key'=>'roles',    'url'=>'admin/roles',    'label'=>'Role & Hak Akses', 'icon'=>'shield-lock',   'perm'=>'admin.role.view'],
+            ['key'=>'telegram', 'url'=>'admin/telegram', 'label'=>'Notif Telegram',   'icon'=>'brand-telegram','perm'=>'admin.view'],
         ];
+        return array_values(array_filter($sub, fn($s) => $this->can($s['perm'])));
     }
 
     // Helpers role
