@@ -148,7 +148,7 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
       <i class="ti ti-circle-half-2"></i> Realisasi Penyaluran Dana
     </div>
     <div style="position:relative;width:160px;height:160px;margin:8px auto;flex-shrink:0">
-      <canvas id="chartRealisasi" width="160" height="160" style="display:block"></canvas>
+      <canvas id="chartRealisasi"></canvas>
       <div style="position:absolute;inset:0;display:flex;flex-direction:column;
                   align-items:center;justify-content:center;pointer-events:none">
         <div style="font-size:22px;font-weight:700;color:<?= $pct_realisasi > 0 ? 'var(--teal-mid)' : 'var(--text-muted)' ?>;line-height:1"><?= $pct_realisasi ?>%</div>
@@ -177,7 +177,7 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
       <i class="ti ti-chart-pie"></i> Status Pekerjaan
     </div>
     <div style="width:160px;height:160px;margin:8px auto;flex-shrink:0">
-      <canvas id="chartStatus" width="160" height="160" style="display:block"></canvas>
+      <canvas id="chartStatus"></canvas>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11px;margin-top:6px;justify-content:center">
       <div style="display:flex;align-items:center;gap:4px">
@@ -452,7 +452,12 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
      user input di sini, semua data dari DB yang sudah trusted.
      ══════════════════════════════════════════════════════════════ -->
 <script>
-(function () {
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js gagal dimuat');
+    return;
+  }
+
   /* ── Default Chart.js options ── */
   Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
   Chart.defaults.font.size   = 12;
@@ -503,9 +508,10 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
         }]
       },
       options: {
-        responsive:          false,
+        responsive:          true,
         maintainAspectRatio: false,
         cutout: '72%',
+        animation: { duration: 600 },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -553,9 +559,10 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
         }]
       },
       options: {
-        responsive:          false,
+        responsive:          true,
         maintainAspectRatio: false,
         cutout: '60%',
+        animation: { duration: 600 },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -682,38 +689,38 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
   }
   <?php endif; ?>
 
-  /* ── Pagination tabel kab/kota ── */
-  (function(){
-    var rows = document.querySelectorAll('#tbl-kab .kab-row');
+}); // end DOMContentLoaded
+
+/* ── Pagination tabel kab/kota — global agar onclick HTML bisa memanggil ── */
+(function(){
+  var page    = 0;
+  var perPage = <?= $per_kab_page ?>;
+  var total   = <?= $total_kab ?? 0 ?>;
+
+  function render() {
+    var rows  = document.querySelectorAll('#tbl-kab .kab-row');
     if (!rows.length) return;
-    var page    = 0;
-    var perPage = <?= $per_kab_page ?>;
-    var total   = <?= $total_kab ?? 0 ?>;
+    var start = page * perPage;
+    var end   = Math.min(start + perPage, total);
+    rows.forEach(function(r) {
+      var idx = parseInt(r.getAttribute('data-idx'));
+      r.style.display = (idx >= start && idx < end) ? '' : 'none';
+    });
+    var info = document.getElementById('kab-info');
+    if (info) info.innerHTML = 'Menampilkan <strong>'+(start+1)+'–'+end+'</strong> dari <strong>'+total+'</strong> kab/kota';
+    var lbl  = document.getElementById('kab-page-label');
+    if (lbl)  lbl.textContent = 'Hal ' + (page+1);
+    var prev = document.getElementById('kab-prev');
+    var next = document.getElementById('kab-next');
+    if (prev) prev.disabled = (page === 0);
+    if (next) next.disabled = (end >= total);
+  }
 
-    function render() {
-      var start = page * perPage;
-      var end   = Math.min(start + perPage, total);
-      rows.forEach(function(r) {
-        var idx = parseInt(r.getAttribute('data-idx'));
-        r.style.display = (idx >= start && idx < end) ? '' : 'none';
-      });
-      var info = document.getElementById('kab-info');
-      if (info) info.innerHTML = 'Menampilkan <strong>'+(start+1)+'–'+end+'</strong> dari <strong>'+total+'</strong> kab/kota';
-      var lbl  = document.getElementById('kab-page-label');
-      if (lbl)  lbl.textContent = 'Hal ' + (page+1);
-      var prev = document.getElementById('kab-prev');
-      var next = document.getElementById('kab-next');
-      if (prev) prev.disabled = (page === 0);
-      if (next) next.disabled = (end >= total);
-    }
-
-    window.kabPage = function(dir) {
-      var maxPage = Math.ceil(total / perPage) - 1;
-      page = Math.max(0, Math.min(maxPage, page + dir));
-      render();
-    };
-  })();
-
+  window.kabPage = function(dir) {
+    var maxPage = Math.ceil(total / perPage) - 1;
+    page = Math.max(0, Math.min(maxPage, page + dir));
+    render();
+  };
 })();
 </script>
 
