@@ -159,10 +159,13 @@ class Admin_users extends Auth_Controller
 
     public function reset_pw($id) {
         $this->requirePerm('admin.user.reset_pw');
-        $pw_baru = 'password123';
+        // Generate password acak 10 karakter — lebih aman dari 'password123'
+        $pw_baru = substr(str_shuffle('abcdefghijkmnpqrstuvwxyz23456789'), 0, 5)
+                 . substr(str_shuffle('ABCDEFGHJKLMNPQRSTUVWXYZ'), 0, 2)
+                 . substr(str_shuffle('23456789'), 0, 3);
         $this->User_model->update($id, ['password' => password_hash($pw_baru, PASSWORD_BCRYPT)]);
-        $this->log_aktivitas('admin.user.reset_pw','Reset password user id='.$id);
-        $this->session->set_flashdata('success','Password berhasil direset ke: <strong>'.$pw_baru.'</strong>');
+        $this->log_aktivitas('admin.user.reset_pw', 'Reset password user id='.$id);
+        $this->session->set_flashdata('success', 'Password berhasil direset ke: <strong>'.$pw_baru.'</strong> — minta user segera ganti setelah login.');
         redirect('admin/users');
     }
 }
