@@ -2,8 +2,31 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Rbac Library — SIBERKAH SUMUT v4
- * Dinamis dari database, mendukung role custom
+ * Rbac.php — Library RBAC Dinamis SIBERKAH SUMUT
+ *
+ * Role-Based Access Control berbasis database.
+ * Permission di-load dari DB sekali per request dan di-cache di properti $_perms.
+ * Role 'superadmin' bypass semua permission check (return TRUE langsung).
+ *
+ * CARA PAKAI DI CONTROLLER:
+ *   $this->rbac->can('pekerjaan.input')          — cek 1 permission
+ *   $this->rbac->canAny(['a.view','b.view'])      — cek salah satu
+ *   $this->rbac->isProvinsi()                     — cek role provinsi
+ *   $this->rbac->isKabkota()                      — cek role kabkota
+ *   $this->rbac->isSuperadmin()                   — cek superadmin
+ *   $this->rbac->canManageUser($target_level)     — cek bisa manage user berdasar level
+ *
+ * CARA PAKAI DI VIEW:
+ *   <?php if ($this->rbac->can('parameter.tahun.manage')): ?>
+ *
+ * SIDEBAR:
+ *   $this->rbac->getMenus()   — daftar menu utama yang bisa diakses user
+ *   getSubParameter()         — sub-menu Parameter
+ *   getSubAdmin()             — sub-menu Admin
+ *
+ * POLA MENU:
+ *   ['key','url','label','icon','perm']
+ *   'perm' = NULL berarti tidak perlu cek permission (selalu tampil jika login)
  */
 class Rbac
 {

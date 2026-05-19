@@ -1,4 +1,24 @@
 <?php
+/**
+ * Dashboard.php — Controller Dashboard SIBERKAH SUMUT
+ *
+ * Menampilkan ringkasan data dan antrian aksi sesuai role user.
+ * Konten berbeda per role: admin_provinsi melihat seluruh data,
+ * role kabkota melihat data kabkota mereka saja.
+ *
+ * ROUTES:
+ *   GET  /dashboard                → index()       — halaman utama
+ *   GET  /dashboard/pilih-tahun   → pilih_tahun() — form ganti tahun anggaran
+ *   POST /dashboard/set-tahun     → set_tahun()   — simpan tahun ke session
+ *
+ * DATA YANG DITAMPILKAN:
+ *   - Stats total BKP, nilai, progress penyaluran
+ *   - Funnel status (draft → selesai)
+ *   - Per bidang kegiatan
+ *   - Per kab/kota (hanya role provinsi)
+ *   - Antrian aksi — hal yang perlu dilakukan user saat ini
+ *   - Alert deadline batas waktu (3 hari sebelum/sesudah)
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Dashboard extends Auth_Controller
@@ -71,6 +91,11 @@ class Dashboard extends Auth_Controller
         ]));
     }
 
+    /**
+     * Kumpulkan daftar aksi mendesak sesuai role user saat ini.
+     * Digunakan untuk blok "Perlu Dilakukan" di dashboard.
+     * Return array item: [icon, label, url, warna]
+     */
     private function _get_antrian_aksi($tahun, $kabkota_id)
     {
         $aksi = [];

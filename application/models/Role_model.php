@@ -1,4 +1,31 @@
 <?php
+/**
+ * Role_model.php — Model RBAC: Role & Permission
+ *
+ * Akses data role dan permission untuk sistem RBAC dinamis.
+ * Permission di-load dari DB setiap request via library Rbac.php.
+ *
+ * TABEL UTAMA:
+ *   roles             — daftar role (id, kode, nama, level, is_active)
+ *   permissions       — daftar permission kode (id, kode, nama, modul, jenis)
+ *   role_permissions  — relasi M:N role ↔ permission
+ *
+ * LEVEL ROLE (semakin kecil = semakin tinggi):
+ *   1 = superadmin, 2 = admin_provinsi, 3 = skpkd_kabkota,
+ *   4 = inspektorat, 5 = opd_teknis, 8 = pengawas
+ *
+ * METHOD UTAMA:
+ *   get_all($only_active)        — daftar role urut level ASC
+ *   get_by_id($id)               — detail role
+ *   get_all_permissions()        — semua permission dikelompokkan per modul
+ *   get_permissions_by_role($id) — permission yang dimiliki role ini
+ *   insert($data)                — tambah role baru
+ *   update($id, $data)           — update role
+ *   hapus($id)                   — hapus role (jika tidak ada user yang memakai)
+ *   save_permissions($role_id)   — ganti semua permission role sekaligus (replace)
+ *   get_modul_meta()             — metadata modul untuk UI assignment permission
+ *   log_permission($role_id, ...) — catat perubahan permission ke role_permission_logs
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Role_model extends CI_Model

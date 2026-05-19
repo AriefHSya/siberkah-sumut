@@ -1,4 +1,26 @@
 <?php
+/**
+ * Admin_roles.php — Controller Manajemen Role & Permission
+ *
+ * CRUD role dan assignment permission ke role.
+ * Perubahan permission langsung efektif di sesi berikutnya
+ * (RBAC di-load ulang dari DB setiap request).
+ *
+ * ROUTES:
+ *   GET  /admin/roles                  → index()           — daftar semua role
+ *   GET  /admin/roles/tambah           → tambah()          — form tambah role baru
+ *   POST /admin/roles/simpan           → simpan()          — proses simpan role
+ *   GET  /admin/roles/edit/{id}        → edit()            — form edit role
+ *   POST /admin/roles/update/{id}      → update()          — proses update role
+ *   POST /admin/roles/hapus/{id}       → hapus()           — hapus role (jika tidak ada user)
+ *   GET  /admin/roles/permissions/{id} → permissions()     — form assignment permission
+ *   POST /admin/roles/perms/{id}       → save_permissions() — simpan permission ke role
+ *   GET  /admin/roles/log              → logs()            — log perubahan permission
+ *
+ * CATATAN:
+ *   - Role bawaan (superadmin, admin_provinsi, dll.) tidak bisa dihapus
+ *   - Setiap perubahan permission dicatat di role_permission_logs
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Admin_roles extends Auth_Controller

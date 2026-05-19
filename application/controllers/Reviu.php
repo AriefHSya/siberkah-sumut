@@ -2,9 +2,28 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Reviu Controller — Sprint 3
- * Handles: antrian reviu, form isian checklist, approve/tolak/revisi, upload LHR,
- *          cetak kertas kerja, cetak rekapitulasi hasil reviu
+ * Reviu.php — Controller Reviu Inspektorat
+ *
+ * Menangani proses reviu oleh Inspektorat Kab/Kota terhadap
+ * dokumen pekerjaan yang diajukan OPD Teknis.
+ *
+ * ALUR:
+ *   OPD submit → status 'opd_input' → Inspektorat buka form reviu
+ *   → isi 21-item checklist → upload LHR → putuskan (disetujui/ditolak/revisi)
+ *
+ * ROUTES:
+ *   GET  /reviu                      → index()            — antrian menunggu reviu
+ *   GET  /reviu/form/{tahapan_id}    → form()             — form checklist + upload LHR
+ *   POST /reviu/checklist/{reviu_id} → simpan_checklist() — simpan isian checklist
+ *   POST /reviu/lhr/{reviu_id}       → upload_lhr()       — upload file LHR
+ *   POST /reviu/putus/{reviu_id}     → putuskan()         — approve/tolak/minta revisi
+ *   GET  /reviu/kertas/{reviu_id}    → cetak_kertas_kerja() — cetak PDF kertas kerja
+ *   GET  /reviu/rekap/{reviu_id}     → cetak_rekap()      — cetak rekap hasil reviu
+ *
+ * AKSES:
+ *   - Inspektorat: akses penuh (reviu + putuskan)
+ *   - Role kabkota lain: view only (index, cetak)
+ *   - Guard IDOR: inspektorat hanya bisa reviu tahapan kabkota mereka
  */
 class Reviu extends Auth_Controller
 {

@@ -1,4 +1,17 @@
 <?php
+/**
+ * Welcome.php — Controller Landing Page Publik
+ *
+ * Halaman publik yang ditampilkan sebelum login.
+ * Extends Guest_Controller → redirect ke dashboard jika sudah login.
+ *
+ * Data yang diambil dari DB:
+ *   - ref_landing_pejabat  : foto 4 pejabat (gubernur, wakil, sekda, kepala bkad)
+ *   - ref_landing_slideshow: foto slideshow hasil kinerja Pemprovsu
+ *
+ * Foto dikelola admin via Parameter → Tampilan Landing.
+ * Jika belum ada foto, box pejabat dan slideshow tidak ditampilkan.
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Welcome extends Guest_Controller

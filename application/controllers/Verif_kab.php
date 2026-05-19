@@ -2,10 +2,29 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Verif_kab Controller — Sprint 4
- * Handles: antrian verifikasi, form verifikasi, approve/tolak/revisi,
- *          upload dokumen permohonan, cetak rekapitulasi kegiatan,
- *          konfirmasi penerimaan dana
+ * Verif_kab.php — Controller Verifikasi SKPKD Kab/Kota
+ *
+ * Menangani verifikasi oleh SKPKD Kab/Kota setelah Inspektorat approve,
+ * upload dokumen permohonan pencairan, dan konfirmasi penerimaan dana RKUD.
+ *
+ * ALUR:
+ *   Inspektorat approve → status 'inspektorat_approved'
+ *   → SKPKD Kab buka form verifikasi → upload permohonan
+ *   → putuskan (disetujui/ditolak/revisi) → kirim ke Verifikasi Provinsi
+ *   → setelah dana disalurkan → konfirmasi penerimaan + upload bukti RKUD
+ *
+ * ROUTES:
+ *   GET  /verifikasi/kab                   → index()        — antrian verifikasi
+ *   GET  /verifikasi/kab/form/{tahapan_id} → form()         — form verifikasi
+ *   POST /verifikasi/kab/upload/{id}       → upload_dok()   — upload dokumen permohonan
+ *   POST /verifikasi/kab/hapus-dok/{id}    → hapus_dok()    — hapus dokumen
+ *   POST /verifikasi/kab/putus/{id}        → putuskan()     — approve/tolak/revisi
+ *   GET  /verifikasi/kab/rekap/{id}        → cetak_rekap()  — cetak rekap kegiatan
+ *   POST /verifikasi/kab/konfirmasi/{id}   → konfirmasi()   — konfirmasi penerimaan RKUD
+ *
+ * KEAMANAN:
+ *   - Guard IDOR: SKPKD hanya bisa akses data kabkota mereka sendiri
+ *   - Notifikasi Telegram ke admin provinsi setelah permohonan diajukan
  */
 class Verif_kab extends Auth_Controller
 {

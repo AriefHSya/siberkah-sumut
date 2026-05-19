@@ -1,4 +1,20 @@
 <?php
+/**
+ * Auth.php — Controller Autentikasi SIBERKAH SUMUT
+ *
+ * Menangani: halaman login, proses autentikasi, dan logout.
+ * Extends Guest_Controller → redirect ke dashboard jika sudah login.
+ *
+ * ROUTES:
+ *   GET  /login         → Auth::login()   — tampilkan form login
+ *   POST /login/proses  → Auth::proses()  — proses autentikasi
+ *   GET  /logout        → Auth::logout()  — hapus session, redirect login
+ *
+ * KEAMANAN:
+ *   - Password diverifikasi dengan password_verify() (bcrypt)
+ *   - CSRF token wajib di form (dihandle CI3 secara otomatis)
+ *   - Login/logout dicatat di user_logs
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Auth extends Guest_Controller

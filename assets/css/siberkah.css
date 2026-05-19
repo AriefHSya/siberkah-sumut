@@ -1,4 +1,38 @@
-/* ── SIBERKAH SUMUT v4 — Design System ───────────────────── */
+/*
+ * ═══════════════════════════════════════════════════════════════
+ * SIBERKAH SUMUT v4 — Design System CSS
+ * ═══════════════════════════════════════════════════════════════
+ * File    : assets/css/siberkah.css
+ * Berisi  : CSS Variables, Layout, Komponen UI, Landing Page,
+ *           Login Page, Pagination, Import BKP
+ *
+ * STRUKTUR FILE:
+ *   1.  CSS Variables (warna, spacing, shadow)
+ *   2.  Reset & Base
+ *   3.  Layout Admin Panel (app-shell, sidebar, content)
+ *   4.  Sidebar
+ *   5.  Top Bar & Notifikasi
+ *   6.  Sub Navigation
+ *   7.  Card & Page Header
+ *   8.  Statistik Grid
+ *   9.  Tabel
+ *   10. Form
+ *   11. Tombol (Button)
+ *   12. Badge
+ *   13. Alert / Flash Message
+ *   14. Deadline Warning
+ *   15. Utility Classes
+ *   16. Filter Row
+ *   17. Permission Checkbox
+ *   18. Map Container
+ *   19. Landing Page (standalone — body.landing-body)
+ *   20. Login Page (standalone — body.login-body)
+ *   21. Pagination Komponen
+ *   22. Import BKP
+ * ═══════════════════════════════════════════════════════════════
+ */
+
+/* ── 1. CSS Variables ──────────────────────────────────────── */
 :root {
   --biru:        #1A5EA8;
   --biru-dark:   #134a8a;
@@ -33,14 +67,18 @@
   --radius-lg:   12px;
 }
 
+/* ── 2. Reset & Base ───────────────────────────────────────── */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; color: var(--text); background: var(--bg); line-height: 1.5; }
 a { color: var(--biru); text-decoration: none; }
 a:hover { text-decoration: underline; }
 img { max-width: 100%; }
 
-/* ── Layout ────────────────────────────────── */
-html, body    { height: 100%; overflow: hidden; }
+/* ── 3. Layout Admin Panel ─────────────────────────────────── */
+/* html.app-html dipasang oleh layouts/main.php — hanya admin panel yang pakai overflow hidden.
+   Landing (body.landing-body) dan Login (body.login-body) TIDAK memakai class ini
+   agar tetap bisa scroll normal. */
+html.app-html, html.app-html body { height: 100%; overflow: hidden; }
 .app-shell    { display: flex; height: 100vh; overflow: hidden; }
 .main-wrap    { display: flex; flex: 1; height: 100vh; overflow: hidden; }
 .sidebar      { width: 220px; height: 100vh; background: var(--biru-dark); flex-shrink: 0;
@@ -54,7 +92,7 @@ html, body    { height: 100%; overflow: hidden; }
                 flex-shrink: 0; overflow-x: auto; }
 .page-body    { flex: 1; padding: 20px; overflow-y: auto; overflow-x: hidden; }
 
-/* ── Sidebar ───────────────────────────────── */
+/* ── 4. Sidebar ────────────────────────────── */
 .sidebar-brand { padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
 .sidebar-brand h1 { color: #fff; font-size: 16px; font-weight: 600; letter-spacing: 0.5px; }
 .sidebar-brand p  { color: rgba(255,255,255,0.55); font-size: 10px; margin-top: 2px; }
@@ -64,7 +102,7 @@ html, body    { height: 100%; overflow: hidden; }
 .nav-item i   { font-size: 18px; flex-shrink: 0; }
 .sidebar-footer { padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.1); }
 
-/* ── Top Bar ───────────────────────────────── */
+/* ── 5. Top Bar & Notifikasi ───────────────── */
 .top-bar .breadcrumb { font-size: 13px; color: var(--text-muted); flex: 1; }
 .top-bar .breadcrumb strong { color: var(--text); }
 .top-bar .user-pill   { display: flex; align-items: center; gap: 8px; padding: 5px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 20px; font-size: 12px; }
@@ -72,26 +110,26 @@ html, body    { height: 100%; overflow: hidden; }
 .notif-btn { position: relative; width: 36px; height: 36px; border-radius: 50%; background: var(--bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; color: var(--text-muted); }
 .notif-badge { position: absolute; top: -2px; right: -2px; background: var(--merah-mid); color: #fff; font-size: 10px; font-weight: 600; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; }
 
-/* ── Sub Nav ───────────────────────────────── */
+/* ── 6. Sub Navigation ─────────────────────── */
 .sub-nav-item { display: flex; align-items: center; gap: 6px; padding: 0 12px; height: 40px; color: var(--text-muted); font-size: 12px; font-weight: 500; border-bottom: 2.5px solid transparent; white-space: nowrap; transition: all 0.15s; }
 .sub-nav-item:hover, .sub-nav-item.on { color: var(--biru); border-bottom-color: var(--biru); text-decoration: none; }
 
-/* ── Card ──────────────────────────────────── */
+/* ── 7. Card & Page Header ─────────────────── */
 .card  { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 14px; }
 .card-title { font-size: 14px; font-weight: 600; color: var(--biru); display: flex; align-items: center; gap: 7px; margin-bottom: 14px; }
 
-/* ── Page Header ───────────────────────────── */
+/* ── Page Header ─────────── */
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
 .page-title  { font-size: 18px; font-weight: 600; color: var(--biru); display: flex; align-items: center; gap: 8px; }
 
-/* ── Statistik Grid ────────────────────────── */
+/* ── 8. Statistik Grid ─────────────────────── */
 .stats-grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .stat-card   { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px; }
 .stat-icon   { width: 36px; height: 36px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 8px; }
 .stat-val    { font-size: 24px; font-weight: 600; line-height: 1; }
 .stat-label  { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
 
-/* ── Tabel ─────────────────────────────────── */
+/* ── 9. Tabel ──────────────────────────────── */
 .table-wrap  { overflow-x: auto; }
 .tbl         { width: 100%; border-collapse: collapse; font-size: 13px; }
 .tbl th      { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--bg); white-space: nowrap; text-align: left; }
@@ -100,7 +138,7 @@ html, body    { height: 100%; overflow: hidden; }
 .tbl tr:hover td { background: #f9fbff; }
 .tbl .mono   { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; }
 
-/* ── Form ──────────────────────────────────── */
+/* ── 10. Form ──────────────────────────────── */
 .form-grid   { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
@@ -113,7 +151,7 @@ html, body    { height: 100%; overflow: hidden; }
 .form-hint   { font-size: 11px; color: var(--text-muted); }
 .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
 
-/* ── Buttons ───────────────────────────────── */
+/* ── 11. Tombol (Button) ───────────────────── */
 .btn         { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; white-space: nowrap; }
 .btn-primary { background: var(--biru); color: #fff; border-color: var(--biru); }
 .btn-primary:hover { background: var(--biru-dark); }
@@ -128,7 +166,7 @@ html, body    { height: 100%; overflow: hidden; }
 .btn-icon.del:hover { color: var(--merah-mid); border-color: var(--merah-mid); }
 .aksi-row    { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 
-/* ── Badge ─────────────────────────────────── */
+/* ── 12. Badge ─────────────────────────────── */
 .badge       { display: inline-flex; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 500; white-space: nowrap; }
 .badge-biru  { background: var(--biru-light);   color: var(--biru-dark); }
 .badge-hijau { background: var(--hijau-light);  color: var(--hijau); }
@@ -139,7 +177,7 @@ html, body    { height: 100%; overflow: hidden; }
 .badge-abu   { background: var(--abu-light);    color: var(--abu); }
 .badge-oranye{ background: var(--oranye-light); color: var(--oranye); }
 
-/* ── Alert / Flash ─────────────────────────── */
+/* ── 13. Alert / Flash Message ─────────────── */
 .alert       { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-radius: var(--radius); margin-bottom: 14px; font-size: 13px; }
 .alert-success { background: var(--hijau-light); color: var(--hijau); border: 1px solid #C0DD97; }
 .alert-error   { background: var(--merah-light); color: var(--merah); border: 1px solid #F7C1C1; }
@@ -147,11 +185,11 @@ html, body    { height: 100%; overflow: hidden; }
 .alert-info    { background: var(--biru-light);  color: var(--biru-dark);border: 1px solid #B5D4F4; }
 .alert i { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
 
-/* ── Deadline Warning ──────────────────────── */
+/* ── 14. Deadline Warning ──────────────────── */
 .deadline-block { background: var(--merah-light); border: 1px solid #F7C1C1; border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; }
 .deadline-block.warning { background: var(--kuning-light); border-color: #FAC775; }
 
-/* ── Utility ───────────────────────────────── */
+/* ── 15. Utility Classes ───────────────────── */
 .text-muted  { color: var(--text-muted); }
 .text-xs     { font-size: 11px; }
 .text-sm     { font-size: 12px; }
@@ -173,13 +211,13 @@ html, body    { height: 100%; overflow: hidden; }
 .g4   { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
 @media (max-width: 768px) { .g2,.g3,.g4 { grid-template-columns: 1fr; } }
 
-/* ── Filter Row ────────────────────────────── */
+/* ── 16. Filter Row ────────────────────────── */
 .filter-row  { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; padding: 10px; }
 .filter-group{ display: flex; flex-direction: column; gap: 4px; }
 .filter-group label { font-size: 11px; font-weight: 500; color: var(--text-muted); }
 .filter-group select, .filter-group input { padding: 6px 9px; font-size: 12px; border: 1px solid var(--border-med); border-radius: var(--radius); }
 
-/* ── Checkbox style ────────────────────────── */
+/* ── 17. Permission Checkbox ───────────────── */
 .perm-group  { margin-bottom: 14px; }
 .perm-modul  { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 6px 0 8px; border-bottom: 1px solid var(--border); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
 .perm-items  { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px; }
@@ -189,5 +227,248 @@ html, body    { height: 100%; overflow: hidden; }
 .perm-item .pk   { font-size: 11px; font-family: monospace; color: var(--text-muted); }
 .perm-item .pn   { font-size: 13px; font-weight: 500; }
 
-/* ── Map container ─────────────────────────── */
+/* ── 18. Map Container ─────────────────────── */
 #map { height: 350px; border-radius: var(--radius); border: 1px solid var(--border); }
+
+/* ══════════════════════════════════════════════════════════════
+   19. LANDING PAGE  (body.landing-body)
+   Halaman publik sebelum login. Standalone — tidak pakai layout
+   admin panel. Dikontrol oleh Welcome::index().
+   ══════════════════════════════════════════════════════════════ */
+
+/* Override layout admin agar landing bisa scroll normal */
+body.landing-body { min-height: 100vh; height: auto; overflow: auto; }
+
+/* Wrapper utama seluruh halaman landing */
+#landing {
+  display: flex; flex-direction: column; min-height: 100vh;
+  background: linear-gradient(150deg, #0D2A5E 0%, #1A5EA8 45%, #1D7A45 100%);
+  align-items: center; position: relative; overflow: hidden;
+}
+
+/* Latar grid transparan — efek visual saja */
+.grid-bg {
+  position: absolute; inset: 0; opacity: 0.04; pointer-events: none;
+  background-image:
+    repeating-linear-gradient(0deg,  #fff 0, #fff 1px, transparent 1px, transparent 44px),
+    repeating-linear-gradient(90deg, #fff 0, #fff 1px, transparent 1px, transparent 44px);
+}
+
+/* Gelombang SVG di bawah halaman — dekorasi */
+.wave-bg {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 180px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 180'%3E%3Cpath fill='rgba(255,255,255,0.05)' d='M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L0,320Z'/%3E%3C/svg%3E") no-repeat bottom/cover;
+  pointer-events: none;
+}
+
+/* Area konten hero (teks + tombol + pilar) */
+.hero-content {
+  position: relative; z-index: 1; text-align: center; color: #fff;
+  padding: 56px 24px 80px; max-width: 720px; width: 100%; flex: 1;
+  display: flex; flex-direction: column; align-items: center;
+}
+
+/* Wrapper logo + teks identitas aplikasi */
+.logo-mark         { display: flex; align-items: center; justify-content: center; gap: 22px; margin-bottom: 24px; }
+.logo-text-wrap    { text-align: left; }
+
+/* Nama "SIBERKAH" — gradient text */
+.logo-name {
+  font-size: 52px; font-weight: 900; letter-spacing: 5px; line-height: 1;
+  background: linear-gradient(180deg, #fff 40%, #A8D8EA 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+
+/* Divider "— SUMUT —" */
+.logo-divider { display: flex; align-items: center; gap: 10px; margin: 5px 0; }
+.logo-divider::before, .logo-divider::after { content: ''; flex: 1; height: 2px; background: rgba(255,255,255,0.35); }
+.logo-divider span { font-size: 11px; color: rgba(255,255,255,0.7); letter-spacing: 1px; white-space: nowrap; }
+
+/* Subtitle pemerintah */
+.logo-sub { font-size: 12px; letter-spacing: 2px; color: rgba(255,255,255,0.7); font-weight: 400; margin-top: 4px; }
+
+/* Tagline dan deskripsi singkat */
+.hero-tagline  { font-size: 17px; font-weight: 600; color: rgba(255,255,255,0.95); margin: 20px 0 12px; letter-spacing: 0.3px; }
+.hero-sub      { font-size: 13px; color: rgba(255,255,255,0.72); line-height: 1.85; margin-bottom: 36px; border-left: 3px solid rgba(255,255,255,0.3); padding-left: 14px; text-align: left; max-width: 540px; }
+
+/* Tombol CTA utama */
+.btn-masuk {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: linear-gradient(135deg, #F5A623, #E8861A); color: #fff; border: none;
+  padding: 15px 52px; font-size: 16px; font-weight: 700; border-radius: 8px;
+  cursor: pointer; letter-spacing: 0.5px; box-shadow: 0 4px 24px rgba(245,166,35,0.45);
+  text-decoration: none; transition: opacity 0.2s, transform 0.15s;
+}
+.btn-masuk:hover { opacity: 0.9; transform: translateY(-2px); text-decoration: none; color: #fff; }
+.btn-masuk i { font-size: 20px; }
+
+/* Baris 4 kartu pilar nilai aplikasi */
+.pilar-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 40px; width: 100%; }
+.pilar-card {
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 12px; padding: 16px 14px; text-align: center;
+  min-width: 130px; flex: 1; max-width: 165px; transition: background 0.2s;
+}
+.pilar-card:hover { background: rgba(255,255,255,0.16); }
+.pilar-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-size: 21px; }
+.pilar-card h4 { font-size: 11px; font-weight: 700; color: #fff; letter-spacing: 0.8px; margin-bottom: 5px; }
+.pilar-card p  { font-size: 11px; color: rgba(255,255,255,0.62); line-height: 1.5; }
+
+/* Bar slogan di bawah hero */
+.slogan-bar {
+  position: relative; z-index: 1; width: 100%;
+  background: rgba(255,255,255,0.08); border-top: 1px solid rgba(255,255,255,0.12);
+  padding: 14px 20px; text-align: center; font-size: 13px;
+  font-style: italic; color: rgba(255,255,255,0.82);
+}
+
+/* Footer copyright */
+.landing-footer {
+  width: 100%; background: rgba(0,0,0,0.28); padding: 11px 20px;
+  text-align: center; font-size: 11px; color: rgba(255,255,255,0.5); position: relative; z-index: 1;
+}
+
+/* ── Box foto pejabat (kiri: Gub+Wagub / kanan: Sekda+Kepala BKAD) ── */
+/* Hanya muncul jika foto sudah diupload admin via Parameter → Tampilan Landing */
+.foto-box { position: absolute; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 12px; z-index: 2; width: 160px; }
+.foto-box-kiri  { left: 28px; }
+.foto-box-kanan { right: 28px; }
+.foto-card { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: 10px; overflow: hidden; text-align: center; backdrop-filter: blur(4px); }
+.foto-card img        { width: 100%; height: 130px; object-fit: cover; display: block; }
+.foto-card-info       { padding: 8px 6px; }
+.foto-card-nama       { font-size: 11px; font-weight: 700; color: #fff; line-height: 1.3; margin-bottom: 2px; }
+.foto-card-jabatan    { font-size: 10px; color: rgba(255,255,255,0.65); line-height: 1.3; }
+
+/* ── Slideshow hasil kinerja Pemprovsu ── */
+/* Dikontrol oleh JS inline di landing/index.php (auto 4 detik, pause on hover) */
+.slideshow-wrap  { position: relative; z-index: 1; width: 100%; max-width: 900px; margin: 0 auto; padding: 0 20px 20px; }
+.slideshow-box   { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); height: 220px; }
+.slide           { position: absolute; inset: 0; opacity: 0; transition: opacity 0.6s ease; }
+.slide.active    { opacity: 1; }
+.slide img       { width: 100%; height: 100%; object-fit: cover; }
+.slide-caption   { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.65)); padding: 20px 14px 10px; font-size: 12px; color: rgba(255,255,255,0.9); }
+.slide-judul     { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+.slide-btn       { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.4); border: none; color: #fff; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: background 0.15s; z-index: 3; }
+.slide-btn:hover { background: rgba(0,0,0,0.65); }
+.slide-btn-prev  { left: 10px; }
+.slide-btn-next  { right: 10px; }
+.slide-dots      { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; z-index: 3; }
+.slide-dot       { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.4); cursor: pointer; border: none; padding: 0; transition: background 0.2s; }
+.slide-dot.active{ background: #fff; }
+
+/* Logo ukuran besar di hero */
+.logo-img { width: 110px; height: 110px; object-fit: contain; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3)); }
+
+/* Warna background & icon per pilar — 4 nilai inti aplikasi */
+.pilar-icon-biru   { background: rgba(26,94,168,0.25); }
+.pilar-icon-hijau  { background: rgba(29,122,69,0.25); }
+.pilar-icon-kuning { background: rgba(245,166,35,0.25); }
+.pilar-icon-merah  { background: rgba(204,45,45,0.25); }
+.pilar-ic-biru   { color: #A8D4F5; }
+.pilar-ic-hijau  { color: #6ED49A; }
+.pilar-ic-kuning { color: #F5C469; }
+.pilar-ic-merah  { color: #F08080; }
+
+/* ── Tombol kembali ke landing dari login ── */
+.back-to-landing {
+  position: fixed; top: 16px; left: 16px; z-index: 10;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.15); backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.3); border-radius: 8px;
+  padding: 8px 14px; font-size: 13px; color: #fff; text-decoration: none;
+  transition: background 0.15s;
+}
+.back-to-landing:hover { background: rgba(255,255,255,0.25); text-decoration: none; color: #fff; }
+
+/* ── Responsive landing ── */
+@media (max-width: 900px) { .foto-box { display: none; } .slideshow-box { height: 160px; } }
+@media (max-width: 540px) {
+  .logo-name     { font-size: 36px; letter-spacing: 3px; }
+  .logo-mark     { gap: 14px; }
+  .logo-mark img { width: 80px; height: 80px; }
+  .btn-masuk     { padding: 13px 36px; font-size: 15px; }
+  .pilar-card    { min-width: 110px; }
+  .hero-content  { padding: 40px 16px 60px; }
+  .hero-tagline  { font-size: 15px; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   20. LOGIN PAGE  (body.login-body)
+   Halaman login — standalone. Elemen di-scope agar tidak
+   konflik dengan reset global di atas.
+   ══════════════════════════════════════════════════════════════ */
+
+/* Override body untuk layout login */
+body.login-body {
+  background: linear-gradient(135deg, #0d3f7a, #1A5EA8);
+  min-height: 100vh; height: auto; overflow: auto;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+
+/* Wrapper kartu login */
+.login-wrap   { width: 100%; max-width: 440px; }
+.login-header { text-align: center; margin-bottom: 28px; color: #fff; }
+.login-header h1 { font-size: 28px; font-weight: 700; letter-spacing: 1px; }
+.login-header p  { font-size: 13px; opacity: 0.7; margin-top: 6px; }
+.login-logo      { width: 72px; height: 72px; object-fit: contain; margin-bottom: 10px; }
+
+/* Kartu form putih */
+.login-card { background: #fff; border-radius: 14px; padding: 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+
+/* Alert error di dalam kartu login */
+.login-card .alert { padding: 12px 14px; border-radius: 8px; margin-bottom: 18px; font-size: 13px; display: flex; align-items: center; gap: 8px; background: #FCEBEB; color: #791F1F; border: 1px solid #F7C1C1; }
+
+/* Form group dalam login — margin-based (berbeda dari admin panel yang flex) */
+.login-card .form-group { margin-bottom: 16px; }
+.login-card label { display: block; font-size: 12px; font-weight: 600; color: #4b5563; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.4px; }
+.login-card input[type="text"], .login-card input[type="password"] {
+  width: 100%; padding: 10px 13px; border: 1.5px solid #e5e7eb; border-radius: 8px;
+  font-size: 14px; transition: border-color 0.15s;
+}
+.login-card input:focus { outline: none; border-color: #1A5EA8; box-shadow: 0 0 0 3px rgba(26,94,168,0.12); }
+
+/* Tombol submit login */
+.btn-login { width: 100%; padding: 12px; background: #1A5EA8; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; transition: background 0.15s; }
+.btn-login:hover { background: #134a8a; }
+
+/* Footer kecil di bawah kartu */
+.login-footer { text-align: center; margin-top: 24px; color: rgba(255,255,255,0.6); font-size: 12px; }
+.login-footer p + p { margin-top: 4px; }
+
+/* ══════════════════════════════════════════════════════════════
+   21. PAGINATION KOMPONEN
+   Digunakan via: $this->load->view('partials/pagination', ...)
+   Tersedia di semua halaman index yang pakai layout admin.
+   ══════════════════════════════════════════════════════════════ */
+.pagination-wrap { display: flex; align-items: center; justify-content: space-between; padding: 12px 0 4px; flex-wrap: wrap; gap: 8px; }
+.paging-info     { font-size: 13px; color: var(--abu); }
+.paging-nav      { display: flex; align-items: center; gap: 4px; }
+
+/* Tombol halaman (angka, prev, next) */
+.paging-btn      { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; color: var(--biru); background: #fff; text-decoration: none; transition: background .12s, border-color .12s; }
+.paging-btn:hover { background: var(--biru-light); border-color: var(--biru); text-decoration: none; }
+.paging-active   { background: var(--biru) !important; color: #fff !important; border-color: var(--biru) !important; font-weight: 600; }
+.paging-disabled { color: #bbb; cursor: default; pointer-events: none; border-color: #eee; }
+.paging-ellipsis { font-size: 13px; color: var(--abu); padding: 0 4px; }
+
+/* ══════════════════════════════════════════════════════════════
+   22. IMPORT BKP
+   Digunakan di views/parameter/bkp_import.php.
+   Fitur upload Excel/CSV dengan drag-drop dan preview tabel.
+   ══════════════════════════════════════════════════════════════ */
+
+/* Area drag-drop upload file */
+.drop-zone {
+  border: 2px dashed var(--biru); border-radius: 8px; padding: 32px 20px;
+  text-align: center; cursor: pointer; background: var(--biru-light);
+  transition: background .15s, border-color .15s;
+}
+.drop-zone:hover, .drop-zone.over { background: #cde4f5; border-color: var(--biru-dark); }
+
+/* Baris tabel preview import — highlight sesuai status */
+.tr-error   td { background: var(--merah-light)  !important; }  /* data error — gagal validasi */
+.tr-warning td { background: #fffbe6 !important; }              /* data duplikat — perlu keputusan */
+
+/* ── Checklist Reviu (views/reviu/form.php) ── */
+/* Baris checklist yang nilainya 'tidak_sesuai' — diberi highlight merah muda */
+.ck-row-masalah td { background: #fff8f8; }

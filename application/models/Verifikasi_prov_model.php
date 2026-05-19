@@ -2,8 +2,34 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Verifikasi_prov_model — Sprint 5
- * Mengelola trx_verifikasi_skpkd_prov + trx_penyaluran_dana
+ * Verifikasi_prov_model.php — Model Verifikasi SKPKD Provinsi & Penyaluran
+ *
+ * Akses data verifikasi final oleh Admin Provinsi dan pencairan dana (SP2D).
+ *
+ * TABEL UTAMA:
+ *   trx_verifikasi_skpkd_prov — record verifikasi provinsi per tahapan (UNIQUE)
+ *   trx_penyaluran_dana        — data SP2D + tanggal + nominal per tahapan
+ *   trx_bukti_transfer         — bukti transfer dari kab (dibaca saja)
+ *
+ * ALUR DATA:
+ *   SKPKD Kab approve → verifikasi provinsi bisa dibuat
+ *   → Admin Provinsi putuskan (disetujui/ditolak/revisi)
+ *   → Jika disetujui: input SP2D → konfirmasi transfer
+ *   → SKPKD Kab konfirmasi RKUD → status = selesai
+ *
+ * VALIDASI BISNIS (di controller, model hanya akses data):
+ *   SP2D hanya bisa diinput jika verifikasi prov = 'disetujui'
+ *   Konfirmasi transfer hanya jika SP2D sudah ada
+ *
+ * METHOD UTAMA:
+ *   get_antrian($filters)            — daftar tahapan siap diverifikasi provinsi
+ *   get_verif_by_tahapan($id)        — detail verifikasi satu tahapan
+ *   buat_atau_ambil_verif($id)       — upsert record verifikasi provinsi
+ *   update_verif($id, $data)         — simpan hasil verifikasi
+ *   simpan_sp2d($tahapan_id, $data)  — insert/update data SP2D
+ *   update_status_transfer($id)      — update status setelah konfirmasi transfer
+ *   rekap_penyaluran()               — rekap total penyaluran untuk laporan
+ *   get_daftar_sp2d()               — daftar semua SP2D untuk export
  */
 class Verifikasi_prov_model extends CI_Model
 {

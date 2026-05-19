@@ -1,5 +1,29 @@
+<?php
+/**
+ * layouts/main.php — Layout Utama Admin Panel SIBERKAH SUMUT
+ *
+ * Digunakan oleh semua halaman terproteksi via MY_Controller::render().
+ * JANGAN load view ini langsung — selalu via $this->render('modul/view', $data).
+ *
+ * VARIABEL YANG WAJIB ADA (di-inject Auth_Controller):
+ *   $title          — judul halaman untuk tag <title>
+ *   $current_user   — object data user yang login (nama, role_kode, dll.)
+ *   $tahun_anggaran — tahun anggaran aktif saat ini
+ *   $active_menu    — key menu yang aktif (untuk highlight sidebar)
+ *   $active_sub     — key sub-menu yang aktif (untuk highlight sub-nav)
+ *   $notif_count    — jumlah notifikasi belum dibaca
+ *   $notif_recent   — array 5 notifikasi terbaru
+ *   $content_view   — path view konten yang di-render (set oleh render())
+ *
+ * STRUKTUR HTML:
+ *   .app-shell → .main-wrap → .sidebar + .content-area
+ *   .content-area → .top-bar + [.sub-nav] + .page-body → {content_view}
+ *
+ * CSS: assets/css/siberkah.css (bagian 3–18: Layout Admin Panel)
+ */
+?>
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="app-html">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">

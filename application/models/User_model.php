@@ -1,4 +1,24 @@
 <?php
+/**
+ * User_model.php — Model Data User
+ *
+ * CRUD user dengan filter dan join ke tabel roles + ref_kabkota.
+ * Password di-hash bcrypt — JANGAN simpan password plain text.
+ *
+ * TABEL: users
+ * JOIN  : roles (role_nama, role_kode, role_level), ref_kabkota (kabkota_nama)
+ *
+ * METHOD UTAMA:
+ *   get_all($filters)        — daftar user dengan filter role/kabkota/status/q
+ *   get_by_id($id)           — detail user + join roles + kabkota
+ *   get_by_username($username) — dipakai Auth::proses() untuk login
+ *   insert($data)            — tambah user baru (password sudah di-hash sebelumnya)
+ *   update($id, $data)       — update data user
+ *   toggle($id)              — toggle is_active 0/1
+ *   hapus($id)               — hapus user (cek dulu tidak ada data terkait)
+ *   update_last_login($id)   — update kolom last_login_at saat login berhasil
+ *   count_per_role()         — statistik jumlah user per role (untuk dashboard admin)
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class User_model extends CI_Model

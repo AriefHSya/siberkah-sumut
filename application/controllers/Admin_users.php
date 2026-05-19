@@ -1,4 +1,25 @@
 <?php
+/**
+ * Admin_users.php — Controller Manajemen User
+ *
+ * CRUD user dengan role-level guard: user tidak bisa manage user
+ * yang role-level-nya sama atau lebih tinggi dari dirinya.
+ *
+ * ROUTES:
+ *   GET  /admin/users                → index()      — daftar user + filter
+ *   GET  /admin/users/tambah         → tambah()     — form tambah user baru
+ *   POST /admin/users/simpan         → simpan()     — proses simpan user baru
+ *   GET  /admin/users/edit/{id}      → edit()       — form edit user
+ *   POST /admin/users/update/{id}    → update()     — proses update
+ *   POST /admin/users/toggle/{id}    → toggle()     — aktifkan/nonaktifkan user
+ *   POST /admin/users/hapus/{id}     → hapus()      — hapus user (soft-delete atau hard)
+ *   POST /admin/users/reset/{id}     → reset_pw()   — reset password ke default
+ *
+ * KEAMANAN:
+ *   - Guard role-level: admin hanya bisa manage user yang role-level > role-level-nya
+ *   - Password di-hash dengan password_hash() bcrypt
+ *   - Aksi dicatat di user_logs
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Admin_users extends Auth_Controller
