@@ -19,15 +19,21 @@ RUN apt-get update && apt-get install -y \
 RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' \
         /etc/apache2/apache2.conf
 
+# Prioritaskan index.php di atas index.html agar aplikasi PHP tidak tertimpa
+RUN sed -i 's/DirectoryIndex .*/DirectoryIndex index.php index.html/' \
+        /etc/apache2/mods-enabled/dir.conf
+
+# Hapus default Apache page sebelum copy project
+RUN rm -f /var/www/html/index.html
+
 # Set working directory
 WORKDIR /var/www/html
 
-# Hapus default Apache page — Apache prioritaskan index.html di atas index.php
-# Tanpa ini, Debian default page muncul alih-alih aplikasi kita
-RUN rm -f /var/www/html/index.html
-
 # Copy semua file project
 COPY . .
+
+# Hapus index.html lagi setelah COPY (pastikan tidak ada sisa)
+RUN rm -f /var/www/html/index.html
 
 # Buat folder runtime dan set permission
 RUN mkdir -p application/cache/sessions \
