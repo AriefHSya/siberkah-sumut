@@ -147,11 +147,11 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
     <div class="card-title" style="width:100%">
       <i class="ti ti-circle-half-2"></i> Realisasi Penyaluran Dana
     </div>
-    <div style="position:relative;width:160px;height:160px;margin:8px auto">
-      <canvas id="chartRealisasi" width="160" height="160"></canvas>
+    <div style="position:relative;width:160px;height:160px;margin:8px auto;flex-shrink:0">
+      <canvas id="chartRealisasi" style="display:block;width:160px!important;height:160px!important"></canvas>
       <div style="position:absolute;inset:0;display:flex;flex-direction:column;
                   align-items:center;justify-content:center;pointer-events:none">
-        <div style="font-size:22px;font-weight:700;color:var(--teal-mid);line-height:1"><?= $pct_realisasi ?>%</div>
+        <div style="font-size:22px;font-weight:700;color:<?= $pct_realisasi > 0 ? 'var(--teal-mid)' : 'var(--text-muted)' ?>;line-height:1"><?= $pct_realisasi ?>%</div>
         <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Tersalurkan</div>
       </div>
     </div>
@@ -176,8 +176,8 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
     <div class="card-title" style="width:100%">
       <i class="ti ti-chart-pie"></i> Status Pekerjaan
     </div>
-    <div style="width:160px;height:160px;margin:8px auto">
-      <canvas id="chartStatus" width="160" height="160"></canvas>
+    <div style="width:160px;height:160px;margin:8px auto;flex-shrink:0">
+      <canvas id="chartStatus" style="display:block;width:160px!important;height:160px!important"></canvas>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11px;margin-top:6px;justify-content:center">
       <div style="display:flex;align-items:center;gap:4px">
@@ -478,24 +478,36 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
   /* ── Grafik 1: Realisasi Keuangan (Donut) ── */
   var ctxReal = document.getElementById('chartRealisasi');
   if (ctxReal) {
+    // Jika total BKP = 0, tampilkan ring abu-abu sebagai placeholder
+    var realData, realColors;
+    if (nilaiBkp <= 0) {
+      realData   = [1];
+      realColors = ['#e5e7eb'];
+    } else {
+      realData   = [nilaiDis, Math.max(0, nilaiBkp - nilaiDis)];
+      realColors = ['#0F6E56', '#e5e7eb'];
+    }
     new Chart(ctxReal, {
       type: 'doughnut',
       data: {
         datasets: [{
-          data: [nilaiDis, Math.max(0, nilaiBkp - nilaiDis)],
-          backgroundColor: ['#0F6E56', '#e5e7eb'],
-          borderWidth: 0,
-          hoverOffset: 4,
+          data:            realData,
+          backgroundColor: realColors,
+          borderWidth:     0,
+          hoverOffset:     4,
         }]
       },
       options: {
+        responsive:          false,
+        maintainAspectRatio: false,
         cutout: '72%',
         plugins: {
+          legend: { display: false },
           tooltip: {
             callbacks: {
               label: function(ctx) {
-                var val = ctx.raw;
-                var juta = (val / 1000000).toFixed(2);
+                if (nilaiBkp <= 0) return 'Belum ada data BKP';
+                var juta = (ctx.raw / 1000000).toFixed(2);
                 return (ctx.dataIndex === 0 ? 'Disalurkan' : 'Sisa') + ': Rp ' + juta + ' Jt';
               }
             }
@@ -508,33 +520,43 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
   /* ── Grafik 2: Status Pekerjaan (Donut) ── */
   var ctxStatus = document.getElementById('chartStatus');
   if (ctxStatus) {
-    var statusData   = [grpBelum, grpProses, grpSelesai, grpTolak].filter(function(v){ return v > 0; });
+    var statusData   = [];
     var statusColors = [];
     var statusLabels = [];
-    if (grpBelum   > 0) { statusColors.push('#5F5E5A'); statusLabels.push('Draft'); }
-    if (grpProses  > 0) { statusColors.push('#1A5EA8'); statusLabels.push('Dalam Proses'); }
-    if (grpSelesai > 0) { statusColors.push('#3B6D11'); statusLabels.push('Selesai'); }
-    if (grpTolak   > 0) { statusColors.push('#A32D2D'); statusLabels.push('Ditolak'); }
+    if (grpBelum   > 0) { statusData.push(grpBelum);   statusColors.push('#5F5E5A'); statusLabels.push('Draft'); }
+    if (grpProses  > 0) { statusData.push(grpProses);  statusColors.push('#1A5EA8'); statusLabels.push('Dalam Proses'); }
+    if (grpSelesai > 0) { statusData.push(grpSelesai); statusColors.push('#3B6D11'); statusLabels.push('Selesai'); }
+    if (grpTolak   > 0) { statusData.push(grpTolak);   statusColors.push('#A32D2D'); statusLabels.push('Ditolak'); }
+
+    // Fallback jika semua 0 — tampilkan ring abu-abu
+    if (statusData.length === 0) {
+      statusData   = [1];
+      statusColors = ['#e5e7eb'];
+      statusLabels = ['Belum ada pekerjaan'];
+    }
 
     new Chart(ctxStatus, {
       type: 'doughnut',
       data: {
         labels: statusLabels,
         datasets: [{
-          data: statusData,
+          data:            statusData,
           backgroundColor: statusColors,
-          borderWidth: 2,
-          borderColor: '#fff',
-          hoverOffset: 4,
+          borderWidth:     statusData.length > 1 ? 2 : 0,
+          borderColor:     '#fff',
+          hoverOffset:     4,
         }]
       },
       options: {
+        responsive:          false,
+        maintainAspectRatio: false,
         cutout: '60%',
         plugins: {
           legend: { display: false },
           tooltip: {
             callbacks: {
               label: function(ctx) {
+                if (ctx.label === 'Belum ada pekerjaan') return 'Belum ada data';
                 var total = ctx.dataset.data.reduce(function(a,b){ return a+b; }, 0);
                 var pct   = total > 0 ? Math.round(ctx.raw / total * 100) : 0;
                 return ctx.label + ': ' + ctx.raw + ' pekerjaan (' + pct + '%)';
