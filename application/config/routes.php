@@ -34,6 +34,7 @@ $route['parameter/bkp/import/preview']        = 'parameter/bkp_preview_import';
 $route['parameter/bkp/import/proses']         = 'parameter/bkp_proses_import';
 $route['parameter/bkp/import/template']       = 'parameter/bkp_template';
 $route['parameter/bkp/cetak']                 = 'parameter/bkp_cetak';
+$route['parameter/bkp/generate-kode']         = 'parameter/bkp_generate_kode';
 $route['parameter/pemda']                     = 'parameter/pemda';
 $route['parameter/pemda/simpan-pejabat']      = 'parameter/pemda_simpan_pejabat';
 $route['parameter/pemda/simpan-dokumen']      = 'parameter/pemda_simpan_dokumen';

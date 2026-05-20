@@ -683,6 +683,47 @@ class Parameter extends Auth_Controller
         $this->render_plain('parameter/bkp_cetak',['list'=>$list,'rekap'=>$rekap,'tahun'=>$tahun,'kab'=>$kab,'tgl_cetak'=>tgl_indo(date('Y-m-d')),'user_nama'=>$this->data['current_user']->nama]);
     }
 
+    /**
+     * AJAX: Generate preview kode BKP berikutnya
+     * GET parameter/bkp/generate-kode?tahun=2026&kabkota_id=5
+     * Return JSON: { kode: "BKP-2026-MED-001" }
+     */
+    public function bkp_generate_kode() {
+        $this->requirePerm('parameter.bkp.manage');
+        $tahun      = (int)$this->input->get('tahun');
+        $kabkota_id = (int)$this->input->get('kabkota_id');
+
+        if (!$tahun || !$kabkota_id) {
+            $this->json(['kode' => '']);
+            return;
+        }
+
+        $kabkota = $this->db->get_where('ref_kabkota', ['id' => $kabkota_id])->row();
+        if (!$kabkota) { $this->json(['kode' => '']); return; }
+
+        // Gunakan logika yang sama dengan _generate_kode_bkp
+        $nama    = preg_replace('/^(Kab\.|Kota|Kabupaten)\s+/i', '', $kabkota->nama);
+        $letters = preg_replace('/[^a-zA-Z]/', '', $nama);
+        $abbrev  = strtoupper(substr($letters, 0, 3));
+        if (strlen($abbrev) < 3) $abbrev = str_pad($abbrev, 3, 'X');
+
+        $pattern  = 'BKP-' . $tahun . '-' . $abbrev . '-';
+        $last_row = $this->db
+            ->select_max('kode_bkp')
+            ->like('kode_bkp', $pattern, 'after')
+            ->where('tahun', $tahun)
+            ->get('ref_bkp')->row();
+
+        $last_seq = 0;
+        if ($last_row && $last_row->kode_bkp) {
+            $parts    = explode('-', $last_row->kode_bkp);
+            $last_seq = (int)end($parts);
+        }
+
+        $kode = 'BKP-' . $tahun . '-' . $abbrev . '-' . str_pad($last_seq + 1, 3, '0', STR_PAD_LEFT);
+        $this->json(['kode' => $kode]);
+    }
+
     // ─── PEMDA ────────────────────────────────────────────────
     public function pemda() {
         $this->requirePerm('parameter.pemda.view');
