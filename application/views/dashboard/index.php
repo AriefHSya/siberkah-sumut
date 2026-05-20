@@ -485,100 +485,59 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
   var kabKontrak    = <?= json_encode(array_values($kab_kontrak)) ?>;
   <?php endif; ?>
 
-  /* ── Grafik 1: Realisasi Keuangan (Donut) ── */
-  var ctxReal = document.getElementById('chartRealisasi');
-  if (ctxReal) {
-    // Jika total BKP = 0, tampilkan ring abu-abu sebagai placeholder
-    var realData, realColors;
-    if (nilaiBkp <= 0) {
-      realData   = [1];
-      realColors = ['#e5e7eb'];
-    } else {
-      realData   = [nilaiDis, Math.max(0, nilaiBkp - nilaiDis)];
-      realColors = ['#0F6E56', '#e5e7eb'];
+  /* ── Helper: Gambar donut dengan native Canvas 2D ── */
+  /* Tidak pakai Chart.js agar selalu render meski data = 0 */
+  function drawDonut(canvasId, segments, cutoutPct) {
+    var canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas.getContext) return;
+    var ctx    = canvas.getContext('2d');
+    var W = canvas.width, H = canvas.height;
+    var cx = W / 2, cy = H / 2;
+    var outerR = Math.min(W, H) / 2 - 4;
+    var innerR = outerR * (cutoutPct / 100);
+    var ringW  = outerR - innerR;
+
+    ctx.clearRect(0, 0, W, H);
+
+    var total = segments.reduce(function(s, seg) { return s + (seg.v || 0); }, 0);
+
+    if (total <= 0) {
+      /* Placeholder ring abu-abu */
+      ctx.beginPath();
+      ctx.arc(cx, cy, (outerR + innerR) / 2, 0, 2 * Math.PI);
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth   = ringW;
+      ctx.stroke();
+      return;
     }
-    new Chart(ctxReal, {
-      type: 'doughnut',
-      data: {
-        datasets: [{
-          data:            realData,
-          backgroundColor: realColors,
-          borderWidth:     0,
-          hoverOffset:     4,
-        }]
-      },
-      options: {
-        responsive:          false,
-        maintainAspectRatio: true,
-        cutout: '72%',
-        animation: { duration: 600 },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: function(ctx) {
-                if (nilaiBkp <= 0) return 'Belum ada data BKP';
-                var juta = (ctx.raw / 1000000).toFixed(2);
-                return (ctx.dataIndex === 0 ? 'Disalurkan' : 'Sisa') + ': Rp ' + juta + ' Jt';
-              }
-            }
-          }
-        }
-      }
+
+    /* Gambar setiap segmen */
+    var startAngle = -Math.PI / 2;
+    segments.forEach(function(seg) {
+      if (!seg.v) return;
+      var sweep = (seg.v / total) * 2 * Math.PI;
+      ctx.beginPath();
+      ctx.arc(cx, cy, (outerR + innerR) / 2, startAngle, startAngle + sweep);
+      ctx.strokeStyle = seg.c;
+      ctx.lineWidth   = ringW;
+      ctx.stroke();
+      startAngle += sweep;
     });
   }
 
-  /* ── Grafik 2: Status Pekerjaan (Donut) ── */
-  var ctxStatus = document.getElementById('chartStatus');
-  if (ctxStatus) {
-    var statusData   = [];
-    var statusColors = [];
-    var statusLabels = [];
-    if (grpBelum   > 0) { statusData.push(grpBelum);   statusColors.push('#5F5E5A'); statusLabels.push('Draft'); }
-    if (grpProses  > 0) { statusData.push(grpProses);  statusColors.push('#1A5EA8'); statusLabels.push('Dalam Proses'); }
-    if (grpSelesai > 0) { statusData.push(grpSelesai); statusColors.push('#3B6D11'); statusLabels.push('Selesai'); }
-    if (grpTolak   > 0) { statusData.push(grpTolak);   statusColors.push('#A32D2D'); statusLabels.push('Ditolak'); }
+  /* ── Grafik 1: Realisasi Keuangan ── */
+  drawDonut('chartRealisasi', [
+    { v: nilaiDis,                         c: '#0F6E56' },
+    { v: Math.max(0, nilaiBkp - nilaiDis), c: '#e5e7eb' }
+  ], 72);
 
-    // Fallback jika semua 0 — tampilkan ring abu-abu
-    if (statusData.length === 0) {
-      statusData   = [1];
-      statusColors = ['#e5e7eb'];
-      statusLabels = ['Belum ada pekerjaan'];
-    }
-
-    new Chart(ctxStatus, {
-      type: 'doughnut',
-      data: {
-        labels: statusLabels,
-        datasets: [{
-          data:            statusData,
-          backgroundColor: statusColors,
-          borderWidth:     statusData.length > 1 ? 2 : 0,
-          borderColor:     '#fff',
-          hoverOffset:     4,
-        }]
-      },
-      options: {
-        responsive:          false,
-        maintainAspectRatio: true,
-        cutout: '60%',
-        animation: { duration: 600 },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: function(ctx) {
-                if (ctx.label === 'Belum ada pekerjaan') return 'Belum ada data';
-                var total = ctx.dataset.data.reduce(function(a,b){ return a+b; }, 0);
-                var pct   = total > 0 ? Math.round(ctx.raw / total * 100) : 0;
-                return ctx.label + ': ' + ctx.raw + ' pekerjaan (' + pct + '%)';
-              }
-            }
-          }
-        }
-      }
-    });
-  }
+  /* ── Grafik 2: Status Pekerjaan ── */
+  drawDonut('chartStatus', [
+    { v: grpBelum,   c: '#5F5E5A' },
+    { v: grpProses,  c: '#1A5EA8' },
+    { v: grpSelesai, c: '#3B6D11' },
+    { v: grpTolak,   c: '#A32D2D' }
+  ], 60);
 
   /* ── Grafik 3: Distribusi per Bidang (Horizontal Bar) ── */
   var ctxBidang = document.getElementById('chartBidang');
