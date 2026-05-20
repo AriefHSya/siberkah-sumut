@@ -37,6 +37,19 @@
     </button>
     <?php endif; ?>
     <?php endif; ?>
+    <?php
+    // Tombol batal pengajuan — hanya saat status opd_submitted, sebelum Inspektorat approve
+    $bisa_batal = $this->rbac->can('pekerjaan.submit')
+        && $p->status === 'opd_submitted';
+    ?>
+    <?php if ($bisa_batal): ?>
+    <a href="<?= site_url('pekerjaan/batal-submit/'.$p->id) ?>"
+       class="btn btn-sm"
+       style="background:var(--merah-light);color:var(--merah-mid);border:1px solid #F7C1C1"
+       onclick="return confirm('Batalkan pengajuan ke Inspektorat?\n\nPekerjaan akan kembali ke status Draft dan dapat diedit kembali.')">
+      <i class="ti ti-arrow-back-up"></i> Batalkan Pengajuan
+    </a>
+    <?php endif; ?>
     <a href="<?= site_url('pekerjaan') ?>" class="btn btn-outline btn-sm"><i class="ti ti-arrow-left"></i> Kembali</a>
   </div>
 </div>
