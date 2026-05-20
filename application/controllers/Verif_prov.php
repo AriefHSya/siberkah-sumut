@@ -144,7 +144,9 @@ class Verif_prov extends Auth_Controller
         if (!$verif_prov) { show_404(); return; }
 
         $tahapan   = $this->Pekerjaan_model->get_tahapan_by_id($verif_prov->tahapan_id);
+        if (!$tahapan) { show_404(); return; }
         $pekerjaan = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
+        if (!$pekerjaan) { show_404(); return; }
 
         $hasil   = $this->input->post('hasil_verifikasi', TRUE);
         $catatan = $this->input->post('catatan', TRUE);

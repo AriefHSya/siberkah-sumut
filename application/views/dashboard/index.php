@@ -694,7 +694,7 @@ document.addEventListener('DOMContentLoaded', function () {
 /* ── Pagination tabel kab/kota — global agar onclick HTML bisa memanggil ── */
 (function(){
   var page    = 0;
-  var perPage = <?= $per_kab_page ?>;
+  var perPage = <?= $per_kab_page ?? 15 ?>;
   var total   = <?= $total_kab ?? 0 ?>;
 
   function render() {
