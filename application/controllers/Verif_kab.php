@@ -219,13 +219,22 @@ class Verif_kab extends Auth_Controller
     public function hapus_dok($dok_id)
     {
         $this->requirePerm('pekerjaan.upload_dok');
-        $dok     = $this->Pekerjaan_model->get_dokumen_by_id($dok_id);
+        $dok = $this->Pekerjaan_model->get_dokumen_by_id($dok_id);
         if (!$dok) { show_404(); return; }
+
+        // Guard kabkota
         $tahapan = $this->Pekerjaan_model->get_tahapan_by_id($dok->tahapan_id);
+        if (!$tahapan) { show_404(); return; }
+        $pek_cek = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
+        if ($this->rbac->isKabkota() && $pek_cek
+            && (int)$pek_cek->kabkota_id !== (int)$this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('verifikasi/kab'); return;
+        }
 
         $this->Pekerjaan_model->hapus_dokumen($dok_id);
         $this->session->set_flashdata('success', 'Dokumen dihapus.');
-        redirect('verifikasi/kab/form/' . $dok->tahapan_id);
+        redirect('verifikasi/kab/form/' . $tahapan->id);
     }
 
     // ─── KEPUTUSAN VERIFIKASI ─────────────────────────────────
@@ -238,7 +247,9 @@ class Verif_kab extends Auth_Controller
         if (!$verif) { show_404(); return; }
 
         $tahapan   = $this->Pekerjaan_model->get_tahapan_by_id($verif->tahapan_id);
+        if (!$tahapan) { show_404(); return; }
         $pekerjaan = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
+        if (!$pekerjaan) { show_404(); return; }
 
         $hasil        = $this->input->post('hasil_verifikasi', TRUE);
         $catatan      = $this->input->post('catatan', TRUE);

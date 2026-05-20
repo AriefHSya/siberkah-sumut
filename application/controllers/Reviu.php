@@ -398,7 +398,9 @@ class Reviu extends Auth_Controller
         if (!$reviu) { show_404(); return; }
 
         $tahapan   = $this->Pekerjaan_model->get_tahapan_by_id($reviu->tahapan_id);
+        if (!$tahapan) { show_404(); return; }
         $pekerjaan = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
+        if (!$pekerjaan) { show_404(); return; }
         $items     = $this->Reviu_model->get_checklist_items(
                         $pekerjaan->jenis_penyaluran, $tahapan->kode_tahap);
         $isian     = $this->Reviu_model->get_isian($reviu->id);
@@ -443,7 +445,9 @@ class Reviu extends Auth_Controller
         if (!$reviu) { show_404(); return; }
 
         $tahapan   = $this->Pekerjaan_model->get_tahapan_by_id($reviu->tahapan_id);
+        if (!$tahapan) { show_404(); return; }
         $pekerjaan = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
+        if (!$pekerjaan) { show_404(); return; }
         $items     = $this->Reviu_model->get_checklist_items(
                         $pekerjaan->jenis_penyaluran, $tahapan->kode_tahap);
         $isian     = $this->Reviu_model->get_isian($reviu->id);
