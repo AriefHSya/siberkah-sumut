@@ -49,16 +49,20 @@
       </div>
       <nav class="sidebar-nav">
         <?php foreach ($this->rbac->getMenus() as $m): ?>
-        <a href="<?= site_url($m['url']) ?>" class="nav-item <?= ($active_menu === $m['key']) ? 'on' : '' ?>">
+        <a href="<?= site_url($m['url']) ?>"
+           class="nav-item <?= ($active_menu === $m['key']) ? 'on' : '' ?>"
+           title="<?= htmlspecialchars($m['label']) ?>">
           <i class="ti ti-<?= $m['icon'] ?>" aria-hidden="true"></i>
-          <?= htmlspecialchars($m['label']) ?>
+          <span><?= htmlspecialchars($m['label']) ?></span>
         </a>
         <?php endforeach; ?>
       </nav>
       <div class="sidebar-footer">
         <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:6px">TA <?= $tahun_anggaran ?></div>
-        <a href="<?= site_url('logout') ?>" class="nav-item" style="border-radius:6px;margin:0">
-          <i class="ti ti-logout" aria-hidden="true"></i> Keluar
+        <a href="<?= site_url('logout') ?>" class="nav-item" title="Keluar"
+           style="border-radius:6px;margin:0">
+          <i class="ti ti-logout" aria-hidden="true"></i>
+          <span>Keluar</span>
         </a>
       </div>
     </aside>
@@ -68,6 +72,13 @@
 
       <!-- TOP BAR -->
       <header class="top-bar">
+        <!-- Tombol collapse/expand sidebar -->
+        <button id="sidebarToggle" class="btn-icon" onclick="toggleSidebar()"
+                title="Sembunyikan / Tampilkan Menu" aria-label="Toggle Sidebar"
+                style="flex-shrink:0;margin-right:4px">
+          <i class="ti ti-menu-2" id="sidebarToggleIcon"></i>
+        </button>
+
         <div class="breadcrumb">
           <strong><?= htmlspecialchars($current_user->nama ?? '') ?></strong>
           <span style="margin:0 6px;color:#ccc">·</span>
@@ -138,5 +149,38 @@
 </div><!-- .app-shell -->
 
 <script src="<?= base_url('assets/js/siberkah.js') ?>"></script>
+<script>
+(function() {
+  var STORAGE_KEY = 'siberkah_sidebar_collapsed';
+  var shell       = document.querySelector('.main-wrap');
+  var icon        = document.getElementById('sidebarToggleIcon');
+
+  function applyState(collapsed, animate) {
+    if (!shell) return;
+    if (animate) {
+      shell.classList.add('sidebar-animating');
+      setTimeout(function() { shell.classList.remove('sidebar-animating'); }, 300);
+    }
+    if (collapsed) {
+      shell.classList.add('sidebar-collapsed');
+    } else {
+      shell.classList.remove('sidebar-collapsed');
+    }
+    if (icon) {
+      icon.className = collapsed ? 'ti ti-layout-sidebar-left-expand' : 'ti ti-menu-2';
+    }
+  }
+
+  window.toggleSidebar = function() {
+    var collapsed = !shell.classList.contains('sidebar-collapsed');
+    localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0');
+    applyState(collapsed, true);
+  };
+
+  // Restore state dari localStorage saat halaman dimuat
+  var saved = localStorage.getItem(STORAGE_KEY);
+  applyState(saved === '1', false);
+})();
+</script>
 </body>
 </html>
