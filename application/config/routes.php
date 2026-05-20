@@ -79,8 +79,10 @@ $route['pekerjaan/detail/(:num)']             = 'pekerjaan/detail/$1';
 $route['pekerjaan/edit/(:num)']               = 'pekerjaan/edit/$1';
 $route['pekerjaan/update/(:num)']             = 'pekerjaan/update/$1';
 $route['pekerjaan/submit/(:num)']             = 'pekerjaan/submit/$1';
-$route['pekerjaan/upload-dok/(:num)']         = 'pekerjaan/upload_dok/$1';
-$route['pekerjaan/hapus-dok/(:num)']          = 'pekerjaan/hapus_dok/$1';
+$route['pekerjaan/upload-dok/(:num)']              = 'pekerjaan/upload_dok/$1';
+$route['pekerjaan/hapus-dok/(:num)']               = 'pekerjaan/hapus_dok/$1';
+$route['pekerjaan/upload-dok-draft/(:num)/(:any)'] = 'pekerjaan/upload_dok_draft/$1/$2';
+$route['pekerjaan/hapus-dok-draft/(:num)/(:any)']  = 'pekerjaan/hapus_dok_draft/$1/$2';
 $route['pekerjaan/cetak-permohonan/(:num)']   = 'pekerjaan/cetak_permohonan/$1';
 
 // ─── REVIU INSPEKTORAT ────────────────────────────────────────
