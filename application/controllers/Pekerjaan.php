@@ -448,7 +448,111 @@ class Pekerjaan extends Auth_Controller
         if (empty($pekerjaan->nama_penyedia))      $errors[] = 'Nama penyedia/rekanan belum diisi';
         if (empty($pekerjaan->nilai_kontrak) || $pekerjaan->nilai_kontrak <= 0) $errors[] = 'Nilai kontrak belum diisi';
         if (empty($pekerjaan->no_spmk))            $errors[] = 'Nomor SPMK belum diisi';
+
+        // Validasi dokumen wajib pre-submit
+        if (empty($pekerjaan->dok_spk_path))  $errors[] = 'File SPK belum diupload';
+        if (empty($pekerjaan->dok_spmk_path)) $errors[] = 'File SPMK belum diupload';
+        if ($pekerjaan->jenis_penyaluran === 'sekaligus' && empty($pekerjaan->dok_bast_path))
+            $errors[] = 'File BAST belum diupload (wajib untuk penyaluran Sekaligus)';
+
         return $errors;
+    }
+
+    // ─── UPLOAD DOKUMEN DRAFT (SPK / SPMK / BAST) ────────────
+    // Dipanggil sebelum submit, saat pekerjaan masih berstatus draft
+
+    public function upload_dok_draft($pekerjaan_id, $jenis)
+    {
+        $this->requirePerm('pekerjaan.upload_dok');
+
+        $jenis_allowed = ['spk', 'spmk', 'bast'];
+        if (!in_array($jenis, $jenis_allowed)) { show_404(); return; }
+
+        $pekerjaan = $this->Pekerjaan_model->get_by_id($pekerjaan_id);
+        if (!$pekerjaan) { show_404(); return; }
+        if ($pekerjaan->status !== 'draft') {
+            $this->session->set_flashdata('error', 'Dokumen draft hanya bisa diupload saat status Draft.');
+            redirect('pekerjaan/detail/'.$pekerjaan_id); return;
+        }
+
+        // Guard: hanya OPD pemilik pekerjaan ini
+        if ($this->rbac->isKabkota() && (int)$pekerjaan->kabkota_id !== (int)$this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('pekerjaan'); return;
+        }
+        // Khusus BAST: hanya untuk jenis sekaligus
+        if ($jenis === 'bast' && $pekerjaan->jenis_penyaluran !== 'sekaligus') {
+            $this->session->set_flashdata('error', 'BAST hanya untuk jenis penyaluran Sekaligus.');
+            redirect('pekerjaan/detail/'.$pekerjaan_id); return;
+        }
+
+        if ($_FILES['file_dok']['error'] !== UPLOAD_ERR_OK) {
+            $this->session->set_flashdata('error', 'File tidak valid atau tidak ada file yang dipilih.');
+            redirect('pekerjaan/detail/'.$pekerjaan_id); return;
+        }
+
+        $upload_dir = FCPATH . 'uploads/dokumen/' . $pekerjaan_id . '/';
+        if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, TRUE);
+
+        $this->load->library('upload');
+        $this->upload->initialize([
+            'upload_path'   => $upload_dir,
+            'allowed_types' => 'pdf|doc|docx|jpg|jpeg|png',
+            'max_size'      => 10240,
+            'file_name'     => $jenis . '_' . $pekerjaan_id . '_' . time(),
+        ]);
+
+        if (!$this->upload->do_upload('file_dok')) {
+            $this->session->set_flashdata('error', 'Upload gagal: ' . $this->upload->display_errors('', ''));
+            redirect('pekerjaan/detail/'.$pekerjaan_id); return;
+        }
+
+        $file_info = $this->upload->data();
+        $file_path = 'uploads/dokumen/' . $pekerjaan_id . '/' . $file_info['file_name'];
+
+        // Hapus file lama jika ada
+        $kolom     = 'dok_' . $jenis . '_path';
+        $file_lama = $pekerjaan->$kolom ?? NULL;
+        if ($file_lama && file_exists(FCPATH . $file_lama)) @unlink(FCPATH . $file_lama);
+
+        // Simpan path ke kolom yang sesuai
+        $this->db->where('id', $pekerjaan_id)->update('trx_pekerjaan', [
+            $kolom       => $file_path,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $label = strtoupper($jenis);
+        $this->log_aktivitas('pekerjaan.upload_dok', 'Upload '.$label.' pekerjaan id='.$pekerjaan_id);
+        $this->session->set_flashdata('success', 'File ' . $label . ' berhasil diupload.');
+        redirect('pekerjaan/detail/'.$pekerjaan_id);
+    }
+
+    public function hapus_dok_draft($pekerjaan_id, $jenis)
+    {
+        $this->requirePerm('pekerjaan.upload_dok');
+
+        $jenis_allowed = ['spk', 'spmk', 'bast'];
+        if (!in_array($jenis, $jenis_allowed)) { show_404(); return; }
+
+        $pekerjaan = $this->Pekerjaan_model->get_by_id($pekerjaan_id);
+        if (!$pekerjaan || $pekerjaan->status !== 'draft') {
+            redirect('pekerjaan/detail/'.$pekerjaan_id); return;
+        }
+        if ($this->rbac->isKabkota() && (int)$pekerjaan->kabkota_id !== (int)$this->kabkota_id) {
+            redirect('pekerjaan'); return;
+        }
+
+        $kolom     = 'dok_' . $jenis . '_path';
+        $file_path = $pekerjaan->$kolom ?? NULL;
+        if ($file_path && file_exists(FCPATH . $file_path)) @unlink(FCPATH . $file_path);
+
+        $this->db->where('id', $pekerjaan_id)->update('trx_pekerjaan', [
+            $kolom       => NULL,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->session->set_flashdata('success', 'File ' . strtoupper($jenis) . ' berhasil dihapus.');
+        redirect('pekerjaan/detail/'.$pekerjaan_id);
     }
 
     // ─── UPLOAD DOKUMEN ───────────────────────────────────────

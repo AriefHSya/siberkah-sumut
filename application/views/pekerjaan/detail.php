@@ -18,10 +18,24 @@
     <a href="<?= site_url('pekerjaan/cetak-permohonan/'.$p->id) ?>" target="_blank" class="btn btn-outline btn-sm"><i class="ti ti-printer"></i> Cetak Permohonan</a>
     <?php endif; ?>
     <?php if ($this->rbac->can('pekerjaan.submit') && $p->status === 'draft'): ?>
+    <?php
+    $dok_spk_ok  = !empty($p->dok_spk_path)  && file_exists(FCPATH . $p->dok_spk_path);
+    $dok_spmk_ok = !empty($p->dok_spmk_path) && file_exists(FCPATH . $p->dok_spmk_path);
+    $dok_bast_ok = $p->jenis_penyaluran !== 'sekaligus'
+        || (!empty($p->dok_bast_path) && file_exists(FCPATH . $p->dok_bast_path));
+    $dok_siap = $dok_spk_ok && $dok_spmk_ok && $dok_bast_ok;
+    ?>
+    <?php if ($dok_siap): ?>
     <a href="<?= site_url('pekerjaan/submit/'.$p->id) ?>" class="btn btn-primary btn-sm"
        onclick="return confirm('Ajukan pekerjaan ini ke Inspektorat?\n\nPastikan semua data sudah lengkap dan benar.')">
       <i class="ti ti-send"></i> Submit ke Inspektorat
     </a>
+    <?php else: ?>
+    <button class="btn btn-sm" disabled title="Upload dokumen SPK, SPMK<?= $p->jenis_penyaluran==='sekaligus'?' dan BAST':'' ?> terlebih dahulu"
+            style="background:var(--abu-light);color:var(--abu);border:1px solid var(--border);cursor:not-allowed">
+      <i class="ti ti-lock"></i> Submit ke Inspektorat
+    </button>
+    <?php endif; ?>
     <?php endif; ?>
     <a href="<?= site_url('pekerjaan') ?>" class="btn btn-outline btn-sm"><i class="ti ti-arrow-left"></i> Kembali</a>
   </div>
@@ -96,8 +110,120 @@
     </div>
   </div>
 
-  <!-- Kolom Kanan: Tahapan, Dokumen, Timeline -->
+  <!-- Kolom Kanan: Upload Dokumen Draft, Tahapan, Timeline -->
   <div>
+
+    <!-- ══ UPLOAD DOKUMEN WAJIB (hanya saat Draft) ══════════════ -->
+    <?php if ($p->status === 'draft' && $this->rbac->can('pekerjaan.upload_dok')): ?>
+    <?php
+    $dok_list = [
+        'spk'  => ['label'=>'SPK',  'desc'=>'Surat Perintah Kerja',     'path'=>$p->dok_spk_path  ?? NULL, 'wajib'=>TRUE],
+        'spmk' => ['label'=>'SPMK', 'desc'=>'Surat Perintah Mulai Kerja','path'=>$p->dok_spmk_path ?? NULL, 'wajib'=>TRUE],
+        'bast' => ['label'=>'BAST', 'desc'=>'Berita Acara Serah Terima', 'path'=>$p->dok_bast_path ?? NULL, 'wajib'=>$p->jenis_penyaluran === 'sekaligus'],
+    ];
+    $semua_lengkap = (!empty($p->dok_spk_path) && !empty($p->dok_spmk_path))
+        && ($p->jenis_penyaluran !== 'sekaligus' || !empty($p->dok_bast_path));
+    ?>
+    <div class="card mb-2" style="border-left:4px solid <?= $semua_lengkap ? 'var(--hijau-mid)' : 'var(--kuning-mid)' ?>">
+      <div class="card-title">
+        <i class="ti ti-file-upload"></i> Dokumen Wajib Pre-Submit
+        <?php if ($semua_lengkap): ?>
+        <span class="badge badge-hijau" style="margin-left:auto">Lengkap — Siap Submit</span>
+        <?php else: ?>
+        <span class="badge badge-kuning" style="margin-left:auto">Belum Lengkap</span>
+        <?php endif; ?>
+      </div>
+      <div class="text-xs text-muted mb-2">
+        Upload dokumen berikut sebelum submit ke Inspektorat.
+      </div>
+
+      <?php foreach ($dok_list as $jenis => $dok):
+        if (!$dok['wajib'] && $jenis === 'bast') continue; // skip BAST jika bukan sekaligus
+        $uploaded = !empty($dok['path']) && file_exists(FCPATH . $dok['path']);
+      ?>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;
+                  border-bottom:1px solid var(--border)">
+        <!-- Status icon -->
+        <div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;
+                    align-items:center;justify-content:center;font-size:16px;
+                    background:<?= $uploaded ? 'var(--hijau-light)' : 'var(--kuning-light)' ?>;
+                    color:<?= $uploaded ? 'var(--hijau-mid)' : 'var(--kuning-mid)' ?>">
+          <i class="ti ti-<?= $uploaded ? 'circle-check' : 'clock' ?>"></i>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="fw-500 text-sm"><?= $dok['label'] ?>
+            <?php if ($dok['wajib']): ?><span class="text-danger">*</span><?php endif; ?>
+          </div>
+          <div class="text-xs text-muted"><?= $dok['desc'] ?></div>
+          <?php if ($uploaded): ?>
+          <div class="text-xs" style="color:var(--hijau-mid);margin-top:2px">
+            <i class="ti ti-file"></i> <?= basename($dok['path']) ?>
+          </div>
+          <?php endif; ?>
+        </div>
+        <!-- Aksi -->
+        <div class="aksi-row" style="flex-shrink:0">
+          <?php if ($uploaded): ?>
+          <a href="<?= base_url($dok['path']) ?>" target="_blank"
+             class="btn btn-outline btn-xs" title="Download / Lihat">
+            <i class="ti ti-eye"></i> Lihat
+          </a>
+          <a href="<?= site_url('pekerjaan/hapus-dok-draft/'.$p->id.'/'.$jenis) ?>"
+             class="btn btn-xs" style="background:var(--merah-light);color:var(--merah-mid);border:1px solid #F7C1C1"
+             data-confirm="Hapus file <?= $dok['label'] ?>?"
+             onclick="return confirm('Hapus file <?= $dok['label'] ?>?')">
+            <i class="ti ti-trash"></i>
+          </a>
+          <?php endif; ?>
+          <button type="button" class="btn btn-primary btn-xs"
+                  onclick="openModal('modalDraft_<?= $jenis ?>')">
+            <i class="ti ti-upload"></i> <?= $uploaded ? 'Ganti' : 'Upload' ?>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal upload per jenis -->
+      <div id="modalDraft_<?= $jenis ?>"
+           style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);
+                  z-index:1000;align-items:center;justify-content:center">
+        <div style="background:#fff;border-radius:12px;padding:24px;width:460px;max-width:95vw">
+          <div class="card-title" style="margin-bottom:16px">
+            <i class="ti ti-upload"></i> Upload <?= $dok['label'] ?>
+            <button type="button" onclick="closeModal('modalDraft_<?= $jenis ?>')"
+                    style="margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted)">
+              <i class="ti ti-x"></i>
+            </button>
+          </div>
+          <div class="alert alert-info mb-2" style="font-size:12px">
+            <i class="ti ti-info-circle"></i>
+            <div><strong><?= $dok['label'] ?>:</strong> <?= $dok['desc'] ?></div>
+          </div>
+          <?= form_open_multipart(site_url('pekerjaan/upload-dok-draft/'.$p->id.'/'.$jenis)) ?>
+          <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
+          <div class="form-group mb-3">
+            <label>Pilih File <span class="req">*</span></label>
+            <input type="file" name="file_dok" class="form-control" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" required>
+            <div class="form-hint">Format: PDF, DOC, DOCX, JPG, PNG &nbsp;·&nbsp; Maks. 10 MB</div>
+          </div>
+          <div class="form-actions">
+            <button type="button" onclick="closeModal('modalDraft_<?= $jenis ?>')" class="btn btn-outline">Batal</button>
+            <button type="submit" class="btn btn-primary"><i class="ti ti-upload"></i> Upload</button>
+          </div>
+          <?= form_close() ?>
+        </div>
+      </div>
+
+      <?php endforeach; ?>
+
+      <?php if (!$semua_lengkap): ?>
+      <div class="text-xs text-muted mt-2" style="font-style:italic">
+        <i class="ti ti-info-circle"></i>
+        Lengkapi semua dokumen bertanda <span class="text-danger">*</span> sebelum submit ke Inspektorat.
+      </div>
+      <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
     <!-- Tahapan Penyaluran -->
     <div class="card mb-2">
       <div class="card-title"><i class="ti ti-layers-intersect"></i> Tahapan Penyaluran</div>
