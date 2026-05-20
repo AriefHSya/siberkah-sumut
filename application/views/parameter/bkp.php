@@ -17,21 +17,48 @@
 </div>
 <div class="card mb-2">
   <form method="get" class="filter-row">
-    <div class="filter-group"><label>Tahun</label><select name="tahun"><?php foreach ($tahun_list as $t): ?><option value="<?= $t->tahun ?>" <?= ($t->tahun==$filters['tahun'])?'selected':'' ?>><?= $t->tahun ?></option><?php endforeach; ?></select></div>
-    <div class="filter-group"><label>Kab/Kota</label><select name="kabkota_id"><option value="">Semua</option><?php foreach ($kabkota_list as $k): ?><option value="<?= $k->id ?>" <?= ($k->id==$filters['kabkota_id'])?'selected':'' ?>><?= $k->nama ?></option><?php endforeach; ?></select></div>
-    <div class="filter-group"><label>Cari Uraian</label><input type="text" name="q" value="<?= htmlspecialchars($filters['q']??'') ?>" placeholder="Uraian BKP..."></div>
+    <div class="filter-group">
+      <label>Tahun</label>
+      <select name="tahun">
+        <?php foreach ($tahun_list as $t): ?>
+        <option value="<?= $t->tahun ?>" <?= ($t->tahun==$filters['tahun'])?'selected':'' ?>><?= $t->tahun ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+    <?php if ($is_provinsi): ?>
+    <div class="filter-group">
+      <label>Kab/Kota</label>
+      <select name="kabkota_id">
+        <option value="">Semua</option>
+        <?php foreach ($kabkota_list as $k): ?>
+        <option value="<?= $k->id ?>" <?= ($k->id==$filters['kabkota_id'])?'selected':'' ?>><?= $k->nama ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+    <?php endif; ?>
+    <div class="filter-group">
+      <label>Cari Uraian</label>
+      <input type="text" name="q" value="<?= htmlspecialchars($filters['q']??'') ?>" placeholder="Uraian BKP...">
+    </div>
     <button type="submit" class="btn btn-primary btn-sm"><i class="ti ti-search"></i> Filter</button>
     <a href="<?= site_url('parameter/bkp') ?>" class="btn btn-outline btn-sm">Reset</a>
   </form>
 </div>
 <div class="card">
   <div class="table-wrap"><table class="tbl">
-    <thead><tr><th>Kode BKP</th><th>Kab/Kota</th><th>Uraian BKP</th><th>Bidang</th><th style="text-align:right">Nilai</th><?php if ($this->rbac->can('parameter.bkp.manage')): ?><th>Aksi</th><?php endif; ?></tr></thead>
+    <thead><tr>
+      <th>Kode BKP</th>
+      <?php if ($is_provinsi): ?><th>Kab/Kota</th><?php endif; ?>
+      <th>Uraian BKP</th>
+      <th>Bidang</th>
+      <th style="text-align:right">Nilai</th>
+      <?php if ($this->rbac->can('parameter.bkp.manage')): ?><th>Aksi</th><?php endif; ?>
+    </tr></thead>
     <tbody>
     <?php if (!empty($list)): foreach ($list as $b): $ada_perubahan = ($b->nilai!=$b->nilai_awal); ?>
     <tr <?= $ada_perubahan?'style="background:#FFF8F0"':'' ?>>
       <td class="mono text-sm"><?= htmlspecialchars($b->kode_bkp) ?></td>
-      <td class="text-sm"><?= htmlspecialchars($b->nama_kabkota) ?></td>
+      <?php if ($is_provinsi): ?><td class="text-sm"><?= htmlspecialchars($b->nama_kabkota) ?></td><?php endif; ?>
       <td class="text-sm"><?= htmlspecialchars($b->uraian_bkp) ?></td>
       <td><span class="badge badge-abu"><?= htmlspecialchars($b->nama_bidang) ?></span></td>
       <td style="text-align:right">
@@ -67,7 +94,8 @@
         </select>
       </div>
 
-      <!-- Kabupaten/Kota — trigger auto-generate kode -->
+      <!-- Kabupaten/Kota: hanya provinsi yang bisa pilih, kab/kota otomatis milik sendiri -->
+      <?php if ($is_provinsi): ?>
       <div class="form-group">
         <label>Kabupaten/Kota <span class="req">*</span></label>
         <select name="kabkota_id" id="tambah_kabkota" class="form-control" required onchange="generateKodeBkp()">
@@ -77,6 +105,14 @@
           <?php endforeach; ?>
         </select>
       </div>
+      <?php else: ?>
+      <!-- Kab/Kota role: kabkota_id otomatis dari session, tidak perlu pilih -->
+      <input type="hidden" name="kabkota_id" id="tambah_kabkota" value="<?= $this->session->userdata('kabkota_id') ?>">
+      <div class="form-group">
+        <label>Kabupaten/Kota</label>
+        <input type="text" class="form-control" value="<?= htmlspecialchars($this->session->userdata('kabkota_nama') ?? '') ?>" readonly style="background:var(--bg)">
+      </div>
+      <?php endif; ?>
 
       <!-- Kode BKP — auto-generated, bisa diedit manual jika perlu -->
       <div class="form-group">

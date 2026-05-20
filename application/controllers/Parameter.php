@@ -166,28 +166,35 @@ class Parameter extends Auth_Controller
     // ─── BKP ──────────────────────────────────────────────────
     public function bkp() {
         $this->requirePerm('parameter.bkp.view');
+        // Role kab/kota hanya boleh lihat BKP milik kabkota mereka sendiri
+        $force_kabkota = $this->rbac->isKabkota() ? (int)$this->kabkota_id : NULL;
         $filters = [
             'tahun'      => $this->input->get('tahun') ?? $this->tahun,
-            'kabkota_id' => $this->input->get('kabkota_id'),
+            'kabkota_id' => $force_kabkota ?? $this->input->get('kabkota_id'),
             'bidang_id'  => $this->input->get('bidang_id'),
             'q'          => $this->input->get('q'),
         ];
         $d = $this->_d('Data Referensi BKP','bkp');
-        $d['list']         = $this->Parameter_model->get_bkp($filters);
-        $d['rekap']        = $this->Parameter_model->rekap_bkp($filters['tahun'], $filters['kabkota_id']);
-        $d['kabkota_list'] = $this->Parameter_model->get_kabkota();
-        $d['bidang_list']  = $this->Parameter_model->get_bidang();
-        $d['filters']      = $filters;
+        $d['list']          = $this->Parameter_model->get_bkp($filters);
+        $d['rekap']         = $this->Parameter_model->rekap_bkp($filters['tahun'], $filters['kabkota_id']);
+        $d['kabkota_list']  = $this->rbac->isProvinsi() ? $this->Parameter_model->get_kabkota() : [];
+        $d['bidang_list']   = $this->Parameter_model->get_bidang();
+        $d['filters']       = $filters;
+        $d['is_provinsi']   = $this->rbac->isProvinsi();
         $this->render('parameter/bkp', $d);
     }
 
     public function bkp_simpan() {
         $this->requirePerm('parameter.bkp.manage');
         $nilai = (int)str_replace(['.','Rp',' ',','],'',$this->input->post('nilai'));
+        // Role kab/kota tidak boleh pilih kabkota lain — paksa pakai kabkota sendiri
+        $kabkota_id = $this->rbac->isKabkota()
+            ? (int)$this->kabkota_id
+            : (int)$this->input->post('kabkota_id', TRUE);
         $data = [
             'kode_bkp'   => strtoupper(trim($this->input->post('kode_bkp',TRUE))),
             'tahun'      => $this->input->post('tahun',TRUE),
-            'kabkota_id' => $this->input->post('kabkota_id',TRUE),
+            'kabkota_id' => $kabkota_id,
             'bidang_id'  => $this->input->post('bidang_id',TRUE),
             'uraian_bkp' => $this->input->post('uraian_bkp',TRUE),
             'nilai'      => $nilai,
@@ -205,11 +212,16 @@ class Parameter extends Auth_Controller
 
     public function bkp_update($id) {
         $this->requirePerm('parameter.bkp.manage');
+        // Guard IDOR: kab/kota tidak bisa edit BKP milik kab/kota lain
+        if ($this->rbac->isKabkota()) {
+            $bkp_cek = $this->Parameter_model->get_bkp_by_id($id);
+            if (!$bkp_cek || (int)$bkp_cek->kabkota_id !== (int)$this->kabkota_id) {
+                $this->session->set_flashdata('error','Anda tidak berwenang mengubah data BKP ini.');
+                redirect('parameter/bkp'); return;
+            }
+        }
         $nilai = (int)str_replace(['.','Rp',' ',','],'',$this->input->post('nilai'));
-        $data = [
-            'uraian_bkp' => $this->input->post('uraian_bkp',TRUE),
-            'nilai'      => $nilai,
-        ];
+        $data  = ['uraian_bkp' => $this->input->post('uraian_bkp',TRUE), 'nilai' => $nilai];
         $this->Parameter_model->update_bkp($id, $data, $this->user_id);
         $this->log_aktivitas('parameter.bkp.edit','Edit BKP id='.$id);
         $this->session->set_flashdata('success','Data BKP berhasil diperbarui.');
@@ -220,7 +232,13 @@ class Parameter extends Auth_Controller
     public function bkp_hapus($id) {
         $this->requirePerm('parameter.bkp.manage');
         $bkp = $this->Parameter_model->get_bkp_by_id($id);
-        // Cek apakah BKP sudah punya pekerjaan
+        // Guard IDOR: kab/kota tidak bisa hapus BKP milik kab/kota lain
+        if ($this->rbac->isKabkota()) {
+            if (!$bkp || (int)$bkp->kabkota_id !== (int)$this->kabkota_id) {
+                $this->session->set_flashdata('error','Anda tidak berwenang menghapus data BKP ini.');
+                redirect('parameter/bkp'); return;
+            }
+        }
         $punya_pekerjaan = $this->db->where('bkp_id',$id)->count_all_results('trx_pekerjaan');
         if ($punya_pekerjaan) {
             $this->session->set_flashdata('error','BKP ini sudah memiliki data pekerjaan dan tidak dapat dihapus.'); redirect('parameter/bkp'); return;
