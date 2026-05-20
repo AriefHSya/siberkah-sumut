@@ -115,6 +115,7 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
 <?php endif; ?>
 
 <!-- TTD -->
+<?php $rv = $reviewer ?? []; ?>
 <div class="ttd">
   <div class="ttd-blok">
     <p>Pemeriksa,</p>
@@ -123,13 +124,13 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
   </div>
   <div class="ttd-blok">
     <p><?= htmlspecialchars($p->nama_kabkota) ?>, <?= $tgl_cetak ?></p>
-    <p><?= $inspektur ? htmlspecialchars($inspektur->jabatan ?? 'Inspektur') : 'Inspektur' ?></p>
-    <div class="nama"><?= $inspektur ? htmlspecialchars($inspektur->nama) : '.................................................' ?></div>
-    <?php if ($inspektur && $inspektur->nip): ?>
-    <div class="nip">NIP. <?= htmlspecialchars($inspektur->nip) ?></div>
-    <?php else: ?>
-    <div class="nip">NIP. .......................................</div>
-    <?php endif; ?>
+    <p><?= htmlspecialchars($rv['jabatan'] ?? ($inspektur->jabatan ?? 'Inspektur')) ?></p>
+    <div class="nama">
+      <?= !empty($rv['nama']) ? htmlspecialchars($rv['nama']) : '.................................................' ?>
+    </div>
+    <div class="nip">
+      NIP. <?= !empty($rv['nip']) ? htmlspecialchars($rv['nip']) : '.......................................' ?>
+    </div>
   </div>
 </div>
 

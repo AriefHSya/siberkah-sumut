@@ -184,11 +184,20 @@ class Reviu extends Auth_Controller
             return;
         }
 
-        $this->session->set_flashdata('success', 'Checklist berhasil disimpan.');
+        // Aksi "kunci checklist" — tidak bisa dibuka lagi
+        $action = $this->input->post('action');
+        if ($action === 'confirm') {
+            $this->Reviu_model->update($reviu_id, [
+                'checklist_confirmed_at' => date('Y-m-d H:i:s'),
+            ]);
+            $this->log_aktivitas('reviu.kunci_checklist', 'Checklist reviu dikunci, reviu_id='.$reviu_id);
+            $this->session->set_flashdata('success',
+                'Checklist berhasil dikunci. Silakan cetak Kertas Kerja dan upload LHR.');
+        } else {
+            $this->session->set_flashdata('success', 'Checklist berhasil disimpan.');
+        }
 
-        // Redirect ke form reviu
-        $tahapan_id = $reviu->tahapan_id;
-        redirect('reviu/form/' . $tahapan_id);
+        redirect('reviu/form/' . $reviu->tahapan_id);
     }
 
     // ─── UPLOAD LHR ───────────────────────────────────────────
@@ -403,15 +412,24 @@ class Reviu extends Auth_Controller
         ])->result();
         foreach ($rows as $p) $pejabat[$p->jenis] = $p;
 
+        // Data reviewer dari form modal (GET param) atau dari data pejabat DB
+        $insp = $pejabat['inspektur'] ?? NULL;
+        $reviewer = [
+            'nama'    => $this->input->get('nama',    TRUE) ?: ($insp->nama    ?? ''),
+            'nip'     => $this->input->get('nip',     TRUE) ?: ($insp->nip     ?? ''),
+            'jabatan' => $this->input->get('jabatan', TRUE) ?: 'Inspektur',
+        ];
+
         $this->render_plain('reviu/cetak_kertas_kerja', [
-            'reviu'     => $reviu,
-            'tahapan'   => $tahapan,
-            'pekerjaan' => $pekerjaan,
-            'items'     => $items,
-            'isian'     => $isian,
-            'stat'      => $stat,
-            'pejabat'   => $pejabat,
-            'tgl_cetak' => tgl_indo(date('Y-m-d')),
+            'reviu'    => $reviu,
+            'tahapan'  => $tahapan,
+            'pekerjaan'=> $pekerjaan,
+            'items'    => $items,
+            'isian'    => $isian,
+            'stat'     => $stat,
+            'pejabat'  => $pejabat,
+            'reviewer' => $reviewer,
+            'tgl_cetak'=> tgl_indo(date('Y-m-d')),
         ]);
     }
 
