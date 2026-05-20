@@ -76,21 +76,97 @@ img { max-width: 100%; }
 
 /* ── 3. Layout Admin Panel ─────────────────────────────────── */
 /* html.app-html dipasang oleh layouts/main.php — hanya admin panel yang pakai overflow hidden.
-   Landing (body.landing-body) dan Login (body.login-body) TIDAK memakai class ini
-   agar tetap bisa scroll normal. */
+   Landing (body.landing-body) dan Login (body.login-body) TIDAK memakai class ini. */
 html.app-html, html.app-html body { height: 100%; overflow: hidden; }
 .app-shell    { display: flex; height: 100vh; overflow: hidden; }
 .main-wrap    { display: flex; flex: 1; height: 100vh; overflow: hidden; }
 .sidebar      { width: 220px; height: 100vh; background: var(--biru-dark); flex-shrink: 0;
-                display: flex; flex-direction: column; overflow: hidden; }
+                display: flex; flex-direction: column; overflow: hidden;
+                transition: width 0.25s ease; }
 .sidebar-nav  { flex: 1; overflow-y: auto; padding: 8px 0; }
-.content-area { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.content-area { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+                min-width: 0; }
 .top-bar      { background: #fff; border-bottom: 1px solid var(--border); height: 52px;
-                display: flex; align-items: center; padding: 0 20px; gap: 12px; flex-shrink: 0; }
+                display: flex; align-items: center; padding: 0 16px; gap: 8px; flex-shrink: 0; }
 .sub-nav      { background: #f8f9fa; border-bottom: 1px solid var(--border); display: flex;
-                padding: 0 20px; height: 40px; align-items: center; gap: 2px;
+                padding: 0 16px; height: 40px; align-items: center; gap: 2px;
                 flex-shrink: 0; overflow-x: auto; }
-.page-body    { flex: 1; padding: 20px; overflow-y: auto; overflow-x: hidden; }
+.page-body    { flex: 1; padding: 16px; overflow-y: auto; overflow-x: hidden; }
+
+/* Overlay gelap untuk sidebar mobile */
+.sidebar-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5); z-index: 999;
+}
+
+/* ── Responsive: Tablet (769px – 1024px) ── */
+@media (max-width: 1024px) {
+  .sidebar { width: 200px; }
+  .g4      { grid-template-columns: repeat(2, 1fr); }
+  .g3      { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── Responsive: Mobile (≤ 768px) ── */
+@media (max-width: 768px) {
+  /* Sidebar menjadi off-canvas — tersembunyi di kiri */
+  html.app-html, html.app-html body { overflow: hidden; }
+  .sidebar {
+    position: fixed; top: 0; left: -220px; z-index: 1000;
+    height: 100vh; width: 220px !important;
+    box-shadow: none; transition: left 0.25s ease, box-shadow 0.25s ease;
+  }
+  /* Sidebar terbuka di mobile */
+  .main-wrap.sidebar-mobile-open .sidebar {
+    left: 0;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.35);
+  }
+  /* Tampilkan overlay saat sidebar terbuka */
+  .main-wrap.sidebar-mobile-open .sidebar-overlay { display: block; }
+
+  /* Content area ambil full lebar */
+  .content-area { width: 100%; }
+
+  /* Top bar lebih ringkas */
+  .top-bar     { padding: 0 12px; gap: 6px; }
+  .top-bar .breadcrumb { font-size: 12px; }
+  .top-bar .user-pill span { display: none; } /* Sembunyikan nama user */
+
+  /* Grid: semua jadi 1 kolom */
+  .g2, .g3, .g4, .form-grid, .form-grid-2, .form-grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Stats grid: 2 kolom di mobile */
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Page body padding lebih kecil */
+  .page-body { padding: 12px; }
+
+  /* Sub nav scrollable */
+  .sub-nav { padding: 0 10px; }
+
+  /* Tabel: bisa scroll horizontal */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tbl { min-width: 600px; }
+
+  /* Card: kurangi padding */
+  .card { padding: 12px; }
+
+  /* Filter row: stack vertikal */
+  .filter-row { flex-direction: column; align-items: stretch; }
+  .filter-row .btn { width: 100%; justify-content: center; }
+
+  /* Page header: stack */
+  .page-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .page-header .aksi-row { flex-wrap: wrap; }
+}
+
+/* ── Responsive: Small mobile (≤ 480px) ── */
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .top-bar .notif-btn { width: 32px; height: 32px; }
+  .page-title { font-size: 15px; }
+}
 
 /* ── Sidebar Collapse / Expand ─────────────── */
 /* State collapsed: sidebar menyempit jadi 52px, hanya tampilkan icon */

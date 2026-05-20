@@ -58,7 +58,6 @@
         <?php endforeach; ?>
       </nav>
       <div class="sidebar-footer">
-        <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:6px">TA <?= $tahun_anggaran ?></div>
         <a href="<?= site_url('logout') ?>" class="nav-item" title="Keluar"
            style="border-radius:6px;margin:0">
           <i class="ti ti-logout" aria-hidden="true"></i>
@@ -66,6 +65,9 @@
         </a>
       </div>
     </aside>
+
+    <!-- Overlay gelap saat sidebar terbuka di mobile -->
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebarMobile()"></div>
 
     <!-- CONTENT AREA -->
     <div class="content-area">
@@ -155,31 +157,51 @@
   var shell       = document.querySelector('.main-wrap');
   var icon        = document.getElementById('sidebarToggleIcon');
 
-  function applyState(collapsed, animate) {
+  function isMobile() { return window.innerWidth <= 768; }
+
+  /* ── Desktop: collapse ke icon-only ── */
+  function applyDesktopState(collapsed, animate) {
     if (!shell) return;
     if (animate) {
       shell.classList.add('sidebar-animating');
       setTimeout(function() { shell.classList.remove('sidebar-animating'); }, 300);
     }
-    if (collapsed) {
-      shell.classList.add('sidebar-collapsed');
-    } else {
-      shell.classList.remove('sidebar-collapsed');
-    }
-    if (icon) {
-      icon.className = collapsed ? 'ti ti-layout-sidebar-left-expand' : 'ti ti-menu-2';
-    }
+    shell.classList.toggle('sidebar-collapsed', collapsed);
+    if (icon) icon.className = collapsed ? 'ti ti-layout-sidebar-left-expand' : 'ti ti-menu-2';
   }
 
-  window.toggleSidebar = function() {
-    var collapsed = !shell.classList.contains('sidebar-collapsed');
-    localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0');
-    applyState(collapsed, true);
+  /* ── Mobile: overlay slide-in ── */
+  function openSidebarMobile() {
+    shell.classList.add('sidebar-mobile-open');
+    if (icon) icon.className = 'ti ti-x';
+  }
+
+  window.closeSidebarMobile = function() {
+    shell.classList.remove('sidebar-mobile-open');
+    if (icon) icon.className = 'ti ti-menu-2';
   };
 
-  // Restore state dari localStorage saat halaman dimuat
-  var saved = localStorage.getItem(STORAGE_KEY);
-  applyState(saved === '1', false);
+  window.toggleSidebar = function() {
+    if (isMobile()) {
+      shell.classList.contains('sidebar-mobile-open')
+        ? closeSidebarMobile()
+        : openSidebarMobile();
+    } else {
+      var collapsed = !shell.classList.contains('sidebar-collapsed');
+      localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0');
+      applyDesktopState(collapsed, true);
+    }
+  };
+
+  /* Tutup sidebar mobile saat resize ke desktop */
+  window.addEventListener('resize', function() {
+    if (!isMobile()) closeSidebarMobile();
+  });
+
+  /* Restore state desktop dari localStorage (hanya berlaku di non-mobile) */
+  if (!isMobile()) {
+    applyDesktopState(localStorage.getItem(STORAGE_KEY) === '1', false);
+  }
 })();
 </script>
 </body>
