@@ -168,18 +168,19 @@ $v_rupiah = function($field) use ($p) {
     </div>
     <div class="form-group"><!-- spacer --></div>
 
-    <div class="form-group">
+    <!-- Field 12-13: BAST — hanya tampil jika jenis penyaluran = sekaligus -->
+    <div id="rowBastNo" class="form-group" style="display:none">
       <label>12. No. BAST <span class="text-xs text-muted">(jika sudah ada)</span></label>
-      <input type="text" name="no_bast" class="form-control"
+      <input type="text" name="no_bast" id="no_bast" class="form-control"
         value="<?= $val('no_bast') ?>"
         placeholder="Nomor BAST">
     </div>
-    <div class="form-group">
+    <div id="rowBastTgl" class="form-group" style="display:none">
       <label>13. Tanggal BAST</label>
-      <input type="date" name="tgl_bast" class="form-control"
+      <input type="date" name="tgl_bast" id="tgl_bast" class="form-control"
         value="<?= $val('tgl_bast') ?>">
     </div>
-    <div class="form-group"><!-- spacer --></div>
+    <div id="rowBastSpacer" class="form-group" style="display:none"><!-- spacer --></div>
   </div>
 
   <!-- Field 15-17: Nilai -->
@@ -348,27 +349,48 @@ function onBkpChange(sel) {
     document.getElementById('infoBkp').style.display = 'block';
 }
 
-// ─── Info batas waktu per jenis ──────────────────────────────
+// ─── Info batas waktu + tampil/sembunyikan field BAST ────────
 function onJenisChange(jenis) {
+    // Info batas waktu
     const el = document.getElementById('bwContent');
-    if (!jenis) { el.innerHTML = '<span class="text-muted">Pilih jenis penyaluran...</span>'; return; }
-    const items = batasWaktuData.filter(b => b.jenis === jenis);
-    if (!items.length) {
-        el.innerHTML = '<span class="text-warning"><i class="ti ti-alert-triangle"></i> Belum ada batas waktu untuk jenis ini di TA <?= $tahun ?>. Hubungi Admin Provinsi.</span>';
-        return;
+    if (!jenis) { el.innerHTML = '<span class="text-muted">Pilih jenis penyaluran...</span>'; }
+    else {
+        const items = batasWaktuData.filter(b => b.jenis === jenis);
+        if (!items.length) {
+            el.innerHTML = '<span class="text-warning"><i class="ti ti-alert-triangle"></i> Belum ada batas waktu untuk jenis ini di TA <?= $tahun ?>. Hubungi Admin Provinsi.</span>';
+        } else {
+            el.innerHTML = items.map(function(b) {
+                const today = new Date().toISOString().slice(0,10);
+                const lewat = today > b.batas_pengajuan;
+                const cls   = lewat ? 'text-danger' : '';
+                const icon  = lewat ? '🔴' : '🟢';
+                return `<div class="${cls}">${icon} <strong>${b.label}</strong>: batas pengajuan <strong>${b.batas_pengajuan}</strong>${lewat?' ⚠️ SUDAH LEWAT':''}</div>`;
+            }).join('');
+        }
     }
-    let html = items.map(function(b) {
-        const today = new Date().toISOString().slice(0,10);
-        const lewat = today > b.batas_pengajuan;
-        const cls   = lewat ? 'text-danger' : '';
-        const icon  = lewat ? '🔴' : '🟢';
-        return `<div class="${cls}">${icon} <strong>${b.label}</strong>: batas pengajuan <strong>${b.batas_pengajuan}</strong>${lewat?' ⚠️ SUDAH LEWAT':''}</div>`;
-    }).join('');
-    el.innerHTML = html;
+
+    // Tampilkan field BAST hanya jika jenis = sekaligus
+    var showBast = (jenis === 'sekaligus');
+    var disp     = showBast ? '' : 'none';
+    document.getElementById('rowBastNo').style.display     = disp;
+    document.getElementById('rowBastTgl').style.display    = disp;
+    document.getElementById('rowBastSpacer').style.display = disp;
+
+    // Kosongkan nilai BAST jika disembunyikan agar tidak ikut terkirim
+    if (!showBast) {
+        document.getElementById('no_bast').value  = '';
+        document.getElementById('tgl_bast').value = '';
+    }
 }
 
-// Init jika mode edit
+// Init tampilan awal — penting untuk mode edit dan mode tambah yang sudah pilih jenis
 <?php if ($edit && $p): ?>
 onJenisChange('<?= $p->jenis_penyaluran ?>');
+<?php else: ?>
+// Mode tambah: jika ada nilai default di select, trigger juga
+(function() {
+    var sel = document.getElementById('jenis_penyaluran');
+    if (sel && sel.value) onJenisChange(sel.value);
+})();
 <?php endif; ?>
 </script>
