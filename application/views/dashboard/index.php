@@ -452,7 +452,7 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
      user input di sini, semua data dari DB yang sudah trusted.
      ══════════════════════════════════════════════════════════════ -->
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+(function () {
   if (typeof Chart === 'undefined') {
     console.error('Chart.js gagal dimuat');
     return;
@@ -689,7 +689,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   <?php endif; ?>
 
-}); // end DOMContentLoaded
+})();
 
 /* ── Pagination tabel kab/kota — global agar onclick HTML bisa memanggil ── */
 (function(){
