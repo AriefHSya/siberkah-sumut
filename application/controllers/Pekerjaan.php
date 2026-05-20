@@ -442,6 +442,49 @@ class Pekerjaan extends Auth_Controller
         redirect('pekerjaan/detail/'.$id);
     }
 
+    // ─── BATALKAN PENGAJUAN KE INSPEKTORAT ───────────────────
+    // Hanya bisa saat status opd_submitted (belum diproses Inspektorat)
+
+    public function batal_submit($id)
+    {
+        $this->requirePerm('pekerjaan.submit');
+
+        $pekerjaan = $this->Pekerjaan_model->get_by_id($id);
+        if (!$pekerjaan) { show_404(); return; }
+
+        // Hanya bisa dibatalkan saat masih opd_submitted
+        if ($pekerjaan->status !== 'opd_submitted') {
+            $this->session->set_flashdata('error',
+                'Pengajuan tidak dapat dibatalkan. Pekerjaan sudah dalam proses reviu Inspektorat.');
+            redirect('pekerjaan/detail/'.$id); return;
+        }
+
+        // Guard: hanya OPD pemilik pekerjaan
+        if ($this->rbac->isKabkota() && (int)$pekerjaan->kabkota_id !== (int)$this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('pekerjaan'); return;
+        }
+
+        // Kembalikan status pekerjaan ke draft
+        $this->Pekerjaan_model->set_status($id, 'draft', $this->user_id,
+            'Pengajuan ke Inspektorat dibatalkan oleh OPD');
+
+        // Reset tahapan pertama kembali ke status 'belum' dan hapus tgl_pengajuan
+        $tahapan = $this->Pekerjaan_model->get_tahapan($id);
+        if (!empty($tahapan)) {
+            $this->db->where('id', $tahapan[0]->id)->update('trx_tahapan_penyaluran', [
+                'status'       => 'belum',
+                'tgl_pengajuan'=> NULL,
+                'updated_at'   => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        $this->log_aktivitas('pekerjaan.batal_submit', 'Batal submit pekerjaan id='.$id);
+        $this->session->set_flashdata('success',
+            'Pengajuan berhasil dibatalkan. Pekerjaan kembali ke status Draft dan dapat diedit.');
+        redirect('pekerjaan/detail/'.$id);
+    }
+
     private function _validasi_kelengkapan($pekerjaan)
     {
         $errors = [];
