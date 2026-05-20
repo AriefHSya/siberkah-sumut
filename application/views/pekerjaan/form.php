@@ -207,6 +207,9 @@ $v_rupiah = function($field) use ($p) {
         </button>
       </div>
       <div class="form-hint" id="hint_pendukung">Maks. 5% dari nilai BKP — klik <strong>Isi Rincian</strong> untuk input detail</div>
+      <!-- Menyimpan rincian pendukung sebagai JSON agar bisa di-restore saat edit -->
+      <input type="hidden" name="belanja_pendukung_json" id="belanja_pendukung_json"
+             value="<?= htmlspecialchars($p->belanja_pendukung_json ?? '[]') ?>">
     </div>
   </div>
 
@@ -346,13 +349,13 @@ $v_rupiah = function($field) use ($p) {
            color:var(--merah-mid);font-size:12px;font-weight:600">
         <i class="ti ti-alert-triangle"></i>
         Belanja pendukung melebihi batas <strong>5%</strong> dari nilai BKP.
-        Simpan tetap diizinkan, namun akan diblokir saat submit oleh sistem.
+        Kurangi nilai agar bisa disimpan.
       </div>
     </div>
 
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button type="button" onclick="closeModalPendukung()" class="btn btn-outline">Batal</button>
-      <button type="button" onclick="simpanPendukung()" class="btn btn-primary">
+      <button type="button" onclick="simpanPendukung()" id="btnSimpanPendukung" class="btn btn-primary">
         <i class="ti ti-device-floppy"></i> Simpan ke Form
       </button>
     </div>
@@ -545,40 +548,73 @@ function updatePendukungNilai(idx, rawValue) {
 }
 
 function hitungSummaryPendukung() {
-    var total = pendukungRows.reduce(function(s, r) { return s + (r.nilai || 0); }, 0);
-    document.getElementById('summTotal').textContent = 'Rp ' + total.toLocaleString('id-ID');
+    var total    = pendukungRows.reduce(function(s, r) { return s + (r.nilai || 0); }, 0);
+    var totalEl  = document.getElementById('summTotal');
+    var pctEl    = document.getElementById('summPct');
+    var warnEl   = document.getElementById('warnPendukung');
+    var btnSimpan= document.getElementById('btnSimpanPendukung');
 
-    var pctEl   = document.getElementById('summPct');
-    var warnEl  = document.getElementById('warnPendukung');
+    totalEl.textContent = 'Rp ' + total.toLocaleString('id-ID');
 
+    var melebihi = false;
     if (nilaiBkpAktif > 0) {
-        var pct = (total / nilaiBkpAktif * 100).toFixed(2);
-        var melebihi = parseFloat(pct) > 5;
-        pctEl.textContent  = pct + '%';
-        pctEl.style.color  = melebihi ? 'var(--merah-mid)' : 'var(--hijau-mid)';
+        var pct  = (total / nilaiBkpAktif * 100).toFixed(2);
+        melebihi = parseFloat(pct) > 5;
+        pctEl.textContent = pct + '%';
+        pctEl.style.color = melebihi ? 'var(--merah-mid)' : 'var(--hijau-mid)';
         warnEl.style.display = melebihi ? 'block' : 'none';
     } else {
-        pctEl.textContent  = '— (pilih BKP dulu)';
-        pctEl.style.color  = 'var(--text-muted)';
+        pctEl.textContent    = '— (pilih BKP dulu)';
+        pctEl.style.color    = 'var(--text-muted)';
         warnEl.style.display = 'none';
+    }
+
+    // Disable tombol simpan jika melebihi 5%
+    if (btnSimpan) {
+        btnSimpan.disabled = melebihi;
+        btnSimpan.style.opacity = melebihi ? '0.5' : '1';
+        btnSimpan.style.cursor  = melebihi ? 'not-allowed' : '';
+        btnSimpan.title = melebihi ? 'Kurangi nilai — total melebihi 5% dari nilai BKP' : '';
     }
 }
 
 function simpanPendukung() {
-    var total = pendukungRows.reduce(function(s, r) { return s + (r.nilai || 0); }, 0);
-    // Isi field nilai_belanja_pendukung dengan format ribuan
+    // Cek lagi sebelum simpan
+    var total    = pendukungRows.reduce(function(s, r) { return s + (r.nilai || 0); }, 0);
+    if (nilaiBkpAktif > 0 && (total / nilaiBkpAktif * 100) > 5) {
+        alert('Total belanja pendukung melebihi 5% dari nilai BKP. Kurangi nilai terlebih dahulu.');
+        return;
+    }
+
+    // Simpan total ke field
     document.getElementById('nilai_belanja_pendukung').value =
         total > 0 ? total.toLocaleString('id-ID') : '0';
+
+    // Simpan rincian sebagai JSON ke hidden field agar bisa di-restore saat edit
+    var rincianBersih = pendukungRows.filter(function(r) { return r.uraian && r.nilai > 0; });
+    document.getElementById('belanja_pendukung_json').value =
+        JSON.stringify(rincianBersih);
+
     closeModalPendukung();
 }
 
-// Jika mode edit & ada nilai existing, buat 1 baris placeholder agar total cocok
-<?php if ($edit && $p && ($p->nilai_belanja_pendukung ?? 0) > 0): ?>
-pendukungRows = [{
-    uraian: 'Konsultan Perencana',
-    nilai : <?= (int)($p->nilai_belanja_pendukung ?? 0) ?>
-}];
-<?php endif; ?>
+// Restore rincian dari JSON (mode edit) atau nilai existing
+(function initPendukungRows() {
+    <?php if ($edit && $p): ?>
+    var jsonStr = <?= json_encode($p->belanja_pendukung_json ?? '[]') ?>;
+    try {
+        var parsed = JSON.parse(jsonStr);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            pendukungRows = parsed;
+            return; // restored dari JSON, selesai
+        }
+    } catch(e) {}
+    // Fallback: jika JSON kosong/invalid tapi ada nilai, buat 1 baris
+    <?php if (($p->nilai_belanja_pendukung ?? 0) > 0): ?>
+    pendukungRows = [{ uraian: 'Konsultan Perencana', nilai: <?= (int)($p->nilai_belanja_pendukung ?? 0) ?> }];
+    <?php endif; ?>
+    <?php endif; ?>
+})();
 
 // Init tampilan awal — penting untuk mode edit dan mode tambah yang sudah pilih jenis
 <?php if ($edit && $p): ?>
