@@ -148,7 +148,7 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
       <i class="ti ti-circle-half-2"></i> Realisasi Penyaluran Dana
     </div>
     <div style="position:relative;width:160px;height:160px;margin:8px auto;flex-shrink:0">
-      <canvas id="chartRealisasi"></canvas>
+      <canvas id="chartRealisasi" width="160" height="160" style="display:block"></canvas>
       <div style="position:absolute;inset:0;display:flex;flex-direction:column;
                   align-items:center;justify-content:center;pointer-events:none">
         <div style="font-size:22px;font-weight:700;color:<?= $pct_realisasi > 0 ? 'var(--teal-mid)' : 'var(--text-muted)' ?>;line-height:1"><?= $pct_realisasi ?>%</div>
@@ -177,7 +177,7 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
       <i class="ti ti-chart-pie"></i> Status Pekerjaan
     </div>
     <div style="width:160px;height:160px;margin:8px auto;flex-shrink:0">
-      <canvas id="chartStatus"></canvas>
+      <canvas id="chartStatus" width="160" height="160" style="display:block"></canvas>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11px;margin-top:6px;justify-content:center">
       <div style="display:flex;align-items:center;gap:4px">
@@ -508,8 +508,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }]
       },
       options: {
-        responsive:          true,
-        maintainAspectRatio: false,
+        responsive:          false,
+        maintainAspectRatio: true,
         cutout: '72%',
         animation: { duration: 600 },
         plugins: {
@@ -559,8 +559,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }]
       },
       options: {
-        responsive:          true,
-        maintainAspectRatio: false,
+        responsive:          false,
+        maintainAspectRatio: true,
         cutout: '60%',
         animation: { duration: 600 },
         plugins: {
