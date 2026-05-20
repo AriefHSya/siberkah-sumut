@@ -234,6 +234,10 @@ html.app-html, html.app-html body { height: 100%; overflow: hidden; }
 .stat-val    { font-size: 24px; font-weight: 600; line-height: 1; }
 .stat-label  { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
 
+/* ── Sort header tabel ─ */
+.tbl-sort:hover { background: var(--biru-light) !important; color: var(--biru); }
+.tbl-sort:hover i { opacity: 1 !important; }
+
 /* ── 9. Tabel ──────────────────────────────── */
 .table-wrap  { overflow-x: auto; }
 .tbl         { width: 100%; border-collapse: collapse; font-size: 13px; }

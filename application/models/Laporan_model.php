@@ -122,6 +122,7 @@ class Laporan_model extends CI_Model
         return $this->db
             ->select('k.nama, k.id as kabkota_id,
                       COUNT(DISTINCT b.id) as total_bkp,
+                      SUM(b.nilai) as total_nilai_bkp,
                       COUNT(DISTINCT p.id) as total_pekerjaan,
                       SUM(p.nilai_kontrak) as total_kontrak,
                       SUM(pd.nilai_transfer) as total_disalurkan,
