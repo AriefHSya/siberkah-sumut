@@ -195,11 +195,18 @@ $v_rupiah = function($field) use ($p) {
     </div>
     <div class="form-group">
       <label>15. Nilai Belanja Pendukung (Rp)</label>
-      <input type="text" name="nilai_belanja_pendukung" id="nilai_belanja_pendukung"
-        class="form-control rupiah-input"
-        value="<?= $v_rupiah('nilai_belanja_pendukung') ?>"
-        placeholder="0">
-      <div class="form-hint" id="hint_pendukung">Maks. 5% dari nilai BKP (untuk jenis Bertahap)</div>
+      <div style="display:flex;gap:8px;align-items:stretch">
+        <input type="text" name="nilai_belanja_pendukung" id="nilai_belanja_pendukung"
+          class="form-control mono"
+          value="<?= $v_rupiah('nilai_belanja_pendukung') ?>"
+          placeholder="0" readonly
+          style="background:var(--biru-light);cursor:default;flex:1;font-weight:600">
+        <button type="button" onclick="openModalPendukung()"
+                class="btn btn-outline btn-sm" style="flex-shrink:0;white-space:nowrap">
+          <i class="ti ti-list-details"></i> Isi Rincian
+        </button>
+      </div>
+      <div class="form-hint" id="hint_pendukung">Maks. 5% dari nilai BKP — klik <strong>Isi Rincian</strong> untuk input detail</div>
     </div>
   </div>
 
@@ -285,6 +292,73 @@ $v_rupiah = function($field) use ($p) {
 
 <?= form_close() ?>
 
+<!-- ══ MODAL RINCIAN BELANJA PENDUKUNG ═══════════════════════ -->
+<div id="modalPendukung" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);
+     z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:24px;width:680px;max-width:96vw;
+              max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+
+    <div class="card-title" style="margin-bottom:16px">
+      <i class="ti ti-list-details"></i> Rincian Belanja Pendukung
+      <button type="button" onclick="closeModalPendukung()"
+              style="margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted)">
+        <i class="ti ti-x"></i>
+      </button>
+    </div>
+
+    <!-- Tabel rincian -->
+    <div class="table-wrap mb-2">
+      <table class="tbl" id="tblPendukung">
+        <thead>
+          <tr>
+            <th style="width:40px">No.</th>
+            <th>Uraian Belanja Pendukung</th>
+            <th style="text-align:right;width:180px">Nilai (Rp)</th>
+            <th style="width:40px"></th>
+          </tr>
+        </thead>
+        <tbody id="tbodyPendukung">
+          <!-- baris diisi JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <button type="button" onclick="tambahBarisPendukung()"
+            class="btn btn-outline btn-sm mb-2">
+      <i class="ti ti-plus"></i> Tambah Baris
+    </button>
+
+    <!-- Summary total + persentase -->
+    <div id="summaryPendukung" style="border-radius:var(--radius);padding:14px 16px;
+         background:var(--bg);border:1px solid var(--border);margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <div class="text-xs text-muted">Total Belanja Pendukung</div>
+          <div style="font-size:20px;font-weight:700;color:var(--biru)" id="summTotal">Rp 0</div>
+        </div>
+        <div style="text-align:right">
+          <div class="text-xs text-muted">% terhadap Nilai BKP</div>
+          <div style="font-size:20px;font-weight:700" id="summPct">—</div>
+        </div>
+      </div>
+      <div id="warnPendukung" style="display:none;margin-top:10px;padding:8px 12px;
+           background:var(--merah-light);border-radius:var(--radius);
+           color:var(--merah-mid);font-size:12px;font-weight:600">
+        <i class="ti ti-alert-triangle"></i>
+        Belanja pendukung melebihi batas <strong>5%</strong> dari nilai BKP.
+        Simpan tetap diizinkan, namun akan diblokir saat submit oleh sistem.
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button type="button" onclick="closeModalPendukung()" class="btn btn-outline">Batal</button>
+      <button type="button" onclick="simpanPendukung()" class="btn btn-primary">
+        <i class="ti ti-device-floppy"></i> Simpan ke Form
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ── LEAFLET + OpenStreetMap ────────────────────────────── -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -338,15 +412,20 @@ function jumpToCoords() {
     marker.bindPopup(lat+', '+lng).openPopup();
 }
 
+// ─── Nilai BKP aktif (untuk kalkulasi % belanja pendukung) ───
+var nilaiBkpAktif = <?= ($edit && $p) ? (int)($p->nilai_bkp ?? 0) : 0 ?>;
+
 // ─── Info BKP dinamis (mode tambah) ─────────────────────────
 function onBkpChange(sel) {
     const opt = sel.options[sel.selectedIndex];
-    if (!opt.value) { document.getElementById('infoBkp').style.display='none'; return; }
-    document.getElementById('infoBkpKode').textContent  = opt.dataset.kode;
+    if (!opt.value) { document.getElementById('infoBkp').style.display='none'; nilaiBkpAktif = 0; return; }
+    nilaiBkpAktif = parseInt(opt.dataset.nilai) || 0;
+    document.getElementById('infoBkpKode').textContent   = opt.dataset.kode;
     document.getElementById('infoBkpUraian').textContent = opt.dataset.uraian;
-    document.getElementById('infoBkpNilai').textContent  = 'Rp ' + parseInt(opt.dataset.nilai).toLocaleString('id-ID');
+    document.getElementById('infoBkpNilai').textContent  = 'Rp ' + nilaiBkpAktif.toLocaleString('id-ID');
     document.getElementById('infoBkpBidang').textContent = opt.dataset.bidang;
     document.getElementById('infoBkp').style.display = 'block';
+    hitungSummaryPendukung(); // recalc jika modal sudah diisi
 }
 
 // ─── Info batas waktu + tampil/sembunyikan field BAST ────────
@@ -382,6 +461,124 @@ function onJenisChange(jenis) {
         document.getElementById('tgl_bast').value = '';
     }
 }
+
+// ─── Modal Rincian Belanja Pendukung ─────────────────────────
+var uraianOptions = [
+    'Konsultan Perencana',
+    'Konsultan Pengawas',
+    'Perjalanan Dinas Monitoring dan Reviu Pelaksanaan Kegiatan'
+];
+
+var pendukungRows = []; // [{uraian:'...', nilai:0}, ...]
+
+function openModalPendukung() {
+    // Jika belum ada baris, tambah 1 baris kosong
+    if (pendukungRows.length === 0) tambahBarisPendukung();
+    renderTabelPendukung();
+    hitungSummaryPendukung();
+    document.getElementById('modalPendukung').style.display = 'flex';
+}
+
+function closeModalPendukung() {
+    document.getElementById('modalPendukung').style.display = 'none';
+}
+
+function tambahBarisPendukung() {
+    pendukungRows.push({ uraian: '', nilai: 0 });
+    renderTabelPendukung();
+    hitungSummaryPendukung();
+}
+
+function hapusBarisPendukung(idx) {
+    pendukungRows.splice(idx, 1);
+    renderTabelPendukung();
+    hitungSummaryPendukung();
+}
+
+function renderTabelPendukung() {
+    var tbody = document.getElementById('tbodyPendukung');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (pendukungRows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text-muted)">Belum ada rincian. Klik "+ Tambah Baris".</td></tr>';
+        return;
+    }
+    pendukungRows.forEach(function(row, idx) {
+        var opts = uraianOptions.map(function(u) {
+            return '<option value="' + u + '"' + (row.uraian === u ? ' selected' : '') + '>' + u + '</option>';
+        }).join('');
+        var nilaiStr = row.nilai > 0 ? row.nilai.toLocaleString('id-ID') : '';
+        tbody.innerHTML += '<tr>' +
+            '<td class="text-muted" style="font-size:12px;text-align:center">' + (idx+1) + '</td>' +
+            '<td>' +
+              '<select class="form-control fc fc-sm" onchange="updatePendukung(' + idx + ',\'uraian\',this.value)">' +
+                '<option value="">-- Pilih --</option>' + opts +
+              '</select>' +
+            '</td>' +
+            '<td>' +
+              '<input type="text" class="form-control fc fc-sm mono" ' +
+                     'style="text-align:right" ' +
+                     'value="' + nilaiStr + '" ' +
+                     'placeholder="0" ' +
+                     'oninput="updatePendukungNilai(' + idx + ',this.value)">' +
+            '</td>' +
+            '<td style="text-align:center">' +
+              '<button type="button" class="btn-icon del" onclick="hapusBarisPendukung(' + idx + ')" title="Hapus">' +
+                '<i class="ti ti-trash"></i>' +
+              '</button>' +
+            '</td>' +
+            '</tr>';
+    });
+}
+
+function updatePendukung(idx, field, value) {
+    if (pendukungRows[idx]) pendukungRows[idx][field] = value;
+    hitungSummaryPendukung();
+}
+
+function updatePendukungNilai(idx, rawValue) {
+    // Bersihkan format ribuan, ambil angka saja
+    var clean = rawValue.replace(/\./g, '').replace(/,/g, '').replace(/[^0-9]/g, '');
+    var num   = parseInt(clean) || 0;
+    if (pendukungRows[idx]) pendukungRows[idx].nilai = num;
+    hitungSummaryPendukung();
+}
+
+function hitungSummaryPendukung() {
+    var total = pendukungRows.reduce(function(s, r) { return s + (r.nilai || 0); }, 0);
+    document.getElementById('summTotal').textContent = 'Rp ' + total.toLocaleString('id-ID');
+
+    var pctEl   = document.getElementById('summPct');
+    var warnEl  = document.getElementById('warnPendukung');
+
+    if (nilaiBkpAktif > 0) {
+        var pct = (total / nilaiBkpAktif * 100).toFixed(2);
+        var melebihi = parseFloat(pct) > 5;
+        pctEl.textContent  = pct + '%';
+        pctEl.style.color  = melebihi ? 'var(--merah-mid)' : 'var(--hijau-mid)';
+        warnEl.style.display = melebihi ? 'block' : 'none';
+    } else {
+        pctEl.textContent  = '— (pilih BKP dulu)';
+        pctEl.style.color  = 'var(--text-muted)';
+        warnEl.style.display = 'none';
+    }
+}
+
+function simpanPendukung() {
+    var total = pendukungRows.reduce(function(s, r) { return s + (r.nilai || 0); }, 0);
+    // Isi field nilai_belanja_pendukung dengan format ribuan
+    document.getElementById('nilai_belanja_pendukung').value =
+        total > 0 ? total.toLocaleString('id-ID') : '0';
+    closeModalPendukung();
+}
+
+// Jika mode edit & ada nilai existing, buat 1 baris placeholder agar total cocok
+<?php if ($edit && $p && ($p->nilai_belanja_pendukung ?? 0) > 0): ?>
+pendukungRows = [{
+    uraian: 'Konsultan Perencana',
+    nilai : <?= (int)($p->nilai_belanja_pendukung ?? 0) ?>
+}];
+<?php endif; ?>
 
 // Init tampilan awal — penting untuk mode edit dan mode tambah yang sudah pilih jenis
 <?php if ($edit && $p): ?>
