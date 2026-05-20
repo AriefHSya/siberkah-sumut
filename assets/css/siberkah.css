@@ -92,6 +92,35 @@ html.app-html, html.app-html body { height: 100%; overflow: hidden; }
                 flex-shrink: 0; overflow-x: auto; }
 .page-body    { flex: 1; padding: 20px; overflow-y: auto; overflow-x: hidden; }
 
+/* ── Sidebar Collapse / Expand ─────────────── */
+/* State collapsed: sidebar menyempit jadi 52px, hanya tampilkan icon */
+.main-wrap.sidebar-animating .sidebar,
+.main-wrap.sidebar-animating .content-area { transition: all 0.25s ease; }
+
+.main-wrap.sidebar-collapsed .sidebar {
+  width: 52px;
+  overflow: hidden;
+}
+/* Sembunyikan teks label menu saat collapsed */
+.main-wrap.sidebar-collapsed .nav-item span,
+.main-wrap.sidebar-collapsed .sidebar-brand h1,
+.main-wrap.sidebar-collapsed .sidebar-brand p,
+.main-wrap.sidebar-collapsed .sidebar-footer > div:first-child { display: none; }
+
+/* Brand: hanya tampilkan logo */
+.main-wrap.sidebar-collapsed .sidebar-brand { padding: 10px; justify-content: center; }
+.main-wrap.sidebar-collapsed .sidebar-brand > div { gap: 0; }
+
+/* Nav item: center icon */
+.main-wrap.sidebar-collapsed .nav-item { padding: 10px 0; justify-content: center; gap: 0; }
+.main-wrap.sidebar-collapsed .nav-item i { font-size: 20px; }
+
+/* Footer logout: hanya icon */
+.main-wrap.sidebar-collapsed .sidebar-footer { padding: 10px 0; text-align: center; }
+
+/* Tooltip saat collapsed — tampilkan nama menu sebagai tooltip native */
+.main-wrap.sidebar-collapsed .nav-item { position: relative; }
+
 /* ── 4. Sidebar ────────────────────────────── */
 .sidebar-brand { padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
 .sidebar-brand h1 { color: #fff; font-size: 16px; font-weight: 600; letter-spacing: 0.5px; }
