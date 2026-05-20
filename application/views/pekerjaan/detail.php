@@ -231,23 +231,77 @@
         $dl = $deadline_info[$t->id] ?? ['ok'=>TRUE,'pesan'=>'','bw'=>NULL];
         $lewat = isset($dl['bw']) && $dl['bw'] && date('Y-m-d') > $dl['bw']->batas_pengajuan;
       ?>
+      <?php
+      // Nilai total = kontrak + belanja pendukung
+      $nilai_total_pengajuan = ($p->nilai_kontrak ?? 0) + ($p->nilai_belanja_pendukung ?? 0);
+      // Dokumen draft yang diupload sebelum submit
+      $dok_draft_tampil = [
+          'SPK'  => ['path' => $p->dok_spk_path  ?? NULL, 'icon' => 'file-text'],
+          'SPMK' => ['path' => $p->dok_spmk_path ?? NULL, 'icon' => 'file-text'],
+          'BAST' => ['path' => $p->dok_bast_path  ?? NULL, 'icon' => 'file-check'],
+      ];
+      ?>
       <div style="padding:12px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;<?= $lewat?'border-color:#F7C1C1;background:#fff5f5':'' ?>">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div>
             <span class="fw-500"><?= htmlspecialchars($t->label_tahap) ?></span>
             <span class="badge badge-abu" style="font-size:10px;margin-left:4px"><?= $t->persen_nilai ?>%</span>
           </div>
           <?= badge_status($t->status === 'belum' ? 'draft' : $t->status) ?>
         </div>
-        <div class="g2 text-sm">
-          <div><span class="text-muted">Nilai diajukan:</span><br><strong><?= rupiah($t->nilai_diajukan) ?></strong></div>
-          <div><span class="text-muted">Batas pengajuan:</span><br>
+
+        <!-- Nilai pengajuan: kontrak + pendukung -->
+        <div class="g2 text-sm mb-2">
+          <div>
+            <span class="text-muted">Nilai Pengajuan (Kontrak + Pendukung):</span><br>
+            <strong style="color:var(--biru);font-size:15px"><?= rupiah($nilai_total_pengajuan) ?></strong>
+            <?php if (($p->nilai_belanja_pendukung ?? 0) > 0): ?>
+            <div class="text-xs text-muted mt-1">
+              Kontrak: <?= rupiah($p->nilai_kontrak) ?> +
+              Pendukung: <?= rupiah($p->nilai_belanja_pendukung) ?>
+            </div>
+            <?php endif; ?>
+          </div>
+          <div>
+            <span class="text-muted">Batas Pengajuan:</span><br>
             <span class="<?= $lewat ? 'text-danger fw-500' : '' ?>"><?= tgl_indo($t->batas_tgl_pengajuan) ?></span>
             <?= $lewat ? '<span class="badge badge-merah text-xs">Lewat</span>' : '' ?>
+            <?php if ($t->tgl_pengajuan): ?>
+            <div class="text-xs text-muted mt-1">Diajukan: <?= tgl_indo($t->tgl_pengajuan) ?></div>
+            <?php endif; ?>
           </div>
         </div>
-        <?php if ($t->tgl_pengajuan): ?>
-        <div class="text-xs text-muted mt-1">Diajukan: <?= tgl_indo($t->tgl_pengajuan) ?></div>
+
+        <!-- Dokumen yang diupload OPD sebelum submit (SPK, SPMK, BAST) -->
+        <?php $ada_dok_draft = array_filter(array_column($dok_draft_tampil, 'path')); ?>
+        <?php if (!empty($ada_dok_draft)): ?>
+        <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
+          <div class="text-xs text-muted fw-600 mb-2" style="text-transform:uppercase;letter-spacing:0.4px">
+            <i class="ti ti-files"></i> Dokumen Pendukung Pengajuan
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <?php foreach ($dok_draft_tampil as $label => $dok):
+              if (!$dok['path'] || !file_exists(FCPATH . $dok['path'])) continue;
+            ?>
+            <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;
+                        border:1px solid var(--hijau-mid);border-radius:var(--radius);
+                        background:var(--hijau-light)">
+              <i class="ti ti-<?= $dok['icon'] ?>" style="color:var(--hijau-mid);font-size:14px"></i>
+              <span class="text-xs fw-600" style="color:var(--hijau-mid)"><?= $label ?></span>
+              <a href="<?= base_url($dok['path']) ?>" target="_blank"
+                 class="btn btn-xs" style="padding:2px 8px;background:var(--hijau-mid);color:#fff;border:none"
+                 title="Preview / Download <?= $label ?>">
+                <i class="ti ti-eye"></i> Lihat
+              </a>
+              <a href="<?= base_url($dok['path']) ?>" download
+                 class="btn btn-xs" style="padding:2px 8px;background:#fff;color:var(--hijau-mid);border:1px solid var(--hijau-mid)"
+                 title="Download <?= $label ?>">
+                <i class="ti ti-download"></i>
+              </a>
+            </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
         <?php endif; ?>
 
         <!-- Upload dokumen per tahapan -->
