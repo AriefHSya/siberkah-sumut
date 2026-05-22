@@ -18,7 +18,7 @@
     <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:4px">
       <?php if (!empty($logo_prov)): ?>
       <img src="<?= $logo_prov ?>" alt="Logo Provinsi"
-           style="height:72px;width:72px;object-fit:contain">
+           style="height:90px;width:90px;object-fit:contain">
       <?php endif; ?>
       <img src="<?= base_url('assets/img/logo-siberkah.png') ?>" alt="Logo SIBERKAH"
            class="login-logo" style="margin-bottom:0">
