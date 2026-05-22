@@ -15,10 +15,11 @@
   </div>
   <div class="form-grid mt-2">
     <div class="form-group"><label>Role <span class="req">*</span></label>
-      <select name="role_id" class="form-control" required>
-        <option value="">-- Pilih Role --</option>
+      <select name="role_id" id="selectRole" class="form-control" required onchange="onRoleChange(this)">
+        <option value="" data-level="">-- Pilih Role --</option>
         <?php foreach ($roles as $r): if (!$this->rbac->canManageUser($r->level)) continue; ?>
-        <option value="<?= $r->id ?>" <?= (($user->role_id??'')==$r->id)?'selected':'' ?>><?= htmlspecialchars($r->nama) ?> (Level <?= $r->level ?>)</option>
+        <option value="<?= $r->id ?>" data-level="<?= $r->level ?>"
+          <?= (($user->role_id??'')==$r->id)?'selected':'' ?>><?= htmlspecialchars($r->nama) ?> (Level <?= $r->level ?>)</option>
         <?php endforeach; ?>
       </select>
     </div>
@@ -39,9 +40,9 @@
       </select>
     </div>
     <div class="form-group"><label>Nama OPD/Dinas <span class="text-xs text-muted">(jika OPD Teknis)</span></label><input type="text" name="opd_nama" class="form-control" value="<?= htmlspecialchars($user->opd_nama??'') ?>" placeholder="Dinas PUPR Kab. Samosir"></div>
-    <div class="form-group">
-      <label>Telegram Chat ID <span class="text-xs text-muted">(notifikasi — Admin Provinsi & Superadmin)</span></label>
-      <input type="text" name="telegram_chat_id" class="form-control fc"
+    <div class="form-group" id="fieldTelegramWrap" style="display:none">
+      <label>Telegram Chat ID <span class="text-xs text-muted">(notifikasi Admin Provinsi & Superadmin)</span></label>
+      <input type="text" name="telegram_chat_id" id="inputTelegramChatId" class="form-control fc"
              value="<?= htmlspecialchars($user->telegram_chat_id??'') ?>"
              placeholder="Contoh: 123456789">
       <small class="text-muted">Cara dapat Chat ID: kirim /start ke bot → buka <code>t.me/userinfobot</code> atau gunakan <code>/getUpdates</code> di API bot.</small>
@@ -53,3 +54,22 @@
   </div>
   <?= form_close() ?>
 </div>
+
+<script>
+function onRoleChange(sel) {
+  var opt   = sel.options[sel.selectedIndex];
+  var level = parseInt(opt.getAttribute('data-level')) || 99;
+  var wrap  = document.getElementById('fieldTelegramWrap');
+  var input = document.getElementById('inputTelegramChatId');
+  // Tampilkan hanya untuk superadmin (level 1) dan admin_provinsi (level 2)
+  var show  = (level <= 2);
+  wrap.style.display = show ? '' : 'none';
+  if (!show && input) input.value = '';
+}
+
+// Init saat halaman dimuat (mode edit: cek role yang sudah tersimpan)
+(function() {
+  var sel = document.getElementById('selectRole');
+  if (sel) onRoleChange(sel);
+})();
+</script>
