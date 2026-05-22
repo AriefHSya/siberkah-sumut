@@ -665,10 +665,10 @@ document.addEventListener('DOMContentLoaded', function() {
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-(function() {
-  var lat = <?= (float)$p->latitude ?>;
-  var lng = <?= (float)$p->longitude ?>;
-  var mapR = L.map('mapReviu').setView([lat, lng], 15);
+setTimeout(function() {
+  var lat  = <?= (float)$p->latitude ?>;
+  var lng  = <?= (float)$p->longitude ?>;
+  var mapR = L.map('mapReviu', { scrollWheelZoom: false }).setView([lat, lng], 15);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors', maxZoom: 19
   }).addTo(mapR);
@@ -676,6 +676,8 @@ document.addEventListener('DOMContentLoaded', function() {
     .addTo(mapR)
     .bindPopup('<strong><?= htmlspecialchars($p->kode_bkp, ENT_QUOTES) ?></strong><br><?= htmlspecialchars($p->nama_kegiatan_dok ?: $p->uraian_bkp, ENT_QUOTES) ?>')
     .openPopup();
-})();
+  // Paksa recalculate ukuran setelah container benar-benar terrender
+  mapR.invalidateSize();
+}, 300);
 </script>
 <?php endif; ?>
