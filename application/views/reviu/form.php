@@ -13,6 +13,8 @@ $filled          = $r ? ($stat['sesuai'] + $stat['tidak_sesuai'] + $stat['tidak_
 $pct_filled      = $total_item > 0 ? round($filled / $total_item * 100) : 0;
 $semua_terisi    = ($filled >= $total_item && $total_item > 0);
 $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
+// Semua sesuai = confirmed + tidak ada 'tidak_sesuai' + semua item terisi
+$semua_sesuai    = $confirmed && !$ada_tidak_sesuai && $semua_terisi;
 ?>
 
 <!-- ── HEADER ───────────────────────────────────────────── -->
@@ -327,6 +329,47 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
   </table>
   </div>
 
+  <!-- Data Reviewer — disimpan bersama checklist, tampil saat belum/sudah dikunci -->
+  <?php if ($can_input && $r): ?>
+  <div style="margin-top:14px;padding:12px;background:var(--biru-light);border-radius:var(--radius)">
+    <div class="text-xs text-muted fw-600 mb-2">
+      <i class="ti ti-user-check"></i> Data Reviewer / Pemeriksa
+    </div>
+    <div class="g3">
+      <div class="form-group mb-0">
+        <label>Nama Reviewer</label>
+        <?php if (!$confirmed): ?>
+        <input type="text" name="reviewer_nama" class="form-control fc fc-sm"
+               value="<?= htmlspecialchars($r->reviewer_nama ?? ($pejabat->nama ?? '')) ?>"
+               placeholder="Nama lengkap reviewer">
+        <?php else: ?>
+        <div class="fw-500 text-sm"><?= htmlspecialchars($r->reviewer_nama ?: '—') ?></div>
+        <?php endif; ?>
+      </div>
+      <div class="form-group mb-0">
+        <label>NIP</label>
+        <?php if (!$confirmed): ?>
+        <input type="text" name="reviewer_nip" class="form-control fc fc-sm mono"
+               value="<?= htmlspecialchars($r->reviewer_nip ?? ($pejabat->nip ?? '')) ?>"
+               placeholder="NIP reviewer">
+        <?php else: ?>
+        <div class="text-sm mono"><?= htmlspecialchars($r->reviewer_nip ?: '—') ?></div>
+        <?php endif; ?>
+      </div>
+      <div class="form-group mb-0">
+        <label>Jabatan</label>
+        <?php if (!$confirmed): ?>
+        <input type="text" name="reviewer_jabatan" class="form-control fc fc-sm"
+               value="<?= htmlspecialchars($r->reviewer_jabatan ?? 'Inspektur') ?>"
+               placeholder="Jabatan">
+        <?php else: ?>
+        <div class="text-sm"><?= htmlspecialchars($r->reviewer_jabatan ?: '—') ?></div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
+
   <!-- Tombol aksi checklist (hanya saat belum terkunci) -->
   <?php if ($can_input && $r && !$confirmed): ?>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px">
@@ -358,9 +401,37 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
 <?php endif; ?>
 
 <!-- ══════════════════════════════════════════════════════════
-     BLOK 4: CETAK + LHR (muncul setelah checklist terkunci)
+     BLOK 4A: KEMBALIKAN KE OPD (muncul jika ada item tidak sesuai)
      ══════════════════════════════════════════════════════════ -->
-<?php if ($r && $confirmed && !$keputusan): ?>
+<?php if ($r && $confirmed && !$keputusan && $ada_tidak_sesuai): ?>
+<div class="card mb-2" style="border-left:4px solid var(--kuning-mid)">
+  <div class="card-title"><i class="ti ti-arrow-back-up"></i> Kembalikan ke OPD Teknis</div>
+  <div class="alert alert-warning mb-2" style="font-size:12px">
+    <i class="ti ti-alert-triangle"></i>
+    <div>Ada <strong><?= $stat['tidak_sesuai'] ?></strong> item checklist ditandai
+    <strong>Tidak Sesuai</strong>. Isi catatan di bawah dan kembalikan ke OPD untuk diperbaiki.</div>
+  </div>
+  <?= form_open(site_url('reviu/putuskan/'.$r->id)) ?>
+  <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
+  <?= form_hidden('hasil_reviu', 'perlu_perbaikan') ?>
+  <div class="form-group mb-3">
+    <label>Catatan untuk OPD Teknis <span class="req">*</span></label>
+    <textarea name="catatan" class="form-control" rows="4" required
+      placeholder="Uraikan temuan dan bagian yang perlu diperbaiki OPD secara spesifik..."><?= htmlspecialchars($r->catatan ?? '') ?></textarea>
+    <div class="form-hint">Catatan ini akan diterima OPD Teknis saat memperbaiki data.</div>
+  </div>
+  <button type="submit" class="btn btn-outline" style="border-color:var(--kuning-mid);color:var(--kuning-mid)"
+          onclick="return confirm('Kembalikan pekerjaan ini ke OPD Teknis?\n\nOPD akan menerima notifikasi.')">
+    <i class="ti ti-arrow-back-up"></i> Kembalikan ke OPD
+  </button>
+  <?= form_close() ?>
+</div>
+<?php endif; ?>
+
+<!-- ══════════════════════════════════════════════════════════
+     BLOK 4B: CETAK + LHR + APPROVE (hanya jika semua sesuai)
+     ══════════════════════════════════════════════════════════ -->
+<?php if ($r && $confirmed && !$keputusan && $semua_sesuai): ?>
 <div class="g2 mb-2">
 
   <!-- Panel Print Kertas Kerja -->
@@ -370,20 +441,21 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
       Cetak kertas kerja checklist untuk ditandatangani oleh reviewer.
       Masukkan data reviewer sebelum mencetak.
     </p>
+    <!-- Pre-fill dari data tersimpan di DB, fallback ke data pejabat -->
     <div class="form-group mb-2">
       <label>Nama Reviewer</label>
       <input type="text" id="rvNama" class="form-control" placeholder="Nama lengkap reviewer"
-             value="<?= htmlspecialchars($pejabat->nama ?? '') ?>">
+             value="<?= htmlspecialchars($r->reviewer_nama ?? ($pejabat->nama ?? '')) ?>">
     </div>
     <div class="form-group mb-2">
       <label>NIP</label>
       <input type="text" id="rvNip" class="form-control mono" placeholder="NIP reviewer"
-             value="<?= htmlspecialchars($pejabat->nip ?? '') ?>">
+             value="<?= htmlspecialchars($r->reviewer_nip ?? ($pejabat->nip ?? '')) ?>">
     </div>
     <div class="form-group mb-3">
       <label>Jabatan</label>
       <input type="text" id="rvJabatan" class="form-control" placeholder="Jabatan reviewer"
-             value="Inspektur">
+             value="<?= htmlspecialchars($r->reviewer_jabatan ?? 'Inspektur') ?>">
     </div>
     <button type="button" class="btn btn-primary" onclick="cetakKertasKerja()">
       <i class="ti ti-printer"></i> Cetak Kertas Kerja
@@ -481,33 +553,6 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
     <?= form_close() ?>
   </div>
 
-  <!-- Kembalikan ke OPD -->
-  <div class="card" style="border-left:4px solid var(--kuning-mid)">
-    <div class="card-title"><i class="ti ti-arrow-back-up"></i> Kembalikan ke OPD Teknis</div>
-    <p class="text-sm text-muted mb-3">
-      Terdapat temuan yang perlu diperbaiki OPD. Isi catatan dengan jelas
-      agar OPD memahami bagian mana yang perlu diperbaiki.
-    </p>
-    <?= form_open(site_url('reviu/putuskan/'.$r->id)) ?>
-    <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
-    <?= form_hidden('hasil_reviu', 'perlu_perbaikan') ?>
-    <div class="form-group mb-3">
-      <label>Catatan untuk OPD Teknis <span class="req">*</span></label>
-      <textarea name="catatan" class="form-control" rows="4" required
-        placeholder="Uraikan temuan dan bagian yang perlu diperbaiki OPD secara spesifik...
-Contoh:
-- Item CK-05: Nomor SPMK tidak sesuai dengan dokumen kontrak
-- Item CK-12: Foto dokumentasi belum dilampirkan
-- Nilai kontrak melebihi nilai BKP yang disepakati"></textarea>
-      <div class="form-hint">Catatan ini akan terlihat oleh OPD Teknis saat memperbaiki data.</div>
-    </div>
-    <button type="submit" class="btn btn-outline"
-            style="border-color:var(--kuning-mid);color:var(--kuning-mid)"
-            onclick="return confirm('Kembalikan pekerjaan ini ke OPD Teknis?\n\nOPD akan menerima notifikasi dan bisa memperbaiki data.')">
-      <i class="ti ti-arrow-back-up"></i> Kembalikan ke OPD
-    </button>
-    <?= form_close() ?>
-  </div>
 </div>
 <?php endif; ?>
 

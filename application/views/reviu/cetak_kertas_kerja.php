@@ -62,6 +62,9 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
   <?php if ($reviu->tgl_reviu_selesai): ?>
   <span class="lbl">Tgl. Reviu Selesai</span><span>:</span><span><?= tgl_indo($reviu->tgl_reviu_selesai) ?></span>
   <?php endif; ?>
+  <?php if (!empty($reviewer['nama'])): ?>
+  <span class="lbl">Reviewer</span><span>:</span><span><?= htmlspecialchars($reviewer['nama']) ?><?= !empty($reviewer['nip']) ? ' (NIP. '.$reviewer['nip'].')' : '' ?></span>
+  <?php endif; ?>
 </div>
 
 <!-- Ringkasan Checklist -->

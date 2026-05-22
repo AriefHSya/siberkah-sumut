@@ -178,6 +178,19 @@ class Reviu extends Auth_Controller
         $this->Reviu_model->simpan_checklist($reviu_id, $isian);
         $stat = $this->Reviu_model->hitung_checklist($reviu_id);
 
+        // Simpan data reviewer jika dikirim
+        $reviewer_nama    = $this->input->post('reviewer_nama', TRUE);
+        $reviewer_nip     = $this->input->post('reviewer_nip',  TRUE);
+        $reviewer_jabatan = $this->input->post('reviewer_jabatan', TRUE);
+        if ($reviewer_nama || $reviewer_nip || $reviewer_jabatan) {
+            $upd = array_filter([
+                'reviewer_nama'    => $reviewer_nama    ?: NULL,
+                'reviewer_nip'     => $reviewer_nip     ?: NULL,
+                'reviewer_jabatan' => $reviewer_jabatan ?: NULL,
+            ], fn($v) => $v !== NULL);
+            if ($upd) $this->Reviu_model->update($reviu_id, $upd);
+        }
+
         // Jika dari AJAX return JSON
         if ($this->input->is_ajax_request()) {
             $this->json(['ok' => TRUE, 'stat' => $stat]);
@@ -414,12 +427,15 @@ class Reviu extends Auth_Controller
         ])->result();
         foreach ($rows as $p) $pejabat[$p->jenis] = $p;
 
-        // Data reviewer dari form modal (GET param) atau dari data pejabat DB
+        // Prioritas reviewer: GET param → data tersimpan di DB → data pejabat
         $insp = $pejabat['inspektur'] ?? NULL;
         $reviewer = [
-            'nama'    => $this->input->get('nama',    TRUE) ?: ($insp->nama    ?? ''),
-            'nip'     => $this->input->get('nip',     TRUE) ?: ($insp->nip     ?? ''),
-            'jabatan' => $this->input->get('jabatan', TRUE) ?: 'Inspektur',
+            'nama'    => $this->input->get('nama',    TRUE)
+                      ?: ($reviu->reviewer_nama    ?? ($insp->nama    ?? '')),
+            'nip'     => $this->input->get('nip',     TRUE)
+                      ?: ($reviu->reviewer_nip     ?? ($insp->nip     ?? '')),
+            'jabatan' => $this->input->get('jabatan', TRUE)
+                      ?: ($reviu->reviewer_jabatan ?? 'Inspektur'),
         ];
 
         $this->render_plain('reviu/cetak_kertas_kerja', [
