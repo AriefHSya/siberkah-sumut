@@ -98,6 +98,24 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
       </tbody>
     </table>
 
+    <!-- Peta Lokasi Pekerjaan -->
+    <?php if ($p->latitude && $p->longitude): ?>
+    <div class="mb-2">
+      <div class="text-xs text-muted fw-600 mb-1" style="text-transform:uppercase;letter-spacing:0.5px">
+        <i class="ti ti-map-pin"></i> Lokasi Pekerjaan
+      </div>
+      <div class="text-xs text-muted mb-1">
+        <?= htmlspecialchars($p->lokasi_deskripsi ?: '') ?>
+        &nbsp;📍 <?= $p->latitude ?>, <?= $p->longitude ?>
+      </div>
+      <div id="mapReviu" style="height:220px;border-radius:var(--radius);border:1px solid var(--border)"></div>
+    </div>
+    <?php else: ?>
+    <div class="mb-2 text-sm text-muted">
+      <i class="ti ti-map-off"></i> Lokasi belum ditentukan oleh OPD.
+    </div>
+    <?php endif; ?>
+
     <!-- Dokumen yang diupload OPD -->
     <div>
       <div class="text-xs text-muted fw-600 mb-1" style="text-transform:uppercase;letter-spacing:0.5px">Dokumen yang Diupload OPD</div>
@@ -642,3 +660,22 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
+
+<?php if ($p->latitude && $p->longitude): ?>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function() {
+  var lat = <?= (float)$p->latitude ?>;
+  var lng = <?= (float)$p->longitude ?>;
+  var mapR = L.map('mapReviu').setView([lat, lng], 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors', maxZoom: 19
+  }).addTo(mapR);
+  L.marker([lat, lng])
+    .addTo(mapR)
+    .bindPopup('<strong><?= htmlspecialchars($p->kode_bkp, ENT_QUOTES) ?></strong><br><?= htmlspecialchars($p->nama_kegiatan_dok ?: $p->uraian_bkp, ENT_QUOTES) ?>')
+    .openPopup();
+})();
+</script>
+<?php endif; ?>
