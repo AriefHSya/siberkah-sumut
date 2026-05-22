@@ -65,6 +65,10 @@ $has_kanan = (!empty($pejabat['sekda']->foto_path)          && file_exists(FCPAT
 
     <!-- Logo + Nama -->
     <div class="logo-mark">
+      <?php if (!empty($logo_prov)): ?>
+      <img src="<?= $logo_prov ?>" alt="Logo Pemerintah Provinsi" class="logo-img"
+           style="margin-right:4px">
+      <?php endif; ?>
       <img src="<?= base_url('assets/img/logo-siberkah.png') ?>" alt="Logo SIBERKAH SUMUT" class="logo-img">
 
       <div class="logo-text-wrap">

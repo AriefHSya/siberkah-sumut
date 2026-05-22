@@ -125,9 +125,14 @@ class Rbac
             ['key'=>'bkp',         'url'=>'parameter/bkp',          'label'=>'Data BKP',            'icon'=>'database',      'perm'=>'parameter.bkp.view'],
             ['key'=>'pemda',       'url'=>'parameter/pemda',        'label'=>'Data Umum Pemda',     'icon'=>'building-community','perm'=>'parameter.pemda.view'],
             ['key'=>'landing',     'url'=>'parameter/landing',      'label'=>'Tampilan Landing',    'icon'=>'photo',         'perm'=>'parameter.landing.view'],
+            ['key'=>'logo',        'url'=>'parameter/logo',         'label'=>'Logo Provinsi',       'icon'=>'trademark',     'perm'=>'parameter.view',       'provinsi_only'=>TRUE],
             ['key'=>'log',         'url'=>'parameter/log',          'label'=>'Log Perubahan',       'icon'=>'history',       'perm'=>'parameter.tahun.view'],
         ];
-        return array_values(array_filter($sub, fn($s) => $this->can($s['perm'])));
+        return array_values(array_filter($sub, function($s) {
+            if (!$this->can($s['perm'])) return FALSE;
+            if (!empty($s['provinsi_only']) && !$this->isProvinsi()) return FALSE;
+            return TRUE;
+        }));
     }
 
     /** Sub-menu Pengaturan — difilter berdasarkan permission + role */

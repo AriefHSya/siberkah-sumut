@@ -796,6 +796,78 @@ class Parameter extends Auth_Controller
         redirect('parameter/pemda'.($dok ? '?tahun='.$dok->tahun.'&kabkota_id='.$dok->kabkota_id : ''));
     }
 
+    // ─── LOGO PROVINSI ────────────────────────────────────────
+    // Hanya superadmin dan admin_provinsi yang bisa upload
+
+    public function logo_provinsi() {
+        if (!$this->rbac->isProvinsi()) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('parameter'); return;
+        }
+        $d = $this->_d('Logo Provinsi', 'logo');
+        $current = $this->db->get_where('ref_app_setting', ['kode' => 'logo_provinsi'])->row();
+        $d['logo_path'] = $current ? $current->nilai : NULL;
+        $this->render('parameter/logo_provinsi', $d);
+    }
+
+    public function logo_provinsi_upload() {
+        if (!$this->rbac->isProvinsi()) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('parameter/logo'); return;
+        }
+        if ($_FILES['file_logo']['error'] !== UPLOAD_ERR_OK) {
+            $this->session->set_flashdata('error', 'Pilih file logo terlebih dahulu.');
+            redirect('parameter/logo'); return;
+        }
+        $dir = FCPATH . 'uploads/logo/';
+        if (!is_dir($dir)) mkdir($dir, 0755, TRUE);
+
+        $this->load->library('upload');
+        $this->upload->initialize([
+            'upload_path'   => $dir,
+            'allowed_types' => 'jpg|jpeg|png|svg|webp',
+            'max_size'      => 2048,
+            'file_name'     => 'logo_provinsi_' . time(),
+        ]);
+        if (!$this->upload->do_upload('file_logo')) {
+            $this->session->set_flashdata('error', 'Upload gagal: ' . $this->upload->display_errors('', ''));
+            redirect('parameter/logo'); return;
+        }
+        $info     = $this->upload->data();
+        $new_path = 'uploads/logo/' . $info['file_name'];
+
+        // Hapus file lama jika ada
+        $current = $this->db->get_where('ref_app_setting', ['kode' => 'logo_provinsi'])->row();
+        if ($current && $current->nilai && file_exists(FCPATH . $current->nilai)) {
+            @unlink(FCPATH . $current->nilai);
+        }
+
+        $this->db->where('kode', 'logo_provinsi')->update('ref_app_setting', [
+            'nilai'      => $new_path,
+            'updated_by' => $this->user_id,
+        ]);
+        $this->log_aktivitas('parameter.logo.upload', 'Upload logo provinsi');
+        $this->session->set_flashdata('success', 'Logo provinsi berhasil diupload.');
+        redirect('parameter/logo');
+    }
+
+    public function logo_provinsi_hapus() {
+        if (!$this->rbac->isProvinsi()) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('parameter/logo'); return;
+        }
+        $current = $this->db->get_where('ref_app_setting', ['kode' => 'logo_provinsi'])->row();
+        if ($current && $current->nilai && file_exists(FCPATH . $current->nilai)) {
+            @unlink(FCPATH . $current->nilai);
+        }
+        $this->db->where('kode', 'logo_provinsi')->update('ref_app_setting', [
+            'nilai'      => '',
+            'updated_by' => $this->user_id,
+        ]);
+        $this->session->set_flashdata('success', 'Logo provinsi dihapus.');
+        redirect('parameter/logo');
+    }
+
     // ─── LOG ──────────────────────────────────────────────────
     public function log() {
         $tahun = $this->input->get('tahun') ?? $this->tahun;

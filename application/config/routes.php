@@ -47,6 +47,9 @@ $route['parameter/landing/slideshow']              = 'parameter/landing_slidesho
 $route['parameter/landing/slideshow/tambah']       = 'parameter/landing_slideshow_tambah';
 $route['parameter/landing/slideshow/hapus/(:num)'] = 'parameter/landing_slideshow_hapus/$1';
 $route['parameter/landing/slideshow/urutan']       = 'parameter/landing_slideshow_urutan';
+$route['parameter/logo']                           = 'parameter/logo_provinsi';
+$route['parameter/logo/upload']                    = 'parameter/logo_provinsi_upload';
+$route['parameter/logo/hapus']                     = 'parameter/logo_provinsi_hapus';
 
 // ─── ADMIN / PENGATURAN ───────────────────────────────────────
 $route['admin']                               = 'admin_users/index';

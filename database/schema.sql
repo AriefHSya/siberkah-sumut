@@ -759,4 +759,5 @@ SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '448bbbb8-00cd-11f1-9d50-42a88396694b:1-
 
 -- Setting default (nilai dikonfigurasi lewat UI atau env var)
 INSERT IGNORE INTO ref_app_setting (kode, nilai, keterangan) VALUES
-('telegram_bot_token', '', 'Token Bot Telegram — isi via menu Pengaturan > Notif Telegram');
+('telegram_bot_token', '', 'Token Bot Telegram — isi via menu Pengaturan > Notif Telegram'),
+('logo_provinsi', '', 'Path file logo Pemerintah Provinsi — upload via Parameter > Logo Provinsi');
