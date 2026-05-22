@@ -92,23 +92,57 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
         <tr><td class="text-muted">13. Tgl. BAST</td><td><?= tgl_indo($p->tgl_bast) ?></td></tr>
         <?php endif; ?>
         <tr><td class="text-muted">14. Nilai Kontrak</td><td class="fw-500 text-biru"><?= rupiah($p->nilai_kontrak) ?></td></tr>
-        <tr><td class="text-muted">15. Belanja Pendukung</td><td><?= rupiah($p->nilai_belanja_pendukung) ?></td></tr>
+        <tr>
+          <td class="text-muted" style="vertical-align:top">15. Belanja Pendukung</td>
+          <td>
+            <span class="fw-500"><?= rupiah($p->nilai_belanja_pendukung) ?></span>
+            <?php
+            // Tampilkan breakdown rincian belanja pendukung jika tersedia
+            $bp_json = !empty($p->belanja_pendukung_json) ? json_decode($p->belanja_pendukung_json, TRUE) : [];
+            if (!empty($bp_json) && is_array($bp_json)):
+            ?>
+            <div style="margin-top:4px;padding:6px 8px;background:var(--biru-light);border-radius:4px;font-size:11px">
+              <div class="text-muted fw-600 mb-1">Rincian:</div>
+              <?php foreach ($bp_json as $i => $item): if (empty($item['uraian']) || empty($item['nilai'])) continue; ?>
+              <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:2px">
+                <span><?= ($i+1) ?>. <?= htmlspecialchars($item['uraian']) ?></span>
+                <span class="fw-500 mono" style="white-space:nowrap"><?= rupiah((float)$item['nilai']) ?></span>
+              </div>
+              <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+          </td>
+        </tr>
         <tr><td class="text-muted">16. Perda APBD</td><td><?= $p->no_perda ? 'No. '.htmlspecialchars($p->no_perda).' / '.tgl_indo($p->tgl_perda) : '—' ?></td></tr>
         <tr><td class="text-muted">17. Perkada/Pergub BKP</td><td><?= $p->no_perkada ? 'No. '.htmlspecialchars($p->no_perkada).' / '.tgl_indo($p->tgl_perkada) : '—' ?></td></tr>
       </tbody>
     </table>
 
-    <!-- Peta Lokasi Pekerjaan -->
+    <!-- Peta Lokasi Pekerjaan — Google Maps embed (read-only, tanpa library JS) -->
     <?php if ($p->latitude && $p->longitude): ?>
     <div class="mb-2">
       <div class="text-xs text-muted fw-600 mb-1" style="text-transform:uppercase;letter-spacing:0.5px">
         <i class="ti ti-map-pin"></i> Lokasi Pekerjaan
       </div>
+      <?php if ($p->lokasi_deskripsi): ?>
+      <div class="text-xs text-muted mb-1"><?= htmlspecialchars($p->lokasi_deskripsi) ?></div>
+      <?php endif; ?>
       <div class="text-xs text-muted mb-1">
-        <?= htmlspecialchars($p->lokasi_deskripsi ?: '') ?>
-        &nbsp;📍 <?= $p->latitude ?>, <?= $p->longitude ?>
+        📍 <?= $p->latitude ?>, <?= $p->longitude ?>
+        &nbsp;
+        <a href="https://maps.google.com/?q=<?= $p->latitude ?>,<?= $p->longitude ?>"
+           target="_blank" style="font-size:11px">
+          <i class="ti ti-external-link"></i> Buka di Google Maps
+        </a>
       </div>
-      <div id="mapReviu" style="height:220px;border-radius:var(--radius);border:1px solid var(--border)"></div>
+      <iframe
+        src="https://maps.google.com/maps?q=<?= (float)$p->latitude ?>,<?= (float)$p->longitude ?>&z=16&output=embed"
+        width="100%" height="220"
+        style="border:1px solid var(--border);border-radius:var(--radius);display:block"
+        loading="lazy"
+        allowfullscreen
+        referrerpolicy="no-referrer-when-downgrade">
+      </iframe>
     </div>
     <?php else: ?>
     <div class="mb-2 text-sm text-muted">
@@ -661,23 +695,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<?php if ($p->latitude && $p->longitude): ?>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-setTimeout(function() {
-  var lat  = <?= (float)$p->latitude ?>;
-  var lng  = <?= (float)$p->longitude ?>;
-  var mapR = L.map('mapReviu', { scrollWheelZoom: false }).setView([lat, lng], 15);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '© OpenStreetMap contributors', maxZoom: 19
-  }).addTo(mapR);
-  L.marker([lat, lng])
-    .addTo(mapR)
-    .bindPopup('<strong><?= htmlspecialchars($p->kode_bkp, ENT_QUOTES) ?></strong><br><?= htmlspecialchars($p->nama_kegiatan_dok ?: $p->uraian_bkp, ENT_QUOTES) ?>')
-    .openPopup();
-  // Paksa recalculate ukuran setelah container benar-benar terrender
-  mapR.invalidateSize();
-}, 300);
-</script>
-<?php endif; ?>
