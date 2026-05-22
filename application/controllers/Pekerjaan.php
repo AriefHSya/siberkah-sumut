@@ -155,9 +155,19 @@ class Pekerjaan extends Auth_Controller
             redirect('pekerjaan/input'); return;
         }
 
+        // Ambil data BKP untuk validasi nilai
+        $bkp = $this->db->get_where('ref_bkp', ['id'=>$bkp_id])->row();
+
+        // Validasi: nilai kontrak + pendukung tidak boleh melebihi nilai BKP
+        if ($bkp && ($nilai_kontrak + $nilai_pendukung) > $bkp->nilai) {
+            $this->session->set_flashdata('error',
+                'Total Nilai Kontrak + Belanja Pendukung (' . rupiah($nilai_kontrak + $nilai_pendukung) .
+                ') melebihi Nilai BKP (' . rupiah($bkp->nilai) . '). Sesuaikan nilai kontrak atau belanja pendukung.');
+            redirect('pekerjaan/input'); return;
+        }
+
         // Validasi: pendukung maks 5% dari nilai BKP (untuk bertahap)
         if ($jenis === 'bertahap') {
-            $bkp = $this->db->get_where('ref_bkp', ['id'=>$bkp_id])->row();
             if ($bkp && $nilai_pendukung > ($bkp->nilai * 0.05)) {
                 $this->session->set_flashdata('error',
                     'Belanja pendukung tidak boleh melebihi 5% dari nilai BKP (' . rupiah($bkp->nilai * 0.05) . ').');
@@ -266,11 +276,29 @@ class Pekerjaan extends Auth_Controller
 
         $nilai_kontrak   = (int) str_replace(['.','Rp',' ',','], '', $this->input->post('nilai_kontrak'));
         $nilai_pendukung = (int) str_replace(['.','Rp',' ',','], '', $this->input->post('nilai_belanja_pendukung'));
+
+        // Validasi: nilai kontrak + pendukung tidak boleh melebihi nilai BKP
+        $bkp_edit = $this->db->get_where('ref_bkp', ['id'=>$pekerjaan->bkp_id])->row();
+        if ($bkp_edit && ($nilai_kontrak + $nilai_pendukung) > $bkp_edit->nilai) {
+            $this->session->set_flashdata('error',
+                'Total Nilai Kontrak + Belanja Pendukung (' . rupiah($nilai_kontrak + $nilai_pendukung) .
+                ') melebihi Nilai BKP (' . rupiah($bkp_edit->nilai) . '). Sesuaikan nilai kontrak atau belanja pendukung.');
+            redirect('pekerjaan/edit/'.$id); return;
+        }
+
+        // Validasi: pendukung maks 5% dari nilai BKP (untuk bertahap)
+        $jenis_edit = $this->input->post('jenis_penyaluran', TRUE);
+        if ($jenis_edit === 'bertahap' && $bkp_edit && $nilai_pendukung > ($bkp_edit->nilai * 0.05)) {
+            $this->session->set_flashdata('error',
+                'Belanja pendukung tidak boleh melebihi 5% dari nilai BKP (' . rupiah($bkp_edit->nilai * 0.05) . ').');
+            redirect('pekerjaan/edit/'.$id); return;
+        }
+
         $lat = $this->input->post('latitude',  TRUE);
         $lng = $this->input->post('longitude', TRUE);
 
         $data = [
-            'jenis_penyaluran'        => $this->input->post('jenis_penyaluran', TRUE),
+            'jenis_penyaluran'        => $jenis_edit,
             'nama_kegiatan_dok'       => $this->input->post('nama_kegiatan_dok', TRUE),
             'volume_satuan'           => $this->input->post('volume_satuan', TRUE),
             'metode_pelaksanaan'      => $this->input->post('metode_pelaksanaan', TRUE),
