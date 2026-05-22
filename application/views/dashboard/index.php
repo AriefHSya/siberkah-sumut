@@ -105,7 +105,7 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
     </div>
     <div class="stat-val" style="color:var(--biru)"><?= number_format($bkp_obj->total ?? 0) ?></div>
     <div class="stat-label">Total BKP TA <?= $tahun ?></div>
-    <div class="text-xs text-muted" style="margin-top:2px"><?= rupiah_juta($bkp_obj->total_nilai ?? 0) ?></div>
+    <div class="text-xs text-muted" style="margin-top:2px"><?= rupiah($bkp_obj->total_nilai ?? 0) ?></div>
   </div>
   <div class="stat-card">
     <div class="stat-icon" style="background:var(--hijau-light)">
@@ -131,7 +131,7 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
     <div class="stat-icon" style="background:var(--teal-light)">
       <i class="ti ti-cash" style="color:var(--teal-mid)"></i>
     </div>
-    <div class="stat-val" style="font-size:16px;color:var(--teal-mid)"><?= rupiah_juta($total_disalurkan) ?></div>
+    <div class="stat-val" style="font-size:14px;color:var(--teal-mid)"><?= rupiah($total_disalurkan) ?></div>
     <div class="stat-label">Total Disalurkan</div>
     <div class="text-xs text-muted" style="margin-top:2px"><?= $pct_realisasi ?>% dari nilai BKP</div>
   </div>
@@ -165,9 +165,9 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
         <span class="text-muted">Sisa</span>
       </div>
     </div>
-    <div style="text-align:center;margin-top:10px;font-size:12px;color:var(--text-muted)">
-      <div><strong style="color:var(--teal-mid)"><?= rupiah_juta($total_disalurkan) ?></strong> dari</div>
-      <div><?= rupiah_juta($total_bkp_nilai) ?></div>
+    <div style="text-align:center;margin-top:10px;font-size:11px;color:var(--text-muted)">
+      <div><strong style="color:var(--teal-mid)"><?= rupiah($total_disalurkan) ?></strong></div>
+      <div>dari <?= rupiah($total_bkp_nilai) ?></div>
     </div>
   </div>
 
@@ -390,28 +390,56 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
     <table class="tbl" id="tbl-kab">
       <thead>
         <tr>
-          <th>Kabupaten/Kota</th>
-          <th style="text-align:center">BKP</th>
-          <th style="text-align:center">Pekerjaan</th>
-          <th style="text-align:right">Nilai Kontrak</th>
-          <th style="text-align:right">Disalurkan</th>
-          <th style="text-align:center">SP2D</th>
-          <th>Progress</th>
+          <th class="tbl-sort" data-col="0" data-type="str" style="cursor:pointer;user-select:none">
+            Kabupaten/Kota <i class="ti ti-selector" id="sort-icon-0" style="font-size:10px;opacity:0.5"></i>
+          </th>
+          <th class="tbl-sort" data-col="1" data-type="num" style="text-align:center;cursor:pointer;user-select:none">
+            BKP <i class="ti ti-selector" id="sort-icon-1" style="font-size:10px;opacity:0.5"></i>
+          </th>
+          <th class="tbl-sort" data-col="2" data-type="num" style="text-align:right;cursor:pointer;user-select:none">
+            Total Nilai BKP <i class="ti ti-selector" id="sort-icon-2" style="font-size:10px;opacity:0.5"></i>
+          </th>
+          <th class="tbl-sort" data-col="3" data-type="num" style="text-align:center;cursor:pointer;user-select:none">
+            Pekerjaan <i class="ti ti-selector" id="sort-icon-3" style="font-size:10px;opacity:0.5"></i>
+          </th>
+          <th class="tbl-sort" data-col="4" data-type="num" style="text-align:right;cursor:pointer;user-select:none">
+            Nilai Kontrak <i class="ti ti-selector" id="sort-icon-4" style="font-size:10px;opacity:0.5"></i>
+          </th>
+          <th class="tbl-sort" data-col="5" data-type="num" style="text-align:right;cursor:pointer;user-select:none">
+            Disalurkan <i class="ti ti-selector" id="sort-icon-5" style="font-size:10px;opacity:0.5"></i>
+          </th>
+          <th class="tbl-sort" data-col="6" data-type="num" style="text-align:center;cursor:pointer;user-select:none">
+            SP2D <i class="ti ti-selector" id="sort-icon-6" style="font-size:10px;opacity:0.5"></i>
+          </th>
+          <th style="min-width:90px">Progress</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="tbody-kab">
       <?php foreach ($per_kabkota as $idx => $kab):
-        $pct_sal = ($kab->total_kontrak > 0 && $kab->total_disalurkan > 0)
+        $pct_sal        = ($kab->total_kontrak > 0 && $kab->total_disalurkan > 0)
           ? min(100, round($kab->total_disalurkan / $kab->total_kontrak * 100)) : 0;
+        $nilai_bkp_raw  = (float)($kab->total_nilai_bkp ?? 0);
+        $kontrak_raw    = (float)($kab->total_kontrak ?? 0);
+        $disalurkan_raw = (float)($kab->total_disalurkan ?? 0);
       ?>
-      <tr class="kab-row" data-idx="<?= $idx ?>" <?= $idx >= $per_kab_page ? 'style="display:none"' : '' ?>>
+      <tr class="kab-row"
+          data-idx="<?= $idx ?>"
+          data-d0="<?= htmlspecialchars($kab->nama) ?>"
+          data-d1="<?= (int)($kab->total_bkp ?? 0) ?>"
+          data-d2="<?= $nilai_bkp_raw ?>"
+          data-d3="<?= (int)($kab->total_pekerjaan ?? 0) ?>"
+          data-d4="<?= $kontrak_raw ?>"
+          data-d5="<?= $disalurkan_raw ?>"
+          data-d6="<?= (int)($kab->total_sp2d ?? 0) ?>"
+          <?= $idx >= $per_kab_page ? 'style="display:none"' : '' ?>>
         <td class="text-sm fw-500"><?= htmlspecialchars($kab->nama) ?></td>
-        <td class="center text-sm"><?= $kab->total_bkp > 0 ? $kab->total_bkp.' BKP' : '<span class="text-muted">—</span>' ?></td>
-        <td class="center text-sm"><?= $kab->total_pekerjaan ?></td>
-        <td class="text-sm" style="text-align:right"><?= $kab->total_kontrak ? rupiah_juta($kab->total_kontrak) : '—' ?></td>
-        <td class="text-sm fw-500" style="text-align:right;color:var(--teal-mid)"><?= $kab->total_disalurkan ? rupiah_juta($kab->total_disalurkan) : '—' ?></td>
+        <td class="center text-sm"><?= $kab->total_bkp > 0 ? $kab->total_bkp : '<span class="text-muted">—</span>' ?></td>
+        <td class="text-sm" style="text-align:right"><?= $nilai_bkp_raw > 0 ? rupiah($nilai_bkp_raw) : '—' ?></td>
+        <td class="center text-sm"><?= $kab->total_pekerjaan ?: '—' ?></td>
+        <td class="text-sm" style="text-align:right"><?= $kontrak_raw > 0 ? rupiah($kontrak_raw) : '—' ?></td>
+        <td class="text-sm fw-500" style="text-align:right;color:var(--teal-mid)"><?= $disalurkan_raw > 0 ? rupiah($disalurkan_raw) : '—' ?></td>
         <td class="center text-sm"><?= $kab->total_sp2d ?: '—' ?></td>
-        <td style="min-width:80px">
+        <td style="min-width:90px">
           <?php if ($pct_sal > 0): ?>
           <div style="height:6px;background:var(--bg);border-radius:3px;overflow:hidden">
             <div style="height:100%;background:<?= $pct_sal >= 100 ? 'var(--hijau-mid)' : 'var(--teal-mid)' ?>;width:<?= $pct_sal ?>%"></div>
@@ -679,6 +707,88 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
     var maxPage = Math.ceil(total / perPage) - 1;
     page = Math.max(0, Math.min(maxPage, page + dir));
     render();
+  };
+})();
+
+/* ── Sort tabel Realisasi per Kab/Kota ── */
+(function() {
+  var sortCol = -1, sortAsc = true;
+
+  function sortTable(colIdx, colType) {
+    var tbody = document.getElementById('tbody-kab');
+    if (!tbody) return;
+
+    // Toggle arah sort jika kolom sama
+    if (sortCol === colIdx) {
+      sortAsc = !sortAsc;
+    } else {
+      sortCol = colIdx;
+      sortAsc = true;
+    }
+
+    // Update ikon header
+    document.querySelectorAll('#tbl-kab .tbl-sort i').forEach(function(ic, i) {
+      ic.className = 'ti ti-selector';
+      ic.style.opacity = '0.4';
+    });
+    var activeIcon = document.getElementById('sort-icon-' + colIdx);
+    if (activeIcon) {
+      activeIcon.className = sortAsc ? 'ti ti-sort-ascending' : 'ti ti-sort-descending';
+      activeIcon.style.opacity = '1';
+    }
+
+    // Ambil semua baris dan sort
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr.kab-row'));
+    rows.sort(function(a, b) {
+      var va = a.getAttribute('data-d' + colIdx) || '';
+      var vb = b.getAttribute('data-d' + colIdx) || '';
+      var cmp;
+      if (colType === 'num') {
+        cmp = parseFloat(va || 0) - parseFloat(vb || 0);
+      } else {
+        cmp = va.localeCompare(vb, 'id');
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+
+    // Re-insert baris sesuai urutan sort baru & update data-idx
+    rows.forEach(function(row, i) {
+      row.setAttribute('data-idx', i);
+      tbody.appendChild(row);
+    });
+
+    // Reset pagination ke halaman 1
+    if (typeof kabPage === 'function') {
+      // Trigger re-render pagination
+      window.kabSortReset && window.kabSortReset();
+    }
+  }
+
+  // Bind click ke setiap header yang sortable
+  document.querySelectorAll('#tbl-kab .tbl-sort').forEach(function(th) {
+    th.addEventListener('click', function() {
+      var col  = parseInt(th.getAttribute('data-col'));
+      var type = th.getAttribute('data-type') || 'str';
+      sortTable(col, type);
+    });
+    th.style.cursor = 'pointer';
+  });
+
+  // Expose reset fungsi untuk pagination setelah sort
+  window.kabSortReset = function() {
+    // Re-render pagination dari index 0
+    var rows = document.querySelectorAll('#tbody-kab tr.kab-row');
+    var perPage = <?= $per_kab_page ?? 15 ?>;
+    rows.forEach(function(r, i) {
+      r.style.display = i < perPage ? '' : 'none';
+    });
+    var info = document.getElementById('kab-info');
+    if (info) {
+      var shown = Math.min(perPage, rows.length);
+      info.innerHTML = 'Menampilkan <strong>1–' + shown + '</strong> dari <strong>' + rows.length + '</strong> kab/kota';
+    }
+    var lbl = document.getElementById('kab-page-label');
+    if (lbl) lbl.textContent = 'Hal 1';
   };
 })();
 </script>
