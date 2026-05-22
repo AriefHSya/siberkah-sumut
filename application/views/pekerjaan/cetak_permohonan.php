@@ -80,15 +80,37 @@ Dalam rangka memenuhi ketentuan SE Gubernur Sumatera Utara Nomor 900.1.1.3689 te
   <?php if ($perkada): ?><tr><td>Perkada/Pergub</td><td>No. <?= htmlspecialchars($perkada->nomor) ?> / <?= tgl_indo($perkada->tanggal) ?></td></tr><?php endif; ?>
 </table>
 
-<?php if (!empty($tahapan)): ?>
+<?php
+// Untuk bertahap: hanya tampilkan Tahap I pada surat permohonan reviu.
+// Tahap II diproses setelah capaian fisik Tahap I dilaporkan.
+$tahapan_cetak = ($p->jenis_penyaluran === 'bertahap')
+    ? array_filter((array)$tahapan, fn($t) => $t->kode_tahap === 'tahap_1')
+    : (array)$tahapan;
+?>
+<?php if (!empty($tahapan_cetak)): ?>
 <table class="tbl-data">
   <tr><th colspan="4">TAHAPAN PENYALURAN</th></tr>
   <tr><th>Tahapan</th><th>Persentase</th><th>Nilai Diajukan</th><th>Batas Pengajuan</th></tr>
-  <?php foreach ($tahapan as $t): ?>
+  <?php foreach ($tahapan_cetak as $t):
+    $pct_val  = (float)($t->persen_nilai ?? 100) / 100;
+    $pendukung= (float)($p->nilai_belanja_pendukung ?? 0);
+    // Formula: bertahap = persen×kontrak + pendukung; lainnya = kontrak + pendukung
+    $nilai_ajukan = ($p->jenis_penyaluran === 'bertahap')
+        ? ($p->nilai_kontrak * $pct_val) + $pendukung
+        : ($p->nilai_kontrak + $pendukung);
+  ?>
   <tr>
     <td><?= htmlspecialchars($t->label_tahap) ?></td>
     <td style="text-align:center"><?= $t->persen_nilai ?>%</td>
-    <td><?= rupiah($t->nilai_diajukan) ?></td>
+    <td>
+      <strong><?= rupiah($nilai_ajukan) ?></strong>
+      <?php if ($pendukung > 0): ?>
+      <div style="font-size:9pt;color:#555">
+        <?= rupiah($p->nilai_kontrak * $pct_val) ?> (kontrak)
+        + <?= rupiah($pendukung) ?> (pendukung)
+      </div>
+      <?php endif; ?>
+    </td>
     <td><?= tgl_indo($t->batas_tgl_pengajuan) ?></td>
   </tr>
   <?php endforeach; ?>
@@ -124,7 +146,7 @@ Dalam rangka memenuhi ketentuan SE Gubernur Sumatera Utara Nomor 900.1.1.3689 te
     <li>Surat pernyataan Bupati/Wali Kota</li>
     <li>Perda APBD / APBD-P</li>
     <li>Perkada / Pergub BKP</li>
-    <?php if ($p->jenis_penyaluran === 'bertahap'): ?><li>Berita acara kemajuan pekerjaan (Tahap II)</li><?php endif; ?>
+    <?php if ($p->jenis_penyaluran === 'sekaligus'): ?><li>Berita Acara Serah Terima (BAST)</li><?php endif; ?>
   </ol>
   <br>
   <p style="font-size:10pt;color:#666">Dicetak melalui SIBERKAH SUMUT — <?= $tgl_cetak ?></p>
