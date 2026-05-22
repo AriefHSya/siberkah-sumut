@@ -678,8 +678,6 @@ window.addEventListener('beforeunload', function(e) {
     e.preventDefault(); e.returnValue = '';
   }
 });
-<?php if (document.getElementById('formChecklist')): // always false in PHP, JS runs later ?>
-<?php endif; ?>
 document.addEventListener('DOMContentLoaded', function() {
   var form = document.getElementById('formChecklist');
   if (!form) return;
