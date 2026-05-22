@@ -216,7 +216,7 @@ $v_rupiah = function($field) use ($p) {
   <!-- Perda / Perkada -->
   <div class="form-grid mb-0">
     <div class="form-group">
-      <label>16. Perda APBD / APBD-P</label>
+      <label>16. Perda APBD / Perda P APBD</label>
       <select name="ref_perda_id" class="form-control">
         <option value="">-- Belum dipilih --</option>
         <?php foreach ($dokumen_perda as $d): ?>
@@ -230,7 +230,7 @@ $v_rupiah = function($field) use ($p) {
       <?php endif; ?>
     </div>
     <div class="form-group">
-      <label>17. Perkada / Pergub BKP</label>
+      <label>17. Perkada APBD / Pergeseran / P APBD</label>
       <select name="ref_perkada_id" class="form-control">
         <option value="">-- Belum dipilih --</option>
         <?php foreach ($dokumen_perkada as $d): ?>
@@ -246,7 +246,7 @@ $v_rupiah = function($field) use ($p) {
 <!-- ── BLOK C: LOKASI (LEAFLET) ──────────────────────────── -->
 <div class="card mb-2">
   <div class="card-title"><i class="ti ti-map-pin"></i> Lokasi Kegiatan
-    <span class="badge badge-abu" style="font-size:10px;margin-left:auto">OpenStreetMap — siap swap Google Maps API</span>
+    <span class="badge badge-abu" style="font-size:10px;margin-left:auto">OpenStreetMap</span>
   </div>
 
   <div class="form-group mb-2">
