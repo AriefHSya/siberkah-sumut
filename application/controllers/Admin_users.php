@@ -73,10 +73,12 @@ class Admin_users extends Auth_Controller
         if (!$role || !$this->rbac->canManageUser($role->level)) {
             $this->session->set_flashdata('error','Anda tidak berwenang membuat user dengan role ini.'); redirect('admin/users/tambah'); return;
         }
+        $nip_raw = preg_replace('/[^0-9]/', '', $this->input->post('nip', TRUE));
         $data = [
             'username'       => $username,
             'password'       => password_hash($this->input->post('password'), PASSWORD_BCRYPT),
             'nama'           => $this->input->post('nama',TRUE),
+            'nip'            => (strlen($nip_raw) === 18) ? $nip_raw : NULL,
             'email'          => $this->input->post('email',TRUE),
             'telepon'        => $this->input->post('telepon',TRUE),
             'role_id'        => $this->input->post('role_id',TRUE),
@@ -115,9 +117,11 @@ class Admin_users extends Auth_Controller
         if ($this->User_model->username_exists($username, $id)) {
             $this->session->set_flashdata('error','Username sudah digunakan.'); redirect('admin/users/edit/'.$id); return;
         }
+        $nip_raw = preg_replace('/[^0-9]/', '', $this->input->post('nip', TRUE));
         $data = [
             'username'       => $username,
             'nama'           => $this->input->post('nama',TRUE),
+            'nip'            => (strlen($nip_raw) === 18) ? $nip_raw : NULL,
             'email'          => $this->input->post('email',TRUE),
             'telepon'        => $this->input->post('telepon',TRUE),
             'role_id'        => $this->input->post('role_id',TRUE),

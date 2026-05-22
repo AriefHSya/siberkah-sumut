@@ -7,6 +7,17 @@
   <?= form_hidden($this->security->get_csrf_token_name(),$this->security->get_csrf_hash()) ?>
   <div class="form-grid">
     <div class="form-group"><label>Nama Lengkap <span class="req">*</span></label><input type="text" name="nama" class="form-control" value="<?= htmlspecialchars($user->nama??'') ?>" required></div>
+    <div class="form-group">
+      <label>NIP <span class="text-xs text-muted">(18 digit)</span></label>
+      <input type="text" name="nip" class="form-control mono"
+             value="<?= htmlspecialchars($user->nip??'') ?>"
+             placeholder="Contoh: 198001012005011001"
+             maxlength="18"
+             oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+             pattern="[0-9]{18}"
+             title="NIP harus 18 digit angka">
+      <div class="form-hint">Kosongkan jika tidak memiliki NIP.</div>
+    </div>
     <div class="form-group"><label>Username <span class="req">*</span></label><input type="text" name="username" class="form-control" value="<?= htmlspecialchars($user->username??'') ?>" required></div>
     <div class="form-group"><label>Password <?= $edit ? '(kosongkan jika tidak diubah)' : '<span class="req">*</span>' ?></label><input type="password" name="password" class="form-control" <?= $edit ? '' : 'required' ?>></div>
     <div class="form-group"><label>Email</label><input type="email" name="email" class="form-control" value="<?= htmlspecialchars($user->email??'') ?>"></div>
