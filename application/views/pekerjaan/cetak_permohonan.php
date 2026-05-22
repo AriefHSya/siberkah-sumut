@@ -18,10 +18,13 @@ p{margin-bottom:10px;text-align:justify}
 .tbl-data{width:100%;border-collapse:collapse;margin:12px 0;font-size:11pt}
 .tbl-data th,.tbl-data td{border:1px solid #000;padding:5px 8px;text-align:left}
 .tbl-data th{background:#f5f5f5;font-weight:bold;text-align:center}
-.ttd{display:flex;justify-content:space-between;margin-top:40px}
-.ttd-blok{width:45%;text-align:center}
-.ttd-blok .nama{margin-top:70px;font-weight:bold;text-decoration:underline}
-.ttd-blok .nip{font-size:10pt}
+.ttd{display:flex;justify-content:space-between;margin-top:40px;gap:20px}
+.ttd-blok{width:44%;text-align:center}
+.ttd-blok .ttd-title{font-size:11pt;margin-bottom:2px}
+.ttd-blok .ttd-jabatan{font-size:11pt;font-weight:normal;margin-bottom:0}
+.ttd-blok .ttd-space{height:72px}
+.ttd-blok .ttd-nama{font-weight:bold;text-decoration:underline;font-size:11pt;border-top:1px solid #000;padding-top:2px;display:inline-block;min-width:200px}
+.ttd-blok .ttd-nip{font-size:10pt;margin-top:2px}
 .lampiran{margin-top:30px;border-top:1px solid #000;padding-top:16px}
 @media print{
   body{padding:1.5cm}
@@ -122,31 +125,42 @@ $tahapan_cetak = ($p->jenis_penyaluran === 'bertahap')
 <p style="text-align:right"><?= htmlspecialchars($p->nama_kabkota) ?>, <?= $tgl_cetak ?></p>
 
 <div class="ttd">
+  <!-- Kiri: Mengetahui — Kepala Daerah -->
   <div class="ttd-blok">
-    <p>Mengetahui,</p>
-    <p><?= $kdh ? 'Bupati/Wali Kota '.htmlspecialchars($p->nama_kabkota) : '........................' ?></p>
-    <div class="nama"><?= $kdh ? htmlspecialchars($kdh->nama) : '............................' ?></div>
-    <?php if ($kdh && $kdh->nip): ?><div class="nip">NIP. <?= htmlspecialchars($kdh->nip) ?></div><?php endif; ?>
+    <p class="ttd-title">Mengetahui,</p>
+    <p class="ttd-jabatan">Bupati/Wali Kota <?= htmlspecialchars($p->nama_kabkota) ?></p>
+    <div class="ttd-space"></div>
+    <?php if ($kdh): ?>
+    <div class="ttd-nama"><?= htmlspecialchars($kdh->nama) ?></div>
+    <?php if ($kdh->nip): ?><div class="ttd-nip">NIP. <?= htmlspecialchars($kdh->nip) ?></div><?php endif; ?>
+    <?php else: ?>
+    <div class="ttd-nama" style="min-width:220px">&nbsp;</div>
+    <div class="ttd-nip">NIP. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+    <?php endif; ?>
   </div>
+
+  <!-- Kanan: Kepala OPD/Dinas Teknis -->
   <div class="ttd-blok">
-    <p><?= htmlspecialchars($p->opd_nama ?? 'Kepala Dinas Teknis') ?></p>
-    <p>..........................................</p>
-    <div class="nama">......................................</div>
-    <div class="nip">NIP. ..............................</div>
+    <p class="ttd-title">Kepala,</p>
+    <p class="ttd-jabatan"><?= htmlspecialchars($p->opd_nama ?? 'Dinas Teknis') ?></p>
+    <div class="ttd-space"></div>
+    <div class="ttd-nama" style="min-width:220px">&nbsp;</div>
+    <div class="ttd-nip">NIP. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
   </div>
 </div>
 
 <!-- Lampiran -->
 <div class="lampiran">
   <p><strong>Lampiran:</strong> Dokumen Persyaratan</p>
-  <ol style="padding-left:20px;font-size:11pt">
-    <li>Dokumen pekerjaan / kontrak</li>
-    <li>SPMK</li>
-    <li>Daftar pekerjaan</li>
-    <li>Surat pernyataan Bupati/Wali Kota</li>
-    <li>Perda APBD / APBD-P</li>
-    <li>Perkada / Pergub BKP</li>
-    <?php if ($p->jenis_penyaluran === 'sekaligus'): ?><li>Berita Acara Serah Terima (BAST)</li><?php endif; ?>
+  <ol style="padding-left:20px;font-size:11pt;line-height:2">
+    <?php if ($p->jenis_penyaluran === 'sekaligus'): ?>
+    <li>Dokumen Pekerjaan / Kontrak</li>
+    <li>SPMK (Surat Perintah Mulai Kerja)</li>
+    <li>BAST (Berita Acara Serah Terima)</li>
+    <?php else: /* bertahap Tahap I dan jenis khusus lainnya */ ?>
+    <li>Dokumen Pekerjaan / Kontrak</li>
+    <li>SPMK (Surat Perintah Mulai Kerja)</li>
+    <?php endif; ?>
   </ol>
   <br>
   <p style="font-size:10pt;color:#666">Dicetak melalui SIBERKAH SUMUT — <?= $tgl_cetak ?></p>
