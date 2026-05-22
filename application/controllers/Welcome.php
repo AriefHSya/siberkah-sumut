@@ -31,7 +31,7 @@ class Welcome extends Guest_Controller
 
         // Logo Pemerintah Provinsi
         $setting_logo = $this->db->get_where('ref_app_setting', ['kode' => 'logo_provinsi'])->row();
-        $logo_prov = ($setting_logo && $setting_logo->nilai && file_exists(FCPATH . $setting_logo->nilai))
+        $logo_prov = ($setting_logo && !empty($setting_logo->nilai))
             ? base_url($setting_logo->nilai) : NULL;
 
         $this->load->view('landing/index', array_merge($this->data, [

@@ -11,7 +11,7 @@
   </p>
 
   <!-- Preview logo saat ini -->
-  <?php if ($logo_path && file_exists(FCPATH . $logo_path)): ?>
+  <?php if (!empty($logo_path)): ?>
   <div class="mb-3" style="padding:16px;background:var(--bg);border-radius:var(--radius);text-align:center">
     <div class="text-xs text-muted mb-2">Logo saat ini:</div>
     <img src="<?= base_url($logo_path) ?>" alt="Logo Provinsi"

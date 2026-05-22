@@ -28,7 +28,7 @@ class Auth extends Guest_Controller
     public function login() {
         $this->data['title'] = 'Login — SIBERKAH SUMUT';
         $setting_logo = $this->db->get_where('ref_app_setting', ['kode' => 'logo_provinsi'])->row();
-        $this->data['logo_prov'] = ($setting_logo && $setting_logo->nilai && file_exists(FCPATH . $setting_logo->nilai))
+        $this->data['logo_prov'] = ($setting_logo && !empty($setting_logo->nilai))
             ? base_url($setting_logo->nilai) : NULL;
         $this->load->view('auth/login', $this->data);
     }

@@ -838,14 +838,24 @@ class Parameter extends Auth_Controller
 
         // Hapus file lama jika ada
         $current = $this->db->get_where('ref_app_setting', ['kode' => 'logo_provinsi'])->row();
-        if ($current && $current->nilai && file_exists(FCPATH . $current->nilai)) {
+        if ($current && $current->nilai) {
             @unlink(FCPATH . $current->nilai);
         }
 
-        $this->db->where('kode', 'logo_provinsi')->update('ref_app_setting', [
-            'nilai'      => $new_path,
-            'updated_by' => $this->user_id,
-        ]);
+        // Upsert: update jika row ada, insert jika belum ada
+        if ($current) {
+            $this->db->where('kode', 'logo_provinsi')->update('ref_app_setting', [
+                'nilai'      => $new_path,
+                'updated_by' => $this->user_id,
+            ]);
+        } else {
+            $this->db->insert('ref_app_setting', [
+                'kode'       => 'logo_provinsi',
+                'nilai'      => $new_path,
+                'keterangan' => 'Path file logo Pemerintah Provinsi',
+                'updated_by' => $this->user_id,
+            ]);
+        }
         $this->log_aktivitas('parameter.logo.upload', 'Upload logo provinsi');
         $this->session->set_flashdata('success', 'Logo provinsi berhasil diupload.');
         redirect('parameter/logo');
@@ -857,13 +867,15 @@ class Parameter extends Auth_Controller
             redirect('parameter/logo'); return;
         }
         $current = $this->db->get_where('ref_app_setting', ['kode' => 'logo_provinsi'])->row();
-        if ($current && $current->nilai && file_exists(FCPATH . $current->nilai)) {
+        if ($current && $current->nilai) {
             @unlink(FCPATH . $current->nilai);
         }
-        $this->db->where('kode', 'logo_provinsi')->update('ref_app_setting', [
-            'nilai'      => '',
-            'updated_by' => $this->user_id,
-        ]);
+        if ($current) {
+            $this->db->where('kode', 'logo_provinsi')->update('ref_app_setting', [
+                'nilai'      => '',
+                'updated_by' => $this->user_id,
+            ]);
+        }
         $this->session->set_flashdata('success', 'Logo provinsi dihapus.');
         redirect('parameter/logo');
     }
