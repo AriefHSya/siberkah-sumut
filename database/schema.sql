@@ -686,6 +686,7 @@ CREATE TABLE `users` (
   `username` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `nama` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `nip` varchar(18) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'NIP 18 digit',
   `email` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `telepon` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `role_id` int NOT NULL,
