@@ -130,15 +130,19 @@ class Rbac
         return array_values(array_filter($sub, fn($s) => $this->can($s['perm'])));
     }
 
-    /** Sub-menu Pengaturan — difilter berdasarkan permission user */
+    /** Sub-menu Pengaturan — difilter berdasarkan permission + role */
     public function getSubPengaturan()
     {
         $sub = [
-            ['key'=>'users',    'url'=>'admin/users',    'label'=>'Manajemen User',   'icon'=>'users',         'perm'=>'admin.user.view'],
-            ['key'=>'roles',    'url'=>'admin/roles',    'label'=>'Role & Hak Akses', 'icon'=>'shield-lock',   'perm'=>'admin.role.view'],
-            ['key'=>'telegram', 'url'=>'admin/telegram', 'label'=>'Notif Telegram',   'icon'=>'brand-telegram','perm'=>'admin.view'],
+            ['key'=>'users',    'url'=>'admin/users',    'label'=>'Manajemen User',   'icon'=>'users',         'perm'=>'admin.user.view', 'provinsi_only'=>FALSE],
+            ['key'=>'roles',    'url'=>'admin/roles',    'label'=>'Role & Hak Akses', 'icon'=>'shield-lock',   'perm'=>'admin.role.view', 'provinsi_only'=>FALSE],
+            ['key'=>'telegram', 'url'=>'admin/telegram', 'label'=>'Notif Telegram',   'icon'=>'brand-telegram','perm'=>'admin.view',      'provinsi_only'=>TRUE],
         ];
-        return array_values(array_filter($sub, fn($s) => $this->can($s['perm'])));
+        return array_values(array_filter($sub, function($s) {
+            if (!$this->can($s['perm'])) return FALSE;
+            if (!empty($s['provinsi_only']) && !$this->isProvinsi()) return FALSE;
+            return TRUE;
+        }));
     }
 
     // Helpers role
