@@ -394,7 +394,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const mapD = L.map('mapDetail').setView([<?= $p->latitude ?>, <?= $p->longitude ?>], 15);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '© OpenStreetMap contributors', maxZoom: 19
 }).addTo(mapD);
 L.marker([<?= $p->latitude ?>, <?= $p->longitude ?>])

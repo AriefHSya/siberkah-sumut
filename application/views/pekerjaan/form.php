@@ -382,7 +382,7 @@ const defaultLat = <?= ($p && $p->latitude)  ? $p->latitude  : '2.9671' ?>;
 const defaultLng = <?= ($p && $p->longitude) ? $p->longitude : '98.6762' ?>;
 const map = L.map('map').setView([defaultLat, defaultLng], <?= ($p && $p->latitude) ? 15 : 9 ?>);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
     maxZoom: 19,
 }).addTo(map);
