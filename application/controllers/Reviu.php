@@ -232,7 +232,7 @@ class Reviu extends Auth_Controller
         ]);
 
         $file_path = NULL;
-        if ($this->input->files('file_lhr')['name'] ?? '') {
+        if (!empty($_FILES['file_lhr']['name'])) {
             if (!$this->upload->do_upload('file_lhr')) {
                 $this->session->set_flashdata('error',
                     'Upload LHR gagal: ' . $this->upload->display_errors('', ''));
