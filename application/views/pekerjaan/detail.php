@@ -317,74 +317,22 @@
         </div>
         <?php endif; ?>
 
-        <!-- Upload dokumen per tahapan -->
+        <!-- Dokumen tahapan — view/download saja, upload dikelola SKPKD Kab/Kota -->
         <?php $dok_t = $dok_per_tahapan[$t->id] ?? []; ?>
         <?php if (!empty($dok_t)): ?>
         <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
-          <div class="text-xs text-muted fw-500 mb-1">Dokumen terupload:</div>
+          <div class="text-xs text-muted fw-500 mb-1">Dokumen tahapan:</div>
           <?php foreach ($dok_t as $d): ?>
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px">
             <i class="ti <?= icon_file($d->file_path) ?>" style="color:var(--biru)"></i>
             <span><?= label_jenis_dok($d->jenis_dokumen) ?></span>
             <span class="text-muted">(<?= $d->ukuran_kb ?> KB)</span>
-            <a href="<?= base_url($d->file_path) ?>" target="_blank" class="btn-icon" title="Download" style="width:22px;height:22px;font-size:13px"><i class="ti ti-download"></i></a>
-            <?php if ($this->rbac->can('pekerjaan.upload_dok')): ?>
-            <a href="<?= site_url('pekerjaan/hapus-dok/'.$d->id) ?>" class="btn-icon del" data-confirm="Hapus dokumen ini?" style="width:22px;height:22px;font-size:13px"><i class="ti ti-trash"></i></a>
-            <?php endif; ?>
+            <a href="<?= base_url($d->file_path) ?>" target="_blank" class="btn-icon" title="Lihat / Download" style="width:22px;height:22px;font-size:13px"><i class="ti ti-download"></i></a>
           </div>
           <?php endforeach; ?>
         </div>
         <?php endif; ?>
-
-        <!-- Form upload dokumen -->
-        <?php if ($this->rbac->can('pekerjaan.upload_dok') && in_array($t->status,['belum','opd_input','inspektorat_revisi','skpkd_kab_revisi'])): ?>
-        <div style="margin-top:8px">
-          <button class="btn btn-outline btn-xs" onclick="openModal('modalUpload<?= $t->id ?>')">
-            <i class="ti ti-upload"></i> Upload Dokumen
-          </button>
-        </div>
-        <?php endif; ?>
       </div>
-
-      <!-- Modal Upload per tahapan -->
-      <?php if ($this->rbac->can('pekerjaan.upload_dok')): ?>
-      <div id="modalUpload<?= $t->id ?>" class="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:999;align-items:center;justify-content:center">
-        <div style="background:#fff;border-radius:12px;padding:24px;width:480px;max-width:95vw">
-          <div class="card-title"><i class="ti ti-upload"></i> Upload Dokumen — <?= $t->label_tahap ?></div>
-          <?= form_open_multipart(site_url('pekerjaan/upload-dok/'.$t->id)) ?>
-          <?= form_hidden($this->security->get_csrf_token_name(),$this->security->get_csrf_hash()) ?>
-          <div class="form-group mb-2">
-            <label>Jenis Dokumen <span class="req">*</span></label>
-            <select name="jenis_dokumen" class="form-control" required>
-              <option value="">-- Pilih jenis --</option>
-              <option value="surat_permohonan_pencairan">Surat Permohonan Pencairan</option>
-              <option value="surat_pernyataan_bupati">Surat Pernyataan Bupati/Wali Kota</option>
-              <option value="dokumen_pekerjaan_kontrak">Dokumen Pekerjaan / Kontrak</option>
-              <option value="daftar_pekerjaan">Daftar Pekerjaan</option>
-              <option value="laporan_reviu_inspektorat">Laporan Hasil Reviu (LHR)</option>
-              <option value="ba_kemajuan_pekerjaan">Berita Acara Kemajuan Pekerjaan</option>
-              <option value="bast">BAST</option>
-              <option value="foto_dokumentasi">Foto Dokumentasi</option>
-              <option value="lainnya">Lainnya</option>
-            </select>
-          </div>
-          <div class="form-group mb-2">
-            <label>File <span class="req">*</span></label>
-            <input type="file" name="file_dok" class="form-control" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" required>
-            <div class="form-hint">Format: PDF, DOC, DOCX, JPG, PNG. Maks. 10 MB.</div>
-          </div>
-          <div class="form-group mb-2">
-            <label>Keterangan</label>
-            <input type="text" name="keterangan" class="form-control" placeholder="Opsional">
-          </div>
-          <div class="form-actions">
-            <button type="button" onclick="closeModal('modalUpload<?= $t->id ?>')" class="btn btn-outline">Batal</button>
-            <button type="submit" class="btn btn-primary"><i class="ti ti-upload"></i> Upload</button>
-          </div>
-          <?= form_close() ?>
-        </div>
-      </div>
-      <?php endif; ?>
 
       <?php endforeach; else: ?>
       <div class="text-muted text-sm" style="padding:16px;text-align:center">
