@@ -74,11 +74,19 @@ class Admin_users extends Auth_Controller
             $this->session->set_flashdata('error','Anda tidak berwenang membuat user dengan role ini.'); redirect('admin/users/tambah'); return;
         }
         $nip_raw = preg_replace('/[^0-9]/', '', $this->input->post('nip', TRUE));
+        if (strlen($nip_raw) !== 18) {
+            $this->session->set_flashdata('error', 'NIP harus tepat 18 digit angka.');
+            redirect('admin/users/tambah'); return;
+        }
+        if ($this->db->where('nip', $nip_raw)->count_all_results('users') > 0) {
+            $this->session->set_flashdata('error', 'NIP ' . $nip_raw . ' sudah terdaftar untuk user lain.');
+            redirect('admin/users/tambah'); return;
+        }
         $data = [
             'username'       => $username,
             'password'       => password_hash($this->input->post('password'), PASSWORD_BCRYPT),
             'nama'           => $this->input->post('nama',TRUE),
-            'nip'            => (strlen($nip_raw) === 18) ? $nip_raw : NULL,
+            'nip'            => $nip_raw,
             'email'          => $this->input->post('email',TRUE),
             'telepon'        => $this->input->post('telepon',TRUE),
             'role_id'        => $this->input->post('role_id',TRUE),
@@ -118,10 +126,18 @@ class Admin_users extends Auth_Controller
             $this->session->set_flashdata('error','Username sudah digunakan.'); redirect('admin/users/edit/'.$id); return;
         }
         $nip_raw = preg_replace('/[^0-9]/', '', $this->input->post('nip', TRUE));
+        if (strlen($nip_raw) !== 18) {
+            $this->session->set_flashdata('error', 'NIP harus tepat 18 digit angka.');
+            redirect('admin/users/edit/'.$id); return;
+        }
+        if ($this->db->where('nip', $nip_raw)->where('id !=', $id)->count_all_results('users') > 0) {
+            $this->session->set_flashdata('error', 'NIP ' . $nip_raw . ' sudah terdaftar untuk user lain.');
+            redirect('admin/users/edit/'.$id); return;
+        }
         $data = [
             'username'       => $username,
             'nama'           => $this->input->post('nama',TRUE),
-            'nip'            => (strlen($nip_raw) === 18) ? $nip_raw : NULL,
+            'nip'            => $nip_raw,
             'email'          => $this->input->post('email',TRUE),
             'telepon'        => $this->input->post('telepon',TRUE),
             'role_id'        => $this->input->post('role_id',TRUE),

@@ -8,15 +8,18 @@
   <div class="form-grid">
     <div class="form-group"><label>Nama Lengkap <span class="req">*</span></label><input type="text" name="nama" class="form-control" value="<?= htmlspecialchars($user->nama??'') ?>" required></div>
     <div class="form-group">
-      <label>NIP <span class="text-xs text-muted">(18 digit)</span></label>
-      <input type="text" name="nip" class="form-control mono"
+      <label>NIP <span class="req">*</span> <span class="text-xs text-muted">(18 digit)</span></label>
+      <input type="text" name="nip" id="inputNip" class="form-control mono"
              value="<?= htmlspecialchars($user->nip??'') ?>"
              placeholder="Contoh: 198001012005011001"
-             maxlength="18"
-             oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+             maxlength="18" minlength="18"
+             oninput="this.value=this.value.replace(/[^0-9]/g,'');updateNipHint(this)"
              pattern="[0-9]{18}"
-             title="NIP harus 18 digit angka">
-      <div class="form-hint">Kosongkan jika tidak memiliki NIP.</div>
+             title="NIP harus tepat 18 digit angka"
+             required>
+      <div class="form-hint" id="nipHint" style="color:var(--text-muted)">
+        <?= strlen($user->nip??'') === 18 ? '18/18 digit ✓' : '0/18 digit' ?>
+      </div>
     </div>
     <div class="form-group"><label>Username <span class="req">*</span></label><input type="text" name="username" class="form-control" value="<?= htmlspecialchars($user->username??'') ?>" required></div>
     <div class="form-group"><label>Password <?= $edit ? '(kosongkan jika tidak diubah)' : '<span class="req">*</span>' ?></label><input type="password" name="password" class="form-control" <?= $edit ? '' : 'required' ?>></div>
@@ -67,6 +70,22 @@
 </div>
 
 <script>
+function updateNipHint(input) {
+  var len  = input.value.length;
+  var hint = document.getElementById('nipHint');
+  if (!hint) return;
+  if (len === 18) {
+    hint.textContent = '18/18 digit ✓';
+    hint.style.color = 'var(--hijau-mid)';
+  } else if (len > 0) {
+    hint.textContent = len + '/18 digit — kurang ' + (18 - len) + ' digit';
+    hint.style.color = 'var(--kuning-mid)';
+  } else {
+    hint.textContent = '0/18 digit';
+    hint.style.color = 'var(--text-muted)';
+  }
+}
+
 function onRoleChange(sel) {
   var opt   = sel.options[sel.selectedIndex];
   var level = parseInt(opt.getAttribute('data-level')) || 99;
