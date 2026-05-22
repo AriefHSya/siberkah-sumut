@@ -243,7 +243,7 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
 <?php if ($can_input && $r && !$confirmed): ?>
 <?= form_open(site_url('reviu/simpan-checklist/'.$r->id), ['id'=>'formChecklist']) ?>
 <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
-<?= form_hidden('action', 'save', ['id'=>'hiddenAction']) ?>
+<input type="hidden" name="action" id="hiddenAction" value="save">
 <?php endif; ?>
 
 <div class="card mb-2">
