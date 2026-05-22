@@ -244,7 +244,7 @@ CREATE TABLE `ref_pemda_dokumen` (
   `id` int NOT NULL AUTO_INCREMENT,
   `kabkota_id` int NOT NULL,
   `tahun` year NOT NULL,
-  `jenis` enum('perda_apbd','perda_apbd_p','perkada_bkp','pergub_bkp','lainnya') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `jenis` enum('perda_apbd','perkada_apbd','perkada_pergeseran','perda_p_apbd','perkada_p_apbd') COLLATE utf8mb4_unicode_ci NOT NULL,
   `nomor` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `tanggal` date NOT NULL,
   `keterangan` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
