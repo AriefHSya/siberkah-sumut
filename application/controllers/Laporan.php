@@ -79,13 +79,25 @@ class Laporan extends Auth_Controller
         $kabkota = $kabkota_id
             ? $this->db->get_where('ref_kabkota',['id'=>$kabkota_id])->row() : NULL;
 
+        // Ambil data pejabat kepala BKAD Kab/Kota jika request dari role kab/kota
+        $pejabat_ttd = NULL;
+        if (!$this->rbac->isProvinsi() && $kabkota_id) {
+            $pejabat_ttd = $this->db->get_where('ref_pemda_pejabat', [
+                'kabkota_id' => $kabkota_id,
+                'tahun'      => $tahun,
+                'jenis'      => 'kepala_bkad',
+            ])->row();
+        }
+
         $this->render_plain('laporan/cetak_rekap_bkp', [
-            'list'      => $list,
-            'summary'   => $summary,
-            'tahun'     => $tahun,
-            'kabkota'   => $kabkota,
-            'tgl_cetak' => tgl_indo(date('Y-m-d')),
-            'nama_user' => $this->data['current_user']->nama,
+            'list'        => $list,
+            'summary'     => $summary,
+            'tahun'       => $tahun,
+            'kabkota'     => $kabkota,
+            'pejabat_ttd' => $pejabat_ttd,
+            'is_provinsi' => $this->rbac->isProvinsi(),
+            'tgl_cetak'   => tgl_indo(date('Y-m-d')),
+            'nama_user'   => $this->data['current_user']->nama,
         ]);
     }
 
