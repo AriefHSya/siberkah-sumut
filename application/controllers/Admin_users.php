@@ -73,6 +73,11 @@ class Admin_users extends Auth_Controller
         if (!$role || !$this->rbac->canManageUser($role->level)) {
             $this->session->set_flashdata('error','Anda tidak berwenang membuat user dengan role ini.'); redirect('admin/users/tambah'); return;
         }
+        // Role Pengawas hanya boleh dibuat oleh superadmin & admin provinsi
+        if ($role->kode === 'pengawas' && !$this->rbac->isProvinsi()) {
+            $this->session->set_flashdata('error', 'Role Pengawas hanya dapat dibuat oleh Admin Provinsi atau Superadmin.');
+            redirect('admin/users/tambah'); return;
+        }
         $nip_raw = preg_replace('/[^0-9]/', '', $this->input->post('nip', TRUE));
         if (strlen($nip_raw) !== 18) {
             $this->session->set_flashdata('error', 'NIP harus tepat 18 digit angka.');
@@ -124,6 +129,12 @@ class Admin_users extends Auth_Controller
         $username = $this->input->post('username', TRUE);
         if ($this->User_model->username_exists($username, $id)) {
             $this->session->set_flashdata('error','Username sudah digunakan.'); redirect('admin/users/edit/'.$id); return;
+        }
+        // Role Pengawas hanya boleh di-assign oleh superadmin & admin provinsi
+        $role_edit = $this->Role_model->get_by_id($this->input->post('role_id', TRUE));
+        if ($role_edit && $role_edit->kode === 'pengawas' && !$this->rbac->isProvinsi()) {
+            $this->session->set_flashdata('error', 'Role Pengawas hanya dapat di-assign oleh Admin Provinsi atau Superadmin.');
+            redirect('admin/users/edit/'.$id); return;
         }
         $nip_raw = preg_replace('/[^0-9]/', '', $this->input->post('nip', TRUE));
         if (strlen($nip_raw) !== 18) {

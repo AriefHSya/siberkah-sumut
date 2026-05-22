@@ -31,8 +31,12 @@
     <div class="form-group"><label>Role <span class="req">*</span></label>
       <select name="role_id" id="selectRole" class="form-control" required onchange="onRoleChange(this)">
         <option value="" data-level="">-- Pilih Role --</option>
-        <?php foreach ($roles as $r): if (!$this->rbac->canManageUser($r->level)) continue; ?>
-        <option value="<?= $r->id ?>" data-level="<?= $r->level ?>"
+        <?php foreach ($roles as $r):
+          if (!$this->rbac->canManageUser($r->level)) continue;
+          // Role Pengawas hanya bisa di-assign oleh superadmin & admin provinsi
+          if ($r->kode === 'pengawas' && !$this->rbac->isProvinsi()) continue;
+        ?>
+        <option value="<?= $r->id ?>" data-level="<?= $r->level ?>" data-kode="<?= $r->kode ?>"
           <?= (($user->role_id??'')==$r->id)?'selected':'' ?>><?= htmlspecialchars($r->nama) ?> (Level <?= $r->level ?>)</option>
         <?php endforeach; ?>
       </select>
