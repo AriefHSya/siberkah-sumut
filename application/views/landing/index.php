@@ -63,19 +63,21 @@ $has_kanan = (!empty($pejabat['sekda']->foto_path)          && file_exists(FCPAT
 
   <div class="hero-content">
 
-    <!-- Logo + Nama -->
+    <!-- Logo + Nama: Logo Pemprov — Teks SIBERKAH — Logo SIBERKAH -->
     <div class="logo-mark">
       <?php if (!empty($logo_prov)): ?>
-      <img src="<?= $logo_prov ?>" alt="Logo Pemerintah Provinsi" class="logo-img"
-           style="margin-right:4px">
+      <img src="<?= $logo_prov ?>" alt="Logo Pemerintah Provinsi" class="logo-img">
+      <?php else: ?>
+      <div class="logo-img" style="opacity:0;pointer-events:none"></div>
       <?php endif; ?>
-      <img src="<?= base_url('assets/img/logo-siberkah.png') ?>" alt="Logo SIBERKAH SUMUT" class="logo-img">
 
       <div class="logo-text-wrap">
         <div class="logo-name">SIBERKAH</div>
         <div class="logo-divider"><span>— SUMUT —</span></div>
         <div class="logo-sub">PEMERINTAH PROVINSI SUMATERA UTARA</div>
       </div>
+
+      <img src="<?= base_url('assets/img/logo-siberkah.png') ?>" alt="Logo SIBERKAH SUMUT" class="logo-img">
     </div>
 
     <p class="hero-tagline">Platform Kolaborasi Bantuan Keuangan Provinsi dan Kab/Kota</p>
