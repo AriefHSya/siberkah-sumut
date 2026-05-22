@@ -103,14 +103,14 @@ class Pekerjaan extends Auth_Controller
             ->where(['b.tahun'=>$tahun,'b.is_active'=>1,'b.kabkota_id'=>$kabkota_id])
             ->order_by('b.kode_bkp','ASC')->get()->result();
 
-        // Dokumen perda/perkada untuk dropdown
+        // Dokumen perda/perkada untuk dropdown (jenis sesuai pemda.php)
         $dokumen_perda = $this->db
             ->where(['kabkota_id'=>$kabkota_id,'tahun'=>$tahun])
-            ->where_in('jenis',['perda_apbd','perda_apbd_p'])
+            ->where_in('jenis',['perda_apbd','perda_p_apbd'])
             ->get('ref_pemda_dokumen')->result();
         $dokumen_perkada = $this->db
             ->where(['kabkota_id'=>$kabkota_id,'tahun'=>$tahun])
-            ->where_in('jenis',['perkada_bkp','pergub_bkp'])
+            ->where_in('jenis',['perkada_apbd','perkada_pergeseran','perkada_p_apbd'])
             ->get('ref_pemda_dokumen')->result();
 
         // Batas waktu TA ini (untuk info di form)
@@ -238,11 +238,11 @@ class Pekerjaan extends Auth_Controller
 
         $dokumen_perda = $this->db
             ->where(['kabkota_id'=>$kabkota_id,'tahun'=>$tahun])
-            ->where_in('jenis',['perda_apbd','perda_apbd_p'])
+            ->where_in('jenis',['perda_apbd','perda_p_apbd'])
             ->get('ref_pemda_dokumen')->result();
         $dokumen_perkada = $this->db
             ->where(['kabkota_id'=>$kabkota_id,'tahun'=>$tahun])
-            ->where_in('jenis',['perkada_bkp','pergub_bkp'])
+            ->where_in('jenis',['perkada_apbd','perkada_pergeseran','perkada_p_apbd'])
             ->get('ref_pemda_dokumen')->result();
 
         $this->render('pekerjaan/form', array_merge($this->data, [
