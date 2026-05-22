@@ -47,7 +47,6 @@
   </div>
   <div class="login-footer">
     <p>BKAD Provinsi Sumatera Utara &copy; <?= date('Y') ?></p>
-    <p>Berdasarkan SE Gubernur No. 900.1.1.3689</p>
   </div>
 </div>
 </body>
