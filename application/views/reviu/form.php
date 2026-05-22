@@ -49,11 +49,11 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
 <div class="card mb-2">
   <div class="card-title" style="cursor:pointer" onclick="toggleDataPekerjaan()">
     <i class="ti ti-file-text"></i> Data Pekerjaan OPD Teknis
-    <span class="text-xs text-muted fw-500" style="margin-left:8px" id="dp-hint">Klik untuk lihat detail</span>
-    <i class="ti ti-chevron-down" id="dp-chevron" style="margin-left:auto"></i>
+    <span class="text-xs text-muted fw-500" style="margin-left:8px" id="dp-hint"></span>
+    <i class="ti ti-chevron-up" id="dp-chevron" style="margin-left:auto"></i>
   </div>
 
-  <div id="dataPekerjaan" style="display:none">
+  <div id="dataPekerjaan">
     <!-- Ringkasan cepat -->
     <div class="g3 mb-2">
       <div>
@@ -533,14 +533,14 @@ $h = $hmap[$keputusan] ?? ['abu','—','ti-question-mark',''];
 <script>
 /* ── Toggle Data Pekerjaan ── */
 function toggleDataPekerjaan() {
-  var el  = document.getElementById('dataPekerjaan');
-  var chv = document.getElementById('dp-chevron');
-  var hint= document.getElementById('dp-hint');
-  var show= el.style.display === 'none';
-  el.style.display  = show ? 'block' : 'none';
-  chv.className     = show ? 'ti ti-chevron-up' : 'ti ti-chevron-down';
-  hint.textContent  = show ? '' : 'Klik untuk lihat detail';
+  var el   = document.getElementById('dataPekerjaan');
+  var chv  = document.getElementById('dp-chevron');
+  var hint = document.getElementById('dp-hint');
+  var open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  chv.className    = open ? 'ti ti-chevron-down' : 'ti ti-chevron-up';
   chv.style.marginLeft = 'auto';
+  hint.textContent = open ? 'Klik untuk lihat detail' : '';
 }
 
 /* ── Cetak Kertas Kerja (buka tab baru dengan param reviewer) ── */
