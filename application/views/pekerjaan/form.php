@@ -246,7 +246,7 @@ $v_rupiah = function($field) use ($p) {
 <!-- ── BLOK C: LOKASI (LEAFLET) ──────────────────────────── -->
 <div class="card mb-2">
   <div class="card-title"><i class="ti ti-map-pin"></i> Lokasi Kegiatan
-    <span class="badge badge-abu" style="font-size:10px;margin-left:auto">OpenStreetMap — siap swap Google Maps API</span>
+    <span class="badge badge-abu" style="font-size:10px;margin-left:auto">OpenStreetMap</span>
   </div>
 
   <div class="form-group mb-2">
