@@ -14,9 +14,20 @@ echo "ErrorLog /proc/self/fd/2" >> /etc/apache2/apache2.conf
 echo "CustomLog /proc/self/fd/1 combined" >> /etc/apache2/apache2.conf
 
 # Pastikan folder runtime ada dan writable
+# Subdirektori uploads dibuat di sini (bukan di Dockerfile) karena Railway Volume
+# mount /var/www/html/uploads dengan disk kosong saat container start.
 mkdir -p /var/www/html/application/cache/sessions \
          /var/www/html/application/cache/import_tmp \
-         /var/www/html/application/logs
+         /var/www/html/application/logs \
+         /var/www/html/uploads/dokumen \
+         /var/www/html/uploads/lhr \
+         /var/www/html/uploads/permohonan \
+         /var/www/html/uploads/capaian \
+         /var/www/html/uploads/logo \
+         /var/www/html/uploads/landing/pejabat \
+         /var/www/html/uploads/landing/slideshow \
+         /var/www/html/uploads/temp
+chown -R www-data:www-data /var/www/html/uploads
 chmod -R 777 /var/www/html/application/cache \
              /var/www/html/application/logs \
              /var/www/html/uploads
