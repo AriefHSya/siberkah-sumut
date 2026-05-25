@@ -78,4 +78,5 @@
       </tbody>
     </table>
   </div>
+  <?php $this->load->view('partials/pagination', ['paging' => $paging, 'filters' => $filters]); ?>
 </div>

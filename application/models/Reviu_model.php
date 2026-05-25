@@ -67,13 +67,21 @@ class Reviu_model extends CI_Model
             ->join('ref_kabkota k',           'k.id = b.kabkota_id')
             ->join('ref_bidang bid',          'bid.id = b.bidang_id')
             ->join('trx_reviu_inspektorat r', 'r.tahapan_id = t.id', 'left')
-            ->where_in('t.status', ['opd_input','inspektorat_reviu','inspektorat_revisi','inspektorat_approved']);
+            ->group_start()
+                ->where_in('t.status', ['opd_input','inspektorat_reviu','inspektorat_revisi','inspektorat_approved'])
+                ->or_where('r.hasil_reviu', 'disetujui')
+            ->group_end();
         if (!empty($filters['kabkota_id']))
             $this->db->where('b.kabkota_id', $filters['kabkota_id']);
         if (!empty($filters['tahun']))
             $this->db->where('b.tahun', $filters['tahun']);
-        if (!empty($filters['status']))
-            $this->db->where('t.status', $filters['status']);
+        if (!empty($filters['status'])) {
+            if ($filters['status'] === 'inspektorat_approved') {
+                $this->db->where('r.hasil_reviu', 'disetujui');
+            } else {
+                $this->db->where('t.status', $filters['status']);
+            }
+        }
         if (!empty($filters['jenis']))
             $this->db->where('p.jenis_penyaluran', $filters['jenis']);
         if (!empty($filters['q']))
@@ -246,17 +254,30 @@ class Reviu_model extends CI_Model
 
     public function count_by_status($tahun, $kabkota_id = NULL)
     {
+        // Hitung status aktif berdasarkan t.status
         $this->db
             ->select('t.status, COUNT(*) as total')
             ->from('trx_tahapan_penyaluran t')
             ->join('trx_pekerjaan p', 'p.id = t.pekerjaan_id')
             ->join('ref_bkp b',       'b.id = p.bkp_id')
             ->where('b.tahun', $tahun)
-            ->where_in('t.status', ['opd_input','inspektorat_reviu','inspektorat_revisi','inspektorat_approved']);
+            ->where_in('t.status', ['opd_input','inspektorat_reviu','inspektorat_revisi']);
         if ($kabkota_id) $this->db->where('b.kabkota_id', $kabkota_id);
         $rows = $this->db->group_by('t.status')->get()->result();
         $map  = [];
         foreach ($rows as $r) $map[$r->status] = (int)$r->total;
+
+        // Hitung reviu selesai dari r.hasil_reviu — terlepas dari t.status saat ini
+        $this->db
+            ->from('trx_reviu_inspektorat r')
+            ->join('trx_tahapan_penyaluran t', 't.id = r.tahapan_id')
+            ->join('trx_pekerjaan p',          'p.id = t.pekerjaan_id')
+            ->join('ref_bkp b',                'b.id = p.bkp_id')
+            ->where('b.tahun', $tahun)
+            ->where('r.hasil_reviu', 'disetujui');
+        if ($kabkota_id) $this->db->where('b.kabkota_id', $kabkota_id);
+        $map['inspektorat_approved'] = (int)$this->db->count_all_results();
+
         return $map;
     }
 }

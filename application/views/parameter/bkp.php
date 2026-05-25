@@ -74,6 +74,7 @@
     <?php endforeach; else: ?><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">Belum ada data BKP.</td></tr><?php endif; ?>
     </tbody>
   </table></div>
+  <?php $this->load->view('partials/pagination', ['paging' => $paging, 'filters' => $filters]); ?>
 </div>
 
 <!-- Modal Tambah BKP -->

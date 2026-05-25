@@ -50,7 +50,14 @@
       <i class="ti ti-arrow-back-up"></i> Batalkan Pengajuan
     </a>
     <?php endif; ?>
-    <a href="<?= site_url('pekerjaan') ?>" class="btn btn-outline btn-sm"><i class="ti ti-arrow-left"></i> Kembali</a>
+    <?php if ($this->rbac->can('pekerjaan.submit') && $p->status === 'inspektorat_revisi'): ?>
+    <a href="<?= site_url('pekerjaan/kirim-revisi/'.$p->id) ?>"
+       class="btn btn-primary btn-sm"
+       onclick="return confirm('Kirim perbaikan ke Inspektorat?\n\nPastikan pekerjaan sudah diperbaiki sesuai catatan Inspektorat.')">
+      <i class="ti ti-send"></i> Kirim Revisi ke Inspektorat
+    </a>
+    <?php endif; ?>
+    <a href="<?= $back_url ?>" class="btn btn-outline btn-sm"><i class="ti ti-arrow-left"></i> Kembali</a>
   </div>
 </div>
 

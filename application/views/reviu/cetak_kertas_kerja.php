@@ -119,12 +119,7 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
 
 <!-- TTD -->
 <?php $rv = $reviewer ?? []; ?>
-<div class="ttd">
-  <div class="ttd-blok">
-    <p>Pemeriksa,</p>
-    <div class="nama">.................................................</div>
-    <div class="nip">NIP. .......................................</div>
-  </div>
+<div class="ttd" style="justify-content:flex-end">
   <div class="ttd-blok">
     <p><?= htmlspecialchars($p->nama_kabkota) ?>, <?= $tgl_cetak ?></p>
     <p><?= htmlspecialchars($rv['jabatan'] ?? ($inspektur->jabatan ?? 'Inspektur')) ?></p>

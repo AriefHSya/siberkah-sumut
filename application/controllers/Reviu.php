@@ -93,8 +93,11 @@ class Reviu extends Auth_Controller
             redirect('reviu'); return;
         }
 
-        // Cek status valid untuk direviu
-        if (!in_array($tahapan->status, ['opd_input','inspektorat_reviu','inspektorat_revisi'])) {
+        // Cek status valid untuk direviu atau lihat hasil reviu
+        $reviu_selesai = $this->Reviu_model->get_by_tahapan($tahapan_id);
+        $bisa_lihat    = $reviu_selesai && $reviu_selesai->hasil_reviu === 'disetujui';
+        if (!in_array($tahapan->status, ['opd_input','inspektorat_reviu','inspektorat_revisi','inspektorat_approved'])
+            && !$bisa_lihat) {
             $this->session->set_flashdata('error',
                 'Tahapan ini tidak dalam status yang dapat direviu.');
             redirect('reviu'); return;
@@ -388,6 +391,15 @@ class Reviu extends Auth_Controller
                     $pekerjaan->id
                 );
             }
+
+            // Telegram ke Admin Provinsi — reviu selesai, siap verifikasi provinsi
+            telegram_notif_admin_prov(
+                "\xE2\x9C\x85 <b>Reviu Inspektorat Selesai</b>\n\n" .
+                "BKP: <b>" . htmlspecialchars($pekerjaan->kode_bkp) . "</b>\n" .
+                htmlspecialchars($pekerjaan->uraian_bkp) . "\n" .
+                "LHR: No. " . htmlspecialchars($reviu->no_lhr) . "\n\n" .
+                "Pekerjaan siap untuk verifikasi SKPKD Provinsi."
+            );
         }
 
         $pesan_flash = [

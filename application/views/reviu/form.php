@@ -209,27 +209,27 @@ $semua_sesuai    = $confirmed && !$ada_tidak_sesuai && $semua_terisi;
   </div>
   <div class="stat-card">
     <div class="stat-icon" style="background:var(--hijau-light)"><i class="ti ti-circle-check" style="color:var(--hijau-mid)"></i></div>
-    <div class="stat-val" style="color:var(--hijau-mid)"><?= $stat['sesuai'] ?></div>
+    <div class="stat-val" id="statSesuai" style="color:var(--hijau-mid)"><?= $stat['sesuai'] ?></div>
     <div class="stat-label">Sesuai</div>
   </div>
   <div class="stat-card">
     <div class="stat-icon" style="background:var(--merah-light)"><i class="ti ti-circle-x" style="color:var(--merah-mid)"></i></div>
-    <div class="stat-val" style="color:var(--merah-mid)"><?= $stat['tidak_sesuai'] ?></div>
+    <div class="stat-val" id="statTidakSesuai" style="color:var(--merah-mid)"><?= $stat['tidak_sesuai'] ?></div>
     <div class="stat-label">Tidak Sesuai</div>
   </div>
   <div class="stat-card">
     <div class="stat-icon" style="background:var(--abu-light)"><i class="ti ti-minus-circle" style="color:var(--abu)"></i></div>
-    <div class="stat-val"><?= $stat['tidak_berlaku'] ?></div>
+    <div class="stat-val" id="statTidakBerlaku"><?= $stat['tidak_berlaku'] ?></div>
     <div class="stat-label">Tidak Berlaku / N/A</div>
   </div>
 </div>
 <div style="margin-bottom:16px">
   <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
     <span>Progress pengisian checklist</span>
-    <span class="fw-500"><?= $filled ?> / <?= $total_item ?> diisi · <?= $pct_filled ?>%</span>
+    <span class="fw-500" id="progressText"><?= $filled ?> / <?= $total_item ?> diisi · <?= $pct_filled ?>%</span>
   </div>
   <div style="height:8px;background:var(--bg);border-radius:4px;overflow:hidden">
-    <div style="height:100%;background:<?= $pct_filled >= 100 ? 'var(--hijau-mid)' : 'var(--biru)' ?>;width:<?= $pct_filled ?>%;transition:width 0.3s"></div>
+    <div id="progressFill" style="height:100%;background:<?= $pct_filled >= 100 ? 'var(--hijau-mid)' : 'var(--biru)' ?>;width:<?= $pct_filled ?>%;transition:width 0.3s"></div>
   </div>
   <?php if ($confirmed): ?>
   <div class="text-xs mt-1" style="color:var(--hijau-mid)">
@@ -381,16 +381,14 @@ $semua_sesuai    = $confirmed && !$ada_tidak_sesuai && $semua_terisi;
         <i class="ti ti-device-floppy"></i> Simpan Draft
       </button>
     </div>
-    <button type="button" class="btn btn-primary btn-sm" onclick="konfirmasiKunci()"
+    <button type="button" id="btnKunci" class="btn btn-primary btn-sm" onclick="konfirmasiKunci()"
             <?= $semua_terisi ? '' : 'disabled title="Isi semua item checklist terlebih dahulu"' ?>>
       <i class="ti ti-lock"></i> Selesai & Kunci Checklist
     </button>
   </div>
-  <?php if (!$semua_terisi): ?>
-  <div class="text-xs text-muted mt-1" style="text-align:right">
-    Isi semua <?= $total_item - $filled ?> item yang belum terisi untuk mengunci checklist.
+  <div id="hintKunci" class="text-xs text-muted mt-1" style="text-align:right;<?= $semua_terisi ? 'display:none' : '' ?>">
+    Isi semua item checklist terlebih dahulu untuk mengunci.
   </div>
-  <?php endif; ?>
   <?php endif; ?>
 
   <?php endif; // end empty items ?>
@@ -690,15 +688,42 @@ function isiSemua(nilai) {
 }
 
 function updateProgressBar() {
-  var total   = <?= $total_item ?>;
+  var total        = <?= $total_item ?>;
   if (!total) return;
-  var radios  = document.querySelectorAll('#tblChecklist tbody tr');
-  var filled  = 0;
-  radios.forEach(function(row) {
+  var rows         = document.querySelectorAll('#tblChecklist tbody tr');
+  var filled       = 0, sesuai = 0, tidakSesuai = 0, tidakBerlaku = 0;
+  rows.forEach(function(row) {
     var checked = row.querySelector('input[type="radio"]:checked');
-    if (checked) filled++;
+    if (!checked) return;
+    filled++;
+    if (checked.value === 'sesuai')         sesuai++;
+    else if (checked.value === 'tidak_sesuai') tidakSesuai++;
+    else if (checked.value === 'tidak_berlaku') tidakBerlaku++;
   });
-  // Update stat cards jika ada
+
+  var countable = sesuai + tidakSesuai;
+  var pct       = Math.round(countable / total * 100);
+  var warna     = (pct >= 100) ? 'var(--hijau-mid)' : 'var(--biru)';
+
+  var el;
+  if ((el = document.getElementById('progressText')))
+    el.textContent = countable + ' / ' + total + ' diisi · ' + pct + '%';
+  if ((el = document.getElementById('progressFill'))) {
+    el.style.width      = pct + '%';
+    el.style.background = warna;
+  }
+  if ((el = document.getElementById('statSesuai')))       el.textContent = sesuai;
+  if ((el = document.getElementById('statTidakSesuai')))  el.textContent = tidakSesuai;
+  if ((el = document.getElementById('statTidakBerlaku'))) el.textContent = tidakBerlaku;
+
+  var btn = document.getElementById('btnKunci');
+  if (btn) {
+    var semua = (filled >= total);
+    btn.disabled = !semua;
+    btn.title    = semua ? '' : 'Isi semua item checklist terlebih dahulu';
+  }
+  var hint = document.getElementById('hintKunci');
+  if (hint) hint.style.display = (filled >= total) ? 'none' : '';
 }
 
 function simpanDraft() {

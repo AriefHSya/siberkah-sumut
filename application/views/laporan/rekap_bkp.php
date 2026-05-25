@@ -11,7 +11,10 @@
     <?php endif; ?>
     <?php if ($this->rbac->can('laporan.export')): ?>
     <a href="<?= site_url('laporan/export-bkp?'.$q) ?>" class="btn btn-outline btn-sm">
-      <i class="ti ti-table-export"></i> Export CSV
+      <i class="ti ti-table-export"></i> CSV
+    </a>
+    <a href="<?= site_url('laporan/export-bkp-xlsx?'.$q) ?>" class="btn btn-outline btn-sm" style="color:var(--hijau-mid)">
+      <i class="ti ti-file-spreadsheet"></i> Excel (XLSX)
     </a>
     <?php endif; ?>
   </div>

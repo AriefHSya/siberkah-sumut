@@ -34,11 +34,12 @@ class Verif_prov extends Auth_Controller
             'Verifikasi_kab_model',
             'Pekerjaan_model',
             'Parameter_model',
+            'Permohonan_model',
         ]);
         $this->data['active_menu'] = 'verif_prov';
     }
 
-    // ─── ANTRIAN ──────────────────────────────────────────────
+    // ─── DAFTAR PERMOHONAN MASUK ──────────────────────────────
 
     public function index()
     {
@@ -49,15 +50,13 @@ class Verif_prov extends Auth_Controller
         $filters = [
             'tahun'      => $tahun,
             'kabkota_id' => $this->input->get('kabkota_id'),
-            'status'     => $this->input->get('status'),
             'jenis'      => $this->input->get('jenis'),
             'q'          => $this->input->get('q'),
         ];
 
-        $total        = $this->Verifikasi_prov_model->count_filtered($filters);
+        $total        = $this->Verifikasi_prov_model->count_permohonan_filtered($filters);
         $offset       = ($page - 1) * $per_page;
-        $list         = $this->Verifikasi_prov_model->get_antrian($filters, $per_page, $offset);
-        $count_status = $this->Verifikasi_prov_model->count_by_status($tahun);
+        $list         = $this->Verifikasi_prov_model->get_permohonan_list($filters, $per_page, $offset);
         $rekap        = $this->Verifikasi_prov_model->rekap_penyaluran($tahun);
         $kabkota_list = $this->Parameter_model->get_kabkota();
 
@@ -65,11 +64,42 @@ class Verif_prov extends Auth_Controller
             'title'        => 'Penyaluran Dana BKP — SIBERKAH SUMUT',
             'list'         => $list,
             'filters'      => $filters,
-            'count_status' => $count_status,
+            'total'        => $total,
             'rekap'        => $rekap,
             'kabkota_list' => $kabkota_list,
             'tahun'        => $tahun,
             'paging'       => ['total'=>$total,'per_page'=>$per_page,'page'=>$page,'base_url'=>'verifikasi/prov'],
+        ]));
+    }
+
+    // ─── DETAIL PERMOHONAN ────────────────────────────────────
+
+    public function detail_permohonan($id)
+    {
+        $this->requirePerm('verif_prov.view');
+
+        $pm = $this->Verifikasi_prov_model->get_permohonan_by_id($id);
+        if (!$pm) { show_404(); return; }
+
+        $items = $this->Verifikasi_prov_model->get_permohonan_items_for_prov($id);
+
+        $is_tahap1       = ($pm->jenis_penyaluran === 'bertahap' && $pm->kode_tahap !== 'tahap_2');
+        $total_kontrak   = array_sum(array_column((array)$items, 'nilai_kontrak'));
+        $total_tahap1    = $is_tahap1 ? array_sum(array_column((array)$items, 'nilai_diajukan')) : 0;
+        $total_pendukung = array_sum(array_column((array)$items, 'nilai_belanja_pendukung'));
+        $total_nilai     = array_sum(array_map(function($it) {
+            return ($it->nilai_diajukan ?? 0) + ($it->nilai_belanja_pendukung ?? 0);
+        }, (array)$items));
+
+        $this->render('verif_prov/detail_permohonan', array_merge($this->data, [
+            'title'          => 'Permohonan — ' . ($pm->no_permohonan ?: '#'.$id),
+            'pm'             => $pm,
+            'items'          => $items,
+            'is_tahap1'      => $is_tahap1,
+            'total_kontrak'  => $total_kontrak,
+            'total_tahap1'   => $total_tahap1,
+            'total_pendukung'=> $total_pendukung,
+            'total_nilai'    => $total_nilai,
         ]));
     }
 
@@ -212,6 +242,14 @@ class Verif_prov extends Auth_Controller
             );
         }
 
+        // Telegram ke SKPKD Kab berdasarkan hasil verifikasi provinsi
+        $tg_msg_map = [
+            'disetujui'       => "\xE2\x9C\x85 <b>Permohonan Disetujui Provinsi</b>\n\nBKP: <b>" . htmlspecialchars($pekerjaan->kode_bkp) . "</b>\n" . htmlspecialchars($pekerjaan->uraian_bkp) . "\n\nSP2D sedang diproses oleh Provinsi.",
+            'perlu_perbaikan' => "\xE2\x9A\xA0\xEF\xB8\x8F <b>Permohonan Dikembalikan</b>\n\nBKP: <b>" . htmlspecialchars($pekerjaan->kode_bkp) . "</b>\nCatatan: " . htmlspecialchars($catatan),
+            'ditolak'         => "\xE2\x9D\x8C <b>Permohonan Ditolak Provinsi</b>\n\nBKP: <b>" . htmlspecialchars($pekerjaan->kode_bkp) . "</b>\nCatatan: " . htmlspecialchars($catatan),
+        ];
+        telegram_notif_kabkota($pekerjaan->kabkota_id, $tg_msg_map[$hasil]);
+
         $flash = [
             'disetujui'       => 'Verifikasi disetujui. Lanjutkan dengan menginput data SP2D.',
             'perlu_perbaikan' => 'Dikembalikan ke SKPKD Kab/Kota untuk perbaikan.',
@@ -353,6 +391,183 @@ class Verif_prov extends Auth_Controller
             site_url('pekerjaan/detail/'.$pekerjaan->id),
             $pekerjaan->id
         );
+
+        // Telegram ke SKPKD Kab — dana sudah disalurkan, harap konfirmasi RKUD
+        telegram_notif_kabkota(
+            $pekerjaan->kabkota_id,
+            "\xF0\x9F\x92\xB0 <b>Dana BKP Disalurkan</b>\n\n" .
+            "BKP: <b>" . htmlspecialchars($pekerjaan->kode_bkp) . "</b>\n" .
+            htmlspecialchars($pekerjaan->uraian_bkp) . "\n" .
+            "SP2D: No. <b>" . htmlspecialchars($no_sp2d) . "</b>\n\n" .
+            "Silakan konfirmasi penerimaan dana di RKUD."
+        );
+    }
+
+    // ─── NOTA & RINGKASAN (per permohonan) ───────────────────
+
+    private function _get_pm_for_cetak($pm_id)
+    {
+        $pm = $this->Verifikasi_prov_model->get_permohonan_by_id($pm_id);
+        if (!$pm || $pm->status !== 'diajukan') { show_404(); return NULL; }
+        return $pm;
+    }
+
+    public function cetak_nota_kabid($pm_id)
+    {
+        $this->requirePerm('verif_prov.approve');
+        $pm = $this->_get_pm_for_cetak($pm_id);
+        if (!$pm) return;
+
+        $items    = $this->Verifikasi_prov_model->get_permohonan_items_for_prov($pm_id);
+        $pejabat  = $this->Parameter_model->get_pejabat_bkad_prov($pm->tahun);
+        $tgl_nota = tgl_indo(date('Y-m-d'));
+
+        if (empty($pm->nota_kabid_at)) {
+            $this->db->where('id', $pm_id)
+                ->update('trx_permohonan', ['nota_kabid_at' => date('Y-m-d H:i:s')]);
+        }
+
+        $this->render_plain('verif_prov/cetak_nota_kabid', [
+            'pm'        => $pm,
+            'items'     => $items,
+            'pejabat'   => $pejabat,
+            'tgl_nota'  => $tgl_nota,
+            'logo_prov' => $this->_get_logo_prov(),
+        ]);
+    }
+
+    public function cetak_nota_kabadan($pm_id)
+    {
+        $this->requirePerm('verif_prov.approve');
+        $pm = $this->_get_pm_for_cetak($pm_id);
+        if (!$pm) return;
+
+        $items    = $this->Verifikasi_prov_model->get_permohonan_items_for_prov($pm_id);
+        $pejabat  = $this->Parameter_model->get_pejabat_bkad_prov($pm->tahun);
+        $tgl_nota = tgl_indo(date('Y-m-d'));
+
+        if (empty($pm->nota_kabadan_at)) {
+            $this->db->where('id', $pm_id)
+                ->update('trx_permohonan', ['nota_kabadan_at' => date('Y-m-d H:i:s')]);
+        }
+
+        $this->render_plain('verif_prov/cetak_nota_kabadan', [
+            'pm'        => $pm,
+            'items'     => $items,
+            'pejabat'   => $pejabat,
+            'tgl_nota'  => $tgl_nota,
+            'logo_prov' => $this->_get_logo_prov(),
+        ]);
+    }
+
+    public function cetak_ringkasan($pm_id)
+    {
+        $this->requirePerm('verif_prov.approve');
+        $pm = $this->_get_pm_for_cetak($pm_id);
+        if (!$pm) return;
+
+        $items     = $this->Verifikasi_prov_model->get_permohonan_items_for_prov($pm_id);
+        $pejabat   = $this->Parameter_model->get_pejabat_bkad_prov($pm->tahun);
+        $tgl_cetak = tgl_indo(date('Y-m-d'));
+
+        if (empty($pm->ringkasan_at)) {
+            $this->db->where('id', $pm_id)
+                ->update('trx_permohonan', ['ringkasan_at' => date('Y-m-d H:i:s')]);
+        }
+
+        $this->render_plain('verif_prov/cetak_ringkasan', [
+            'pm'        => $pm,
+            'items'     => $items,
+            'pejabat'   => $pejabat,
+            'tgl_cetak' => $tgl_cetak,
+            'logo_prov' => $this->_get_logo_prov(),
+        ]);
+    }
+
+    private function _get_logo_prov()
+    {
+        $row = $this->db->get_where('ref_app_setting', ['kode' => 'logo_provinsi'])->row();
+        return ($row && !empty($row->nilai)) ? base_url($row->nilai) : '';
+    }
+
+    // ─── SP2D KUMULATIF (per permohonan) ─────────────────────
+
+    public function simpan_sp2d_permohonan($pm_id)
+    {
+        $this->requirePerm('penyaluran.input_sp2d');
+
+        $pm = $this->Verifikasi_prov_model->get_permohonan_by_id($pm_id);
+        if (!$pm) { show_404(); return; }
+
+        // Validasi: semua nota sudah digenerate
+        if (empty($pm->nota_kabid_at) || empty($pm->nota_kabadan_at) || empty($pm->ringkasan_at)) {
+            $this->session->set_flashdata('error',
+                'Harap download semua dokumen (Nota + Ringkasan) terlebih dahulu sebelum input SP2D.');
+            redirect('verifikasi/prov/permohonan/'.$pm_id); return;
+        }
+
+        $nilai = (int)str_replace(['.','Rp',' ',','], '',
+            $this->input->post('nilai_sp2d'));
+        $no_sp2d = $this->input->post('no_sp2d', TRUE);
+
+        if (empty($no_sp2d) || $nilai <= 0) {
+            $this->session->set_flashdata('error', 'Nomor SP2D dan Nilai Transfer wajib diisi.');
+            redirect('verifikasi/prov/permohonan/'.$pm_id); return;
+        }
+
+        $status_sp2d = $this->input->post('status_sp2d', TRUE) ?: 'proses';
+
+        $tgl_sp2d    = $this->input->post('tgl_sp2d', TRUE);
+        $rek_asal    = $this->input->post('rek_asal', TRUE);
+        $bank_asal   = $this->input->post('nama_bank_asal', TRUE) ?: 'Bank Sumut';
+        $rek_tujuan  = $this->input->post('rek_tujuan', TRUE);
+        $bank_tujuan = $this->input->post('nama_bank_tujuan', TRUE);
+
+        $this->db->where('id', $pm_id)->update('trx_permohonan', [
+            'no_sp2d'          => $no_sp2d,
+            'tgl_sp2d'         => $tgl_sp2d,
+            'nilai_sp2d'       => $nilai,
+            'rek_asal'         => $rek_asal,
+            'nama_bank_asal'   => $bank_asal,
+            'rek_tujuan'       => $rek_tujuan,
+            'nama_bank_tujuan' => $bank_tujuan,
+            'status_sp2d'      => $status_sp2d,
+        ]);
+
+        // Sync ke trx_penyaluran_dana per-tahapan (agar dashboard & laporan tetap akurat)
+        $items = $this->Verifikasi_prov_model->get_permohonan_items_for_prov($pm_id);
+        $status_transfer = ($status_sp2d === 'selesai') ? 'selesai' : 'proses';
+        foreach ($items as $item) {
+            $nilai_item = ($item->nilai_diajukan ?? 0) + ($item->nilai_belanja_pendukung ?? 0);
+            $this->Verifikasi_prov_model->simpan_sp2d($item->tahapan_id, [
+                'no_sp2d'          => $no_sp2d,
+                'tgl_sp2d'         => $tgl_sp2d,
+                'nilai_transfer'   => $nilai_item,
+                'rek_asal'         => $rek_asal,
+                'nama_bank_asal'   => $bank_asal,
+                'rek_tujuan'       => $rek_tujuan,
+                'nama_bank_tujuan' => $bank_tujuan,
+                'status_transfer'  => $status_transfer,
+            ], $this->user_id);
+        }
+
+        // Jika SP2D selesai → update semua tahapan ke 'disalurkan'
+        if ($status_sp2d === 'selesai') {
+            foreach ($items as $item) {
+                $tahapan   = $this->Pekerjaan_model->get_tahapan_by_id($item->tahapan_id);
+                $pekerjaan = $this->Pekerjaan_model->get_by_id($item->pekerjaan_id);
+                if ($tahapan && $pekerjaan) {
+                    $this->_set_disalurkan($tahapan, $pekerjaan, $no_sp2d);
+                }
+            }
+        }
+
+        $this->log_aktivitas('penyaluran.sp2d_permohonan',
+            'SP2D '.$no_sp2d.' permohonan='.$pm_id.' status='.$status_sp2d);
+        $this->session->set_flashdata('success',
+            'SP2D berhasil disimpan.' .
+            ($status_sp2d === 'selesai' ? ' Seluruh pekerjaan dalam permohonan ini telah disalurkan.' : ''));
+        redirect('verifikasi/prov/permohonan/'.$pm_id);
     }
 
     // ─── CETAK REKAP PENYALURAN ───────────────────────────────

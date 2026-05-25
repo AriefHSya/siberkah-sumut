@@ -23,7 +23,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class User_model extends CI_Model
 {
-    public function get_all($filters = [])
+    private function _apply_filters($filters)
     {
         $this->db->select('u.*, r.nama as role_nama, r.kode as role_kode, r.level as role_level, k.nama as kabkota_nama')
             ->from('users u')
@@ -31,11 +31,24 @@ class User_model extends CI_Model
             ->join('ref_kabkota k', 'k.id = u.kabkota_id', 'left');
         if (!empty($filters['role_id']))    $this->db->where('u.role_id', $filters['role_id']);
         if (!empty($filters['kabkota_id'])) $this->db->where('u.kabkota_id', $filters['kabkota_id']);
-        if (!empty($filters['is_active']) && $filters['is_active'] !== '')
+        if (isset($filters['is_active']) && $filters['is_active'] !== '')
             $this->db->where('u.is_active', $filters['is_active']);
         if (!empty($filters['q']))
             $this->db->group_start()->like('u.nama', $filters['q'])->or_like('u.username', $filters['q'])->or_like('u.email', $filters['q'])->group_end();
-        return $this->db->order_by('r.level','ASC')->order_by('u.nama','ASC')->get()->result();
+    }
+
+    public function count_filtered($filters = [])
+    {
+        $this->_apply_filters($filters);
+        return $this->db->count_all_results();
+    }
+
+    public function get_all($filters = [], $limit = NULL, $offset = 0)
+    {
+        $this->_apply_filters($filters);
+        $this->db->order_by('r.level','ASC')->order_by('u.nama','ASC');
+        if ($limit !== NULL) $this->db->limit($limit, $offset);
+        return $this->db->get()->result();
     }
 
     public function get_by_id($id)

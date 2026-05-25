@@ -136,13 +136,14 @@ class Verifikasi_kab_model extends CI_Model
 
     // ─── DOKUMEN PERMOHONAN ───────────────────────────────────
 
-    /** Semua dokumen tahapan (termasuk yang diupload OPD & SKPKD) */
+    /** Semua dokumen tahapan — include role uploader untuk filtering di view */
     public function get_dokumen($tahapan_id)
     {
         return $this->db
-            ->select('d.*, u.nama as nama_uploader')
+            ->select('d.*, u.nama as nama_uploader, r.kode as role_uploader')
             ->from('trx_dokumen_persyaratan d')
             ->join('users u', 'u.id = d.user_upload', 'left')
+            ->join('roles r', 'r.id = u.role_id', 'left')
             ->where('d.tahapan_id', $tahapan_id)
             ->order_by('d.created_at', 'ASC')
             ->get()->result();

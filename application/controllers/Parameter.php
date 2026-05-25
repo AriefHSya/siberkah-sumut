@@ -166,7 +166,8 @@ class Parameter extends Auth_Controller
     // ─── BKP ──────────────────────────────────────────────────
     public function bkp() {
         $this->requirePerm('parameter.bkp.view');
-        // Role kab/kota hanya boleh lihat BKP milik kabkota mereka sendiri
+        $per_page      = 30;
+        $page          = max(1, (int)$this->input->get('page'));
         $force_kabkota = $this->rbac->isKabkota() ? (int)$this->kabkota_id : NULL;
         $filters = [
             'tahun'      => $this->input->get('tahun') ?? $this->tahun,
@@ -174,13 +175,16 @@ class Parameter extends Auth_Controller
             'bidang_id'  => $this->input->get('bidang_id'),
             'q'          => $this->input->get('q'),
         ];
+        $total  = $this->Parameter_model->count_bkp($filters);
+        $offset = ($page - 1) * $per_page;
         $d = $this->_d('Data Referensi BKP','bkp');
-        $d['list']          = $this->Parameter_model->get_bkp($filters);
+        $d['list']          = $this->Parameter_model->get_bkp($filters, $per_page, $offset);
         $d['rekap']         = $this->Parameter_model->rekap_bkp($filters['tahun'], $filters['kabkota_id']);
         $d['kabkota_list']  = $this->rbac->isProvinsi() ? $this->Parameter_model->get_kabkota() : [];
         $d['bidang_list']   = $this->Parameter_model->get_bidang();
         $d['filters']       = $filters;
         $d['is_provinsi']   = $this->rbac->isProvinsi();
+        $d['paging']        = ['total'=>$total,'per_page'=>$per_page,'page'=>$page,'base_url'=>'parameter/bkp'];
         $this->render('parameter/bkp', $d);
     }
 
@@ -796,6 +800,46 @@ class Parameter extends Auth_Controller
         redirect('parameter/pemda'.($dok ? '?tahun='.$dok->tahun.'&kabkota_id='.$dok->kabkota_id : ''));
     }
 
+    // ─── PEJABAT BKAD PROVINSI ───────────────────────────────
+
+    public function pejabat_provinsi()
+    {
+        $this->requirePerm('parameter.pemda.view');
+        if (!$this->rbac->isProvinsi()) {
+            $this->session->set_flashdata('error', 'Akses hanya untuk Admin Provinsi.');
+            redirect('parameter'); return;
+        }
+        $tahun = $this->input->get('tahun') ?: $this->tahun;
+        $d = $this->_d('Pejabat BKAD Provinsi', 'parameter');
+        $d['tahun_sel']  = $tahun;
+        $d['tahun_list'] = $this->Parameter_model->get_all_tahun();
+        $d['pejabat']    = $this->Parameter_model->get_pejabat_bkad_prov($tahun);
+        $this->render('parameter/pejabat_provinsi', $d);
+    }
+
+    public function pejabat_provinsi_simpan()
+    {
+        $this->requirePerm('parameter.pemda.manage');
+        if (!$this->rbac->isProvinsi()) { show_404(); return; }
+
+        $tahun = $this->input->post('tahun', TRUE);
+        $jenis_list = ['kepala_badan', 'kabid_anggaran', 'bendahara_pengeluaran'];
+        foreach ($jenis_list as $jenis) {
+            $nama = $this->input->post('nama_'.$jenis, TRUE);
+            if ($nama === NULL) continue;
+            $this->Parameter_model->simpan_pejabat_bkad_prov([
+                'tahun'   => $tahun,
+                'jenis'   => $jenis,
+                'nama'    => $nama,
+                'nip'     => $this->input->post('nip_'.$jenis, TRUE),
+                'jabatan' => $this->input->post('jabatan_'.$jenis, TRUE),
+            ]);
+        }
+        $this->log_aktivitas('parameter.pejabat_provinsi', 'Simpan pejabat BKAD provinsi tahun='.$tahun);
+        $this->session->set_flashdata('success', 'Data pejabat BKAD Provinsi berhasil disimpan.');
+        redirect('parameter/pejabat-provinsi?tahun='.$tahun);
+    }
+
     // ─── LOGO PROVINSI ────────────────────────────────────────
     // Hanya superadmin dan admin_provinsi yang bisa upload
 
@@ -882,12 +926,17 @@ class Parameter extends Auth_Controller
 
     // ─── LOG ──────────────────────────────────────────────────
     public function log() {
-        $tahun = $this->input->get('tahun') ?? $this->tahun;
+        $tahun    = $this->input->get('tahun') ?? $this->tahun;
+        $per_page = 50;
+        $page     = max(1, (int)$this->input->get('page'));
+        $offset   = ($page - 1) * $per_page;
+        $total    = $this->Parameter_model->count_log_bkp($tahun);
         $d = $this->_d('Log Perubahan Parameter','log');
-        $d['log_bkp']   = $this->Parameter_model->get_log_bkp($tahun, 100);
-        $d['log_pemda']  = $this->Parameter_model->get_log_pemda($tahun, 50);
-        $d['log_bw']     = $this->Parameter_model->get_log_batas_waktu(50);
-        $d['tahun']      = $tahun;
+        $d['log_bkp']  = $this->Parameter_model->get_log_bkp($tahun, $per_page, $offset);
+        $d['log_pemda'] = $this->Parameter_model->get_log_pemda($tahun, 50);
+        $d['log_bw']    = $this->Parameter_model->get_log_batas_waktu(50);
+        $d['tahun']     = $tahun;
+        $d['paging']    = ['total'=>$total,'per_page'=>$per_page,'page'=>$page,'base_url'=>'parameter/log'];
         $this->render('parameter/log', $d);
     }
 

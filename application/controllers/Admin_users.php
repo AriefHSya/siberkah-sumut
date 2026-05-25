@@ -33,6 +33,8 @@ class Admin_users extends Auth_Controller
     }
 
     public function index() {
+        $per_page = 25;
+        $page     = max(1, (int)$this->input->get('page'));
         $filters = [
             'role_id'    => $this->input->get('role_id'),
             'kabkota_id' => $this->input->get('kabkota_id'),
@@ -43,13 +45,16 @@ class Admin_users extends Auth_Controller
         if ($this->role_kode === 'skpkd_kabkota') {
             $filters['kabkota_id'] = $this->kabkota_id;
         }
+        $total  = $this->User_model->count_filtered($filters);
+        $offset = ($page - 1) * $per_page;
         $d = $this->data;
         $d['title']        = 'Manajemen User — SIBERKAH SUMUT';
-        $d['list']         = $this->User_model->get_all($filters);
+        $d['list']         = $this->User_model->get_all($filters, $per_page, $offset);
         $d['roles']        = $this->Role_model->get_all(TRUE);
         $d['kabkota_list'] = $this->Parameter_model->get_kabkota();
         $d['stats']        = $this->User_model->count_per_role();
         $d['filters']      = $filters;
+        $d['paging']       = ['total'=>$total,'per_page'=>$per_page,'page'=>$page,'base_url'=>'admin/users'];
         $this->render('admin/users/index', $d);
     }
 
@@ -190,13 +195,82 @@ class Admin_users extends Auth_Controller
 
     public function reset_pw($id) {
         $this->requirePerm('admin.user.reset_pw');
-        // Generate password acak 10 karakter — lebih aman dari 'password123'
+        $user = $this->User_model->get_by_id($id);
+        if (!$user) { show_404(); return; }
+
+        // Generate password acak 10 karakter
         $pw_baru = substr(str_shuffle('abcdefghijkmnpqrstuvwxyz23456789'), 0, 5)
                  . substr(str_shuffle('ABCDEFGHJKLMNPQRSTUVWXYZ'), 0, 2)
                  . substr(str_shuffle('23456789'), 0, 3);
+
         $this->User_model->update($id, ['password' => password_hash($pw_baru, PASSWORD_BCRYPT)]);
-        $this->log_aktivitas('admin.user.reset_pw', 'Reset password user id='.$id);
-        $this->session->set_flashdata('success', 'Password berhasil direset ke: <strong>'.$pw_baru.'</strong> — minta user segera ganti setelah login.');
+        $this->log_aktivitas('admin.user.reset_pw', 'Reset password user id='.$id.' username='.$user->username);
+
+        // Kirim email jika user punya email & SMTP dikonfigurasi
+        $email_terkirim = FALSE;
+        if (!empty($user->email)) {
+            $smtp = $this->db->where('kode', 'smtp_host')->get('ref_app_setting')->row();
+            if ($smtp && !empty($smtp->nilai)) {
+                $this->_kirim_email_reset($user, $pw_baru);
+                $email_terkirim = TRUE;
+            }
+        }
+
+        if ($email_terkirim) {
+            $this->session->set_flashdata('success',
+                'Password user <strong>'.$user->username.'</strong> berhasil direset. ' .
+                'Password sementara telah dikirim ke email <strong>'.$user->email.'</strong>.');
+        } else {
+            $this->session->set_flashdata('success',
+                'Password berhasil direset ke: <strong>'.$pw_baru.'</strong> — ' .
+                'sampaikan ke user dan minta segera ganti setelah login.' .
+                (!empty($user->email) ? ' (Email tidak terkirim — cek konfigurasi SMTP di Pengaturan)' : ' (User tidak punya email terdaftar)'));
+        }
         redirect('admin/users');
+    }
+
+    private function _kirim_email_reset($user, $pw_baru)
+    {
+        $smtp_host = $this->db->get_where('ref_app_setting', ['kode'=>'smtp_host'])->row();
+        $smtp_user = $this->db->get_where('ref_app_setting', ['kode'=>'smtp_user'])->row();
+        $smtp_pass = $this->db->get_where('ref_app_setting', ['kode'=>'smtp_pass'])->row();
+        $smtp_port = $this->db->get_where('ref_app_setting', ['kode'=>'smtp_port'])->row();
+        $from_name = $this->db->get_where('ref_app_setting', ['kode'=>'smtp_from_name'])->row();
+
+        if (!$smtp_host || empty($smtp_host->nilai)) return;
+
+        $this->load->library('email');
+        $this->email->initialize([
+            'protocol'   => 'smtp',
+            'smtp_host'  => $smtp_host->nilai,
+            'smtp_user'  => $smtp_user ? $smtp_user->nilai : '',
+            'smtp_pass'  => $smtp_pass ? $smtp_pass->nilai : '',
+            'smtp_port'  => $smtp_port ? (int)$smtp_port->nilai : 587,
+            'smtp_crypto'=> 'tls',
+            'mailtype'   => 'html',
+            'charset'    => 'UTF-8',
+            'newline'    => "\r\n",
+        ]);
+
+        $from_addr = $smtp_user ? $smtp_user->nilai : 'noreply@siberkah.id';
+        $from_nm   = $from_name ? $from_name->nilai : 'SIBERKAH SUMUT';
+
+        $this->email->from($from_addr, $from_nm);
+        $this->email->to($user->email);
+        $this->email->subject('Reset Password SIBERKAH SUMUT');
+        $this->email->message(
+            '<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto">' .
+            '<h2 style="color:#1A5EA8">Reset Password SIBERKAH SUMUT</h2>' .
+            '<p>Halo <strong>' . htmlspecialchars($user->nama) . '</strong>,</p>' .
+            '<p>Password akun Anda telah direset oleh Administrator sistem SIBERKAH SUMUT.</p>' .
+            '<p>Password sementara Anda:</p>' .
+            '<div style="background:#f4f4f4;padding:16px;border-radius:8px;text-align:center;font-size:24px;font-weight:bold;letter-spacing:4px;color:#1A5EA8">' .
+            htmlspecialchars($pw_baru) .
+            '</div>' .
+            '<p style="margin-top:16px"><strong>Segera ganti password</strong> setelah login pertama.</p>' .
+            '<p style="color:#888;font-size:12px">Pesan ini dikirim otomatis oleh sistem SIBERKAH SUMUT. Jangan membalas email ini.</p>' .
+            '</div>'
+        );
+        @$this->email->send();
     }
 }

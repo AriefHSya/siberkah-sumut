@@ -98,9 +98,10 @@ class Verif_kab extends Auth_Controller
             redirect('verifikasi/kab'); return;
         }
 
-        // Status valid untuk diverifikasi
+        // Status valid untuk form (verifikasi aktif + view-only setelah disetujui)
         if (!in_array($tahapan->status, [
-            'inspektorat_approved', 'skpkd_kab_verif', 'skpkd_kab_revisi'
+            'inspektorat_approved', 'skpkd_kab_verif', 'skpkd_kab_revisi',
+            'skpkd_kab_approved', 'disalurkan', 'dikonfirmasi',
         ])) {
             $this->session->set_flashdata('error',
                 'Tahapan tidak dalam status yang dapat diverifikasi.');

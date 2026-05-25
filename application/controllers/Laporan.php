@@ -193,6 +193,89 @@ class Laporan extends Auth_Controller
         exit;
     }
 
+    // ─── EXPORT XLSX ─────────────────────────────────────────
+
+    public function export_bkp_xlsx()
+    {
+        $this->requirePerm('laporan.export');
+        $tahun      = $this->input->get('tahun') ?? $this->tahun;
+        $kabkota_id = $this->input->get('kabkota_id');
+        if (!$this->rbac->isProvinsi() && $this->kabkota_id) {
+            $kabkota_id = $this->kabkota_id;
+        }
+        $list = $this->Laporan_model->get_rekap_bkp($tahun, $kabkota_id);
+
+        require_once APPPATH . 'libraries/XlsxWriter.php';
+        $headers = [
+            ['label'=>'Kode BKP',          'format'=>'string'],
+            ['label'=>'Kab/Kota',           'format'=>'string'],
+            ['label'=>'Bidang',             'format'=>'string'],
+            ['label'=>'Uraian BKP',         'format'=>'string'],
+            ['label'=>'Nilai BKP (Rp)',     'format'=>'rupiah'],
+            ['label'=>'Status',             'format'=>'string'],
+            ['label'=>'Jenis Penyaluran',   'format'=>'string'],
+            ['label'=>'Nilai Kontrak (Rp)', 'format'=>'rupiah'],
+            ['label'=>'Disalurkan (Rp)',    'format'=>'rupiah'],
+            ['label'=>'Total SP2D',         'format'=>'number'],
+        ];
+        $rows = [];
+        foreach ($list as $r) {
+            $rows[] = [
+                $r->kode_bkp,
+                $r->nama_kabkota,
+                $r->nama_bidang,
+                $r->uraian_bkp,
+                $r->nilai_bkp,
+                $r->status ?? 'Belum Ada Pekerjaan',
+                $r->jenis_penyaluran ?? '—',
+                $r->nilai_kontrak ?? 0,
+                $r->total_disalurkan ?? 0,
+                $r->total_sp2d ?? 0,
+            ];
+        }
+        $writer = new XlsxWriter();
+        $writer->writeSheet('Rekap BKP TA '.$tahun, $rows, $headers);
+        $writer->download('rekap_bkp_'.$tahun.'.xlsx');
+    }
+
+    public function export_penyaluran_xlsx()
+    {
+        $this->requirePerm('laporan.export');
+        $tahun      = $this->input->get('tahun') ?? $this->tahun;
+        $kabkota_id = $this->input->get('kabkota_id');
+        $list = $this->Verifikasi_prov_model->get_daftar_sp2d($tahun, $kabkota_id);
+
+        require_once APPPATH . 'libraries/XlsxWriter.php';
+        $headers = [
+            ['label'=>'No. SP2D',          'format'=>'string'],
+            ['label'=>'Tgl SP2D',          'format'=>'string'],
+            ['label'=>'Kab/Kota',          'format'=>'string'],
+            ['label'=>'Kode BKP',          'format'=>'string'],
+            ['label'=>'Nama Kegiatan',     'format'=>'string'],
+            ['label'=>'Tahapan',           'format'=>'string'],
+            ['label'=>'Jenis',             'format'=>'string'],
+            ['label'=>'Nilai Transfer (Rp)','format'=>'rupiah'],
+            ['label'=>'Status Transfer',   'format'=>'string'],
+        ];
+        $rows = [];
+        foreach ($list as $r) {
+            $rows[] = [
+                $r->no_sp2d,
+                $r->tgl_sp2d,
+                $r->nama_kabkota,
+                $r->kode_bkp,
+                $r->nama_kegiatan_dok ?: $r->uraian_bkp,
+                $r->label_tahap,
+                $r->jenis_penyaluran,
+                $r->nilai_transfer,
+                $r->status_transfer,
+            ];
+        }
+        $writer2 = new XlsxWriter();
+        $writer2->writeSheet('Rekap Penyaluran TA '.$tahun, $rows, $headers);
+        $writer2->download('rekap_penyaluran_'.$tahun.'.xlsx');
+    }
+
     // ─── LAPORAN AKHIR KAB/KOTA ──────────────────────────────
 
     public function laporan_akhir_kab()
