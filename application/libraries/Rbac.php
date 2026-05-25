@@ -108,14 +108,19 @@ class Rbac
             ['key'=>'reviu',      'url'=>'reviu',           'label'=>'Reviu',        'icon'=>'clipboard-check',  'perm'=>'reviu.view'],
             ['key'=>'verif_kab',        'url'=>'verifikasi/kab',  'label'=>'Verifikasi',   'icon'=>'shield-check',     'perm'=>'verif_kab.view'],
             ['key'=>'permohonan',       'url'=>'permohonan',      'label'=>'Permohonan',   'icon'=>'send',             'perm'=>'permohonan.view'],
-            ['key'=>'penyaluran_kab',   'url'=>'penyaluran-kab',  'label'=>'Penyaluran',   'icon'=>'cash',             'perm'=>'penyaluran_kab.view'],
-            ['key'=>'verif_prov',       'url'=>'verifikasi/prov', 'label'=>'Penyaluran',   'icon'=>'cash',             'perm'=>'verif_prov.view'],
+            ['key'=>'penyaluran_kab',   'url'=>'penyaluran-kab',  'label'=>'Penyaluran',   'icon'=>'cash',             'perm'=>'penyaluran_kab.view', 'kabkota_only'=>TRUE],
+            ['key'=>'verif_prov',       'url'=>'verifikasi/prov', 'label'=>'Penyaluran',   'icon'=>'cash',             'perm'=>'verif_prov.view', 'provinsi_only'=>TRUE],
             ['key'=>'capaian',          'url'=>'capaian',         'label'=>'Capaian',      'icon'=>'chart-bar',        'perm'=>'capaian.view'],
             ['key'=>'laporan',    'url'=>'laporan',         'label'=>'Laporan',      'icon'=>'report',           'perm'=>'laporan.view'],
             ['key'=>'parameter',  'url'=>'parameter',       'label'=>'Parameter',    'icon'=>'adjustments-horizontal','perm'=>'parameter.view'],
             ['key'=>'admin',      'url'=>'admin/users',     'label'=>'Pengaturan',   'icon'=>'settings',         'perm'=>'admin.view'],
         ];
-        return array_values(array_filter($all, fn($m) => $this->can($m['perm'])));
+        return array_values(array_filter($all, function($m) {
+            if (!$this->can($m['perm'])) return FALSE;
+            if (!empty($m['kabkota_only'])  && !$this->isKabkota())  return FALSE;
+            if (!empty($m['provinsi_only']) && !$this->isProvinsi()) return FALSE;
+            return TRUE;
+        }));
     }
 
     /** Sub-menu Parameter berdasarkan permission */
