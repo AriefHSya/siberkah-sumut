@@ -55,6 +55,10 @@
         <tr><td class="text-muted text-sm">Nilai Diajukan</td>
             <td class="fw-500"><?= rupiah($tahapan->nilai_diajukan) ?>
               <span class="text-xs text-muted">(<?= $tahapan->persen_nilai ?>%)</span></td></tr>
+        <?php if (!empty($p->nilai_belanja_pendukung) && $p->nilai_belanja_pendukung > 0): ?>
+        <tr><td class="text-muted text-sm">Nilai Pendukung</td>
+            <td class="text-sm"><?= rupiah($p->nilai_belanja_pendukung) ?></td></tr>
+        <?php endif; ?>
         <tr><td class="text-muted text-sm">No. Kontrak</td>
             <td class="mono text-sm"><?= htmlspecialchars($p->no_dok_pekerjaan ?: '—') ?></td></tr>
         <tr><td class="text-muted text-sm">Penyedia</td>
@@ -76,12 +80,6 @@
            target="_blank" class="btn btn-outline btn-xs">
           <i class="ti ti-external-link"></i> Lihat Detail Lengkap Pekerjaan
         </a>
-        <?php if ($this->rbac->can('pekerjaan.cetak_permohonan')): ?>
-        <a href="<?= site_url('pekerjaan/cetak-permohonan/'.$p->id) ?>"
-           target="_blank" class="btn btn-outline btn-xs">
-          <i class="ti ti-printer"></i> Surat Permohonan Reviu
-        </a>
-        <?php endif; ?>
       </div>
     </div>
 
@@ -89,9 +87,71 @@
     <div class="card mb-2">
       <div class="card-title"><i class="ti ti-files"></i> Dokumen Persyaratan</div>
 
-      <?php if (!empty($dokumen)): ?>
+      <!-- LHR Inspektorat -->
+      <?php if ($reviu && $reviu->file_lhr_path): ?>
+      <div style="margin-bottom:10px">
+        <div class="text-xs text-muted fw-500" style="margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px">
+          <i class="ti ti-clipboard-check" style="color:var(--hijau-mid)"></i> Laporan Hasil Reviu (Inspektorat)
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;
+                    padding:8px 10px;border:1px solid var(--hijau-mid);border-radius:var(--radius);
+                    background:var(--hijau-light);font-size:12px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <i class="ti ti-file-type-pdf" style="color:var(--hijau-mid);font-size:20px"></i>
+            <div>
+              <div class="fw-500" style="color:var(--hijau-mid)">Laporan Hasil Reviu (LHR)</div>
+              <?php if ($reviu->no_lhr): ?>
+              <div class="text-muted">No. <?= htmlspecialchars($reviu->no_lhr) ?><?= $reviu->tgl_lhr ? ' · '.tgl_indo($reviu->tgl_lhr) : '' ?></div>
+              <?php endif; ?>
+            </div>
+          </div>
+          <div class="aksi-row">
+            <a href="<?= base_url($reviu->file_lhr_path) ?>" target="_blank"
+               class="btn btn-outline btn-xs" title="Lihat LHR">
+              <i class="ti ti-eye"></i> Lihat
+            </a>
+            <a href="<?= base_url($reviu->file_lhr_path) ?>" download
+               class="btn-icon" title="Unduh LHR">
+              <i class="ti ti-download"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <!-- Dokumen Pekerjaan OPD Teknis (SPK/SPMK/BAST dari trx_pekerjaan + dokumen tambahan) -->
+      <?php
+      $dok_draft = [
+          'spk'  => ['path' => $p->dok_spk_path  ?? NULL, 'label' => 'Surat Perintah Kerja (SPK)'],
+          'spmk' => ['path' => $p->dok_spmk_path ?? NULL, 'label' => 'Surat Perintah Mulai Kerja (SPMK)'],
+          'bast' => ['path' => $p->dok_bast_path  ?? NULL, 'label' => 'Berita Acara Serah Terima (BAST)'],
+      ];
+      $dok_opd = array_filter((array)$dokumen, function($d) {
+          return $d->role_uploader === 'opd_teknis';
+      });
+      $ada_opd = array_filter($dok_draft, function($d) { return !empty($d['path']); });
+      ?>
       <div style="margin-bottom:12px">
-        <?php foreach ($dokumen as $d): ?>
+        <div class="text-xs text-muted fw-500" style="margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px">
+          <i class="ti ti-folder"></i> Dokumen Pekerjaan (OPD Teknis)
+        </div>
+        <?php foreach ($dok_draft as $dok): if (empty($dok['path'])) continue; ?>
+        <div style="display:flex;align-items:center;justify-content:space-between;
+                    padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);
+                    margin-bottom:6px;font-size:12px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <i class="ti <?= icon_file($dok['path']) ?>" style="color:var(--biru);font-size:18px"></i>
+            <div class="fw-500"><?= $dok['label'] ?></div>
+          </div>
+          <div class="aksi-row">
+            <a href="<?= base_url($dok['path']) ?>" target="_blank"
+               class="btn btn-outline btn-xs"><i class="ti ti-eye"></i> Lihat</a>
+            <a href="<?= base_url($dok['path']) ?>" download
+               class="btn-icon" title="Unduh"><i class="ti ti-download"></i></a>
+          </div>
+        </div>
+        <?php endforeach; ?>
+        <?php foreach ($dok_opd as $d): ?>
         <div style="display:flex;align-items:center;justify-content:space-between;
                     padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);
                     margin-bottom:6px;font-size:12px">
@@ -99,7 +159,45 @@
             <i class="ti <?= icon_file($d->file_path) ?>" style="color:var(--biru);font-size:18px"></i>
             <div>
               <div class="fw-500"><?= label_jenis_dok($d->jenis_dokumen) ?></div>
-              <div class="text-muted"><?= $d->ukuran_kb ?> KB · Upload: <?= htmlspecialchars($d->nama_uploader ?? '—') ?></div>
+              <div class="text-muted"><?= $d->ukuran_kb ?> KB · <?= htmlspecialchars($d->nama_uploader ?? '—') ?></div>
+              <?php if ($d->keterangan): ?><div class="text-muted"><?= htmlspecialchars($d->keterangan) ?></div><?php endif; ?>
+            </div>
+          </div>
+          <div class="aksi-row">
+            <a href="<?= base_url($d->file_path) ?>" target="_blank"
+               class="btn btn-outline btn-xs"><i class="ti ti-eye"></i> Lihat</a>
+            <a href="<?= base_url($d->file_path) ?>" download
+               class="btn-icon" title="Unduh"><i class="ti ti-download"></i></a>
+          </div>
+        </div>
+        <?php endforeach; ?>
+        <?php if (empty($ada_opd) && empty($dok_opd)): ?>
+        <div style="padding:10px 12px;background:var(--bg);border-radius:var(--radius);
+                    font-size:12px;color:var(--text-muted);border:1px dashed var(--border)">
+          <i class="ti ti-info-circle"></i> OPD Teknis belum mengupload dokumen pekerjaan (SPK, SPMK, BAST).
+        </div>
+        <?php endif; ?>
+      </div>
+
+      <!-- Dokumen yang diupload SKPKD -->
+      <?php
+      $dok_skpkd = array_filter((array)$dokumen, function($d) {
+          return $d->role_uploader === 'skpkd_kabkota';
+      });
+      if (!empty($dok_skpkd)): ?>
+      <div style="margin-bottom:12px">
+        <div class="text-xs text-muted fw-500" style="margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px">
+          <i class="ti ti-paperclip"></i> Dokumen Pendukung (SKPKD)
+        </div>
+        <?php foreach ($dok_skpkd as $d): ?>
+        <div style="display:flex;align-items:center;justify-content:space-between;
+                    padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);
+                    margin-bottom:6px;font-size:12px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <i class="ti <?= icon_file($d->file_path) ?>" style="color:var(--ungu);font-size:18px"></i>
+            <div>
+              <div class="fw-500"><?= label_jenis_dok($d->jenis_dokumen) ?></div>
+              <div class="text-muted"><?= $d->ukuran_kb ?> KB · <?= htmlspecialchars($d->nama_uploader ?? '—') ?></div>
               <?php if ($d->keterangan): ?>
               <div class="text-muted"><?= htmlspecialchars($d->keterangan) ?></div>
               <?php endif; ?>
@@ -107,7 +205,11 @@
           </div>
           <div class="aksi-row">
             <a href="<?= base_url($d->file_path) ?>" target="_blank"
-               class="btn-icon" title="Download">
+               class="btn btn-outline btn-xs" title="Lihat/Preview">
+              <i class="ti ti-eye"></i> Lihat
+            </a>
+            <a href="<?= base_url($d->file_path) ?>" download
+               class="btn-icon" title="Unduh">
               <i class="ti ti-download"></i>
             </a>
             <?php if ($this->rbac->can('pekerjaan.upload_dok')
@@ -121,11 +223,9 @@
         </div>
         <?php endforeach; ?>
       </div>
-      <?php else: ?>
-      <p class="text-muted text-sm mb-2">Belum ada dokumen terupload.</p>
       <?php endif; ?>
 
-      <!-- Upload Dokumen Baru -->
+      <!-- Upload Dokumen Baru (SKPKD) -->
       <?php if ($this->rbac->can('pekerjaan.upload_dok')
             && in_array($tahapan->status,['inspektorat_approved','skpkd_kab_verif','skpkd_kab_revisi'])): ?>
       <button class="btn btn-outline btn-sm" onclick="openModal('modalUploadDok')">
@@ -263,9 +363,6 @@
             $h=$hmap[$v->hasil_verifikasi]; ?>
       <div style="padding:10px;background:var(--<?= $h[0] ?>-light);border-radius:var(--radius);margin-bottom:14px">
         <div class="fw-500">Keputusan sebelumnya: <span class="badge badge-<?= $h[0] ?>"><?= $h[1] ?></span></div>
-        <?php if ($v->no_surat_verif): ?>
-        <div class="text-sm mt-1">No. Surat: <strong><?= htmlspecialchars($v->no_surat_verif) ?></strong></div>
-        <?php endif; ?>
         <?php if ($v->catatan): ?>
         <div class="text-sm mt-1">Catatan: <?= htmlspecialchars($v->catatan) ?></div>
         <?php endif; ?>
@@ -274,26 +371,6 @@
 
       <?= form_open(site_url('verifikasi/kab/putuskan/'.($v ? $v->id : 0))) ?>
       <?= form_hidden($this->security->get_csrf_token_name(),$this->security->get_csrf_hash()) ?>
-
-      <div class="form-group mb-2">
-        <label>No. Surat Verifikasi</label>
-        <input type="text" name="no_surat_verif" class="form-control"
-          value="<?= htmlspecialchars($v->no_surat_verif ?? '') ?>"
-          placeholder="Nomor surat keluar SKPKD">
-      </div>
-
-      <?php if ($pejabat_ppkd): ?>
-      <div class="form-group mb-2">
-        <label>Penandatangan (PPKD/Kepala BKAD)</label>
-        <select name="ref_ppkd_id" class="form-control">
-          <option value="">— Kosongkan jika tidak perlu —</option>
-          <option value="<?= $pejabat_ppkd->id ?>"
-            <?= ($v && $v->ref_ppkd_id == $pejabat_ppkd->id) ? 'selected' : '' ?>>
-            <?= htmlspecialchars($pejabat_ppkd->nama) ?> — <?= htmlspecialchars($pejabat_ppkd->jabatan ?? 'Kepala BKAD') ?>
-          </option>
-        </select>
-      </div>
-      <?php endif; ?>
 
       <div class="form-group mb-2">
         <label>Hasil Verifikasi <span class="req">*</span></label>
@@ -329,7 +406,6 @@
             $h=$hmap[$v->hasil_verifikasi]; ?>
       <div style="padding:12px;background:var(--<?= $h[0] ?>-light);border-radius:var(--radius)">
         <div class="fw-500 mb-1"><span class="badge badge-<?= $h[0] ?>"><?= $h[1] ?></span></div>
-        <?php if ($v->no_surat_verif): ?><div class="text-sm">No. Surat: <strong><?= htmlspecialchars($v->no_surat_verif) ?></strong></div><?php endif; ?>
         <?php if ($v->tgl_verifikasi): ?><div class="text-xs text-muted">Tanggal: <?= tgl_indo($v->tgl_verifikasi) ?></div><?php endif; ?>
         <?php if ($v->catatan): ?><div class="text-sm mt-1"><?= htmlspecialchars($v->catatan) ?></div><?php endif; ?>
         <?php if ($v->nama_ppkd): ?><div class="text-xs text-muted mt-1">TTD: <?= htmlspecialchars($v->nama_ppkd) ?></div><?php endif; ?>

@@ -382,7 +382,7 @@ const defaultLat = <?= ($p && $p->latitude)  ? $p->latitude  : '2.9671' ?>;
 const defaultLng = <?= ($p && $p->longitude) ? $p->longitude : '98.6762' ?>;
 const map = L.map('map').setView([defaultLat, defaultLng], <?= ($p && $p->latitude) ? 15 : 9 ?>);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
     maxZoom: 19,
 }).addTo(map);
@@ -626,4 +626,87 @@ onJenisChange('<?= $p->jenis_penyaluran ?>');
     if (sel && sel.value) onJenisChange(sel.value);
 })();
 <?php endif; ?>
+
+// ─── Client-side Validation ───────────────────────────────────
+function showFieldError(fieldName, msg) {
+    var el = document.querySelector('[name="' + fieldName + '"]');
+    if (!el) return;
+    var existing = el.parentNode.querySelector('.field-error');
+    if (existing) existing.remove();
+    el.style.borderColor = 'var(--merah-mid)';
+    var err = document.createElement('div');
+    err.className = 'field-error';
+    err.style.cssText = 'color:var(--merah-mid);font-size:11px;margin-top:3px;font-weight:600';
+    err.innerHTML = '<i class="ti ti-alert-circle"></i> ' + msg;
+    el.parentNode.appendChild(err);
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+function clearFieldErrors() {
+    document.querySelectorAll('.field-error').forEach(function(el) { el.remove(); });
+    document.querySelectorAll('[name]').forEach(function(el) { el.style.borderColor = ''; });
+}
+
+document.getElementById('formPekerjaan').addEventListener('submit', function(e) {
+    clearFieldErrors();
+    var errors = [];
+
+    <?php if (!$edit): ?>
+    // Cek BKP dipilih
+    var bkpSel = document.getElementById('bkp_id');
+    if (bkpSel && !bkpSel.value) {
+        errors.push('bkp_id');
+        showFieldError('bkp_id', 'BKP wajib dipilih.');
+    }
+    <?php endif; ?>
+
+    // Cek jenis penyaluran
+    var jenisSel = document.getElementById('jenis_penyaluran');
+    if (!jenisSel || !jenisSel.value) {
+        errors.push('jenis_penyaluran');
+        showFieldError('jenis_penyaluran', 'Jenis penyaluran wajib dipilih.');
+    }
+
+    // Cek nilai kontrak
+    var nilaiEl = document.getElementById('nilai_kontrak');
+    var nilaiRaw = nilaiEl ? nilaiEl.value.replace(/\./g,'').replace(/,/g,'').replace(/[^0-9]/g,'') : '0';
+    var nilaiKontrak = parseInt(nilaiRaw) || 0;
+    if (nilaiKontrak <= 0) {
+        errors.push('nilai_kontrak');
+        showFieldError('nilai_kontrak', 'Nilai kontrak wajib diisi dan harus lebih dari 0.');
+    } else if (jenisSel && jenisSel.value === 'bertahap' && nilaiKontrak <= 200000000) {
+        errors.push('nilai_kontrak');
+        showFieldError('nilai_kontrak', 'Jenis Bertahap: nilai kontrak harus lebih dari Rp 200.000.000.');
+    } else if (nilaiBkpAktif > 0) {
+        var nilaiPendukung = parseInt(document.getElementById('nilai_belanja_pendukung').value.replace(/\./g,'').replace(/,/g,'').replace(/[^0-9]/g,'')) || 0;
+        if ((nilaiKontrak + nilaiPendukung) > nilaiBkpAktif) {
+            errors.push('nilai_kontrak');
+            showFieldError('nilai_kontrak', 'Total nilai kontrak + belanja pendukung (Rp ' +
+                (nilaiKontrak + nilaiPendukung).toLocaleString('id-ID') +
+                ') melebihi nilai BKP (Rp ' + nilaiBkpAktif.toLocaleString('id-ID') + ').');
+        }
+    }
+
+    // Cek field teks wajib
+    var requiredFields = [
+        {name:'nama_kegiatan_dok', label:'Nama kegiatan wajib diisi.'},
+        {name:'nama_penyedia',     label:'Nama penyedia wajib diisi.'},
+        {name:'no_dok_pekerjaan',  label:'Nomor dokumen pekerjaan wajib diisi.'},
+        {name:'no_spmk',           label:'Nomor SPMK wajib diisi.'},
+    ];
+    requiredFields.forEach(function(f) {
+        var el = document.querySelector('[name="' + f.name + '"]');
+        if (el && !el.value.trim()) {
+            errors.push(f.name);
+            showFieldError(f.name, f.label);
+        }
+    });
+
+    if (errors.length > 0) {
+        e.preventDefault();
+        // Scroll ke error pertama
+        var firstErr = document.querySelector('.field-error');
+        if (firstErr) firstErr.scrollIntoView({behavior:'smooth', block:'center'});
+    }
+});
 </script>

@@ -20,10 +20,10 @@ Berdasarkan SE Gubernur No. 900.1.1.3689 / 8 Mei 2026
 ```
 OPD Teknis         → Input Pekerjaan → Upload Dokumen → Submit
 Inspektorat        → Reviu Checklist → Upload LHR → Putuskan
-SKPKD Kab/Kota     → Verifikasi → Upload Permohonan → Kirim ke Provinsi
-Admin Provinsi     → Verifikasi Final → Input SP2D → Konfirmasi Transfer
-SKPKD Kab/Kota     → Konfirmasi Penerimaan Dana (upload bukti RKUD)
-OPD Teknis         → Input Capaian Output Fisik (khusus Tahap I bertahap)
+SKPKD Kab/Kota     → Verifikasi → Upload Permohonan → Kirim ke Provinsi (menu: Permohonan)
+Admin Provinsi     → Verifikasi Bundel Permohonan → Cetak Nota + Ringkasan → Input SP2D
+SKPKD Kab/Kota     → Konfirmasi Penyaluran RKUD (menu: Penyaluran) → input kode transaksi
+OPD Teknis         → Input Capaian Output Fisik (menu: Capaian, khusus Tahap I bertahap)
 ```
 
 ---
@@ -98,29 +98,45 @@ OPD Teknis         → Input Capaian Output Fisik (khusus Tahap I bertahap)
 
 **Siapa:** Satuan Kerja Pengelola Keuangan Daerah (BPKD/BKAD) Kab/Kota.
 
-### A. Verifikasi Permohonan
+### A. Verifikasi Permohonan Kegiatan
 1. Menu **Verifikasi** → lihat antrian pekerjaan status **Reviu Selesai**
 2. Klik **Verifikasi** pada pekerjaan yang akan diproses
 3. Review dokumen pekerjaan dan hasil reviu inspektorat
 4. Upload **Dokumen Permohonan Pencairan** (surat permohonan, lampiran)
 
-### B. Memberikan Keputusan
+### B. Memberikan Keputusan Verifikasi
 1. Klik **Putuskan**
 2. Pilih hasil:
-   - **Disetujui** → permohonan dikirim ke Admin Provinsi
+   - **Disetujui** → pekerjaan siap dibundel dalam permohonan
    - **Perlu Perbaikan** → dikembalikan ke OPD
    - **Ditolak** → pekerjaan ditolak
 3. Jika tolak/perbaikan → catatan wajib diisi
 
-### C. Konfirmasi Penerimaan Dana
-*Dilakukan setelah Admin Provinsi menginput SP2D dan dana ditransfer.*
+### C. Membuat Permohonan Pencairan (Bundel)
+*Setelah satu atau beberapa kegiatan diverifikasi dan disetujui.*
 
-1. Menu **Verifikasi** → filter status **Dana Disalurkan**
-2. Klik **Konfirmasi** pada pekerjaan terkait
-3. Upload **Bukti Transfer RKUD** (screenshot/scan bukti terima di rekening)
-4. Klik **Konfirmasi** → status berubah ke **Dikonfirmasi**
+1. Menu **Permohonan** → klik **Buat Permohonan Baru**
+2. Pilih jenis penyaluran (Bertahap / Sekaligus / Khusus)
+3. Centang kegiatan-kegiatan yang akan dibundel dalam satu permohonan
+4. Klik **Simpan** → permohonan dibuat dengan nomor otomatis
+5. Klik **Ajukan** → permohonan dikirim ke Admin Provinsi
 
-### D. Laporan Akhir Kab/Kota
+### D. Konfirmasi Penyaluran Dana (menu Penyaluran)
+*Dilakukan setelah Admin Provinsi menginput SP2D dan dana ditransfer ke RKUD.*
+
+1. Menu **Penyaluran** → lihat daftar permohonan yang sudah ada SP2D Provinsi
+2. Pada baris permohonan yang SP2D-nya berstatus **Menunggu Konfirmasi** → klik **Konfirmasi**
+3. Isi data:
+   - **Kode Transaksi RKUD**: nomor referensi transaksi masuk di rekening RKUD
+   - **Tanggal Masuk RKUD**: tanggal dana diterima di rekening
+   - **Nilai Diterima (Rp)**: nilai yang masuk ke RKUD
+4. Klik **Konfirmasi Penerimaan** → status semua kegiatan dalam permohonan berubah ke **Dikonfirmasi**
+
+> **Catatan penting:**
+> - Untuk permohonan **Bertahap Tahap I** → setelah dikonfirmasi, menu **Capaian** aktif untuk OPD
+> - Untuk permohonan **Sekaligus/Khusus/Tahap II** → kegiatan langsung berstatus **Selesai**
+
+### E. Laporan Akhir Kab/Kota
 1. Menu **Laporan** → **Laporan Akhir Kab/Kota**
 2. Pilih Tahun Anggaran → klik **Tampilkan**
 3. Klik **Cetak Laporan** untuk dokumen resmi ber-KOP dengan tanda tangan
@@ -131,26 +147,31 @@ OPD Teknis         → Input Capaian Output Fisik (khusus Tahap I bertahap)
 
 **Siapa:** Staf BKAD Provinsi yang mengelola sistem dan melakukan verifikasi final.
 
-### A. Verifikasi Final Permohonan
-1. Menu **Penyaluran** → lihat antrian status **Verif. Kab Selesai**
-2. Klik **Detail** → review semua dokumen dan reviu inspektorat
-3. Klik **Putuskan**:
-   - **Disetujui** → pekerjaan siap diinput SP2D
+### A. Verifikasi Final Permohonan (Bundel)
+1. Menu **Penyaluran** → lihat antrian permohonan masuk dari SKPKD Kab
+2. Klik **Detail Permohonan** → review semua kegiatan, dokumen, dan hasil reviu inspektorat
+3. Untuk setiap kegiatan dalam permohonan → klik **Verifikasi** → **Putuskan**:
+   - **Disetujui** → kegiatan siap diproses SP2D
    - **Perlu Perbaikan** → dikembalikan ke Kab/Kota
+   - **Ditolak** → kegiatan ditolak
 
-### B. Input SP2D (Surat Perintah Pencairan Dana)
-1. Pada pekerjaan yang sudah disetujui → klik **Input SP2D**
-2. Isi: Nomor SP2D, Tanggal SP2D, Nilai Transfer, Rekening Asal/Tujuan, Bank
-3. Pilih **Status Transfer**:
-   - *Proses* → simpan dulu, konfirmasi nanti
-   - *Selesai* → dana langsung ditetapkan sebagai disalurkan
-4. Klik **Simpan SP2D**
+### B. Cetak Dokumen Nota Dinas
+*Dilakukan setelah semua kegiatan dalam permohonan disetujui.*
+1. Di halaman **Detail Permohonan** → klik:
+   - **Cetak Nota Kabid** → Nota Dinas dari Kabid Perencanaan Anggaran ke Kepala Badan
+   - **Cetak Nota Kepala Badan** → Nota Dinas dari Kepala Badan ke Bendahara Pengeluaran
+   - **Cetak Ringkasan** → Rekapitulasi kegiatan dalam permohonan (format lanskap A4)
+2. Semua 3 dokumen harus dicetak/dibuka sebelum SP2D dapat diinput
 
-### C. Konfirmasi Transfer Selesai
-*(Jika status transfer sebelumnya dipilih "Proses")*
-1. Menu **Penyaluran** → cari pekerjaan status SP2D Proses
-2. Klik **Konfirmasi Transfer** → status berubah ke **Disalurkan**
-3. Notifikasi otomatis terkirim ke SKPKD Kab dan OPD
+### C. Input SP2D (Surat Perintah Pencairan Dana)
+1. Setelah semua nota dicetak → scroll ke bagian **Input SP2D** di Detail Permohonan
+2. Isi:
+   - **Nomor SP2D**, **Tanggal SP2D**, **Nilai SP2D**
+   - **Rekening Asal**, **Bank Asal**
+   - **Rekening Tujuan**, **Bank Tujuan** (rekening RKUD Kab/Kota)
+   - **Status**: *Proses* (transfer sedang berjalan) atau *Selesai* (dana sudah ditransfer)
+3. Klik **Simpan SP2D**
+4. Notifikasi otomatis terkirim ke SKPKD Kab melalui Telegram dan in-app
 
 ### D. Kelola Master Data (Parameter)
 #### Data Tahun Anggaran

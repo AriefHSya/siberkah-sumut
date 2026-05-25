@@ -155,9 +155,19 @@ class Pekerjaan extends Auth_Controller
             redirect('pekerjaan/input'); return;
         }
 
+        // Ambil data BKP untuk validasi nilai
+        $bkp = $this->db->get_where('ref_bkp', ['id'=>$bkp_id])->row();
+
+        // Validasi: nilai kontrak + pendukung tidak boleh melebihi nilai BKP
+        if ($bkp && ($nilai_kontrak + $nilai_pendukung) > $bkp->nilai) {
+            $this->session->set_flashdata('error',
+                'Total Nilai Kontrak + Belanja Pendukung (' . rupiah($nilai_kontrak + $nilai_pendukung) .
+                ') melebihi Nilai BKP (' . rupiah($bkp->nilai) . '). Sesuaikan nilai kontrak atau belanja pendukung.');
+            redirect('pekerjaan/input'); return;
+        }
+
         // Validasi: pendukung maks 5% dari nilai BKP (untuk bertahap)
         if ($jenis === 'bertahap') {
-            $bkp = $this->db->get_where('ref_bkp', ['id'=>$bkp_id])->row();
             if ($bkp && $nilai_pendukung > ($bkp->nilai * 0.05)) {
                 $this->session->set_flashdata('error',
                     'Belanja pendukung tidak boleh melebihi 5% dari nilai BKP (' . rupiah($bkp->nilai * 0.05) . ').');
@@ -266,11 +276,29 @@ class Pekerjaan extends Auth_Controller
 
         $nilai_kontrak   = (int) str_replace(['.','Rp',' ',','], '', $this->input->post('nilai_kontrak'));
         $nilai_pendukung = (int) str_replace(['.','Rp',' ',','], '', $this->input->post('nilai_belanja_pendukung'));
+
+        // Validasi: nilai kontrak + pendukung tidak boleh melebihi nilai BKP
+        $bkp_edit = $this->db->get_where('ref_bkp', ['id'=>$pekerjaan->bkp_id])->row();
+        if ($bkp_edit && ($nilai_kontrak + $nilai_pendukung) > $bkp_edit->nilai) {
+            $this->session->set_flashdata('error',
+                'Total Nilai Kontrak + Belanja Pendukung (' . rupiah($nilai_kontrak + $nilai_pendukung) .
+                ') melebihi Nilai BKP (' . rupiah($bkp_edit->nilai) . '). Sesuaikan nilai kontrak atau belanja pendukung.');
+            redirect('pekerjaan/edit/'.$id); return;
+        }
+
+        // Validasi: pendukung maks 5% dari nilai BKP (untuk bertahap)
+        $jenis_edit = $this->input->post('jenis_penyaluran', TRUE);
+        if ($jenis_edit === 'bertahap' && $bkp_edit && $nilai_pendukung > ($bkp_edit->nilai * 0.05)) {
+            $this->session->set_flashdata('error',
+                'Belanja pendukung tidak boleh melebihi 5% dari nilai BKP (' . rupiah($bkp_edit->nilai * 0.05) . ').');
+            redirect('pekerjaan/edit/'.$id); return;
+        }
+
         $lat = $this->input->post('latitude',  TRUE);
         $lng = $this->input->post('longitude', TRUE);
 
         $data = [
-            'jenis_penyaluran'        => $this->input->post('jenis_penyaluran', TRUE),
+            'jenis_penyaluran'        => $jenis_edit,
             'nama_kegiatan_dok'       => $this->input->post('nama_kegiatan_dok', TRUE),
             'volume_satuan'           => $this->input->post('volume_satuan', TRUE),
             'metode_pelaksanaan'      => $this->input->post('metode_pelaksanaan', TRUE),
@@ -344,6 +372,16 @@ class Pekerjaan extends Auth_Controller
         $pejabat_map = [];
         foreach ($pejabat as $p) $pejabat_map[$p->jenis] = $p;
 
+        // Tombol Kembali: gunakan ?back= jika ada dan masih URL lokal
+        $raw_back = $this->input->get('back');
+        $back_url = site_url('pekerjaan');
+        if ($raw_back) {
+            $decoded = urldecode($raw_back);
+            if (strpos($decoded, base_url()) === 0) {
+                $back_url = $decoded;
+            }
+        }
+
         $this->render('pekerjaan/detail', array_merge($this->data, [
             'title'           => 'Detail Pekerjaan — ' . $pekerjaan->kode_bkp,
             'pekerjaan'       => $pekerjaan,
@@ -352,6 +390,7 @@ class Pekerjaan extends Auth_Controller
             'deadline_info'   => $deadline_info,
             'history'         => $history,
             'pejabat'         => $pejabat_map,
+            'back_url'        => $back_url,
         ]));
     }
 
@@ -482,6 +521,88 @@ class Pekerjaan extends Auth_Controller
         $this->log_aktivitas('pekerjaan.batal_submit', 'Batal submit pekerjaan id='.$id);
         $this->session->set_flashdata('success',
             'Pengajuan berhasil dibatalkan. Pekerjaan kembali ke status Draft dan dapat diedit.');
+        redirect('pekerjaan/detail/'.$id);
+    }
+
+    // ─── KIRIM REVISI KE INSPEKTORAT ─────────────────────────
+    // Dipanggil OPD setelah memperbaiki pekerjaan yang dikembalikan Inspektorat
+
+    public function kirim_revisi($id)
+    {
+        $this->requirePerm('pekerjaan.submit');
+
+        $pekerjaan = $this->Pekerjaan_model->get_by_id($id);
+        if (!$pekerjaan) { show_404(); return; }
+
+        if ($pekerjaan->status !== 'inspektorat_revisi') {
+            $this->session->set_flashdata('error', 'Status pekerjaan tidak valid untuk dikirim ulang.');
+            redirect('pekerjaan/detail/'.$id); return;
+        }
+
+        if ($this->rbac->isKabkota() && (int)$pekerjaan->kabkota_id !== (int)$this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('pekerjaan'); return;
+        }
+
+        // Temukan tahapan yang sedang dalam status inspektorat_revisi
+        $tahapan_list  = $this->Pekerjaan_model->get_tahapan($id);
+        $tahapan_revisi = NULL;
+        foreach ($tahapan_list as $t) {
+            if ($t->status === 'inspektorat_revisi') { $tahapan_revisi = $t; break; }
+        }
+        if (!$tahapan_revisi) {
+            $this->session->set_flashdata('error', 'Data tahapan tidak ditemukan.');
+            redirect('pekerjaan/detail/'.$id); return;
+        }
+
+        // Reset record reviu — hapus keputusan & kunci agar Inspektorat bisa reviu ulang
+        $reviu = $this->db->get_where('trx_reviu_inspektorat',
+            ['tahapan_id' => $tahapan_revisi->id])->row();
+        if ($reviu) {
+            $this->db->where('id', $reviu->id)->update('trx_reviu_inspektorat', [
+                'hasil_reviu'            => NULL,
+                'catatan'                => NULL,
+                'checklist_confirmed_at' => NULL,
+                'tgl_reviu_selesai'      => NULL,
+                'updated_at'             => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        // Reset status tahapan → opd_input
+        $this->db->where('id', $tahapan_revisi->id)->update('trx_tahapan_penyaluran', [
+            'status'     => 'opd_input',
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        // Set status pekerjaan → opd_submitted
+        $this->Pekerjaan_model->set_status($id, 'opd_submitted', $this->user_id,
+            'Revisi dikirim kembali ke Inspektorat oleh OPD Teknis');
+
+        // Notifikasi ke semua Inspektorat kabkota ini
+        $inspektorat_users = $this->db
+            ->select('u.id')
+            ->from('users u')
+            ->join('roles r', 'r.id = u.role_id')
+            ->where('r.kode', 'inspektorat')
+            ->where('u.kabkota_id', $pekerjaan->kabkota_id)
+            ->where('u.is_active', 1)
+            ->get()->result();
+        foreach ($inspektorat_users as $iu) {
+            $this->Notifikasi_model->kirim(
+                $iu->id,
+                'Revisi Pekerjaan Dikirim',
+                'OPD telah mengirim perbaikan untuk BKP ' . $pekerjaan->kode_bkp .
+                    '. Silakan lakukan reviu ulang.',
+                'info',
+                site_url('reviu'),
+                $id
+            );
+        }
+
+        $this->log_aktivitas('pekerjaan.kirim_revisi',
+            'Kirim revisi pekerjaan id='.$id.' ke Inspektorat');
+        $this->session->set_flashdata('success',
+            'Perbaikan berhasil dikirim ke Inspektorat untuk reviu ulang.');
         redirect('pekerjaan/detail/'.$id);
     }
 

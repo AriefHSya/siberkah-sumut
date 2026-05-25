@@ -13,6 +13,8 @@ $filled          = $r ? ($stat['sesuai'] + $stat['tidak_sesuai'] + $stat['tidak_
 $pct_filled      = $total_item > 0 ? round($filled / $total_item * 100) : 0;
 $semua_terisi    = ($filled >= $total_item && $total_item > 0);
 $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
+// Semua sesuai = confirmed + tidak ada 'tidak_sesuai' + semua item terisi
+$semua_sesuai    = $confirmed && !$ada_tidak_sesuai && $semua_terisi;
 ?>
 
 <!-- ── HEADER ───────────────────────────────────────────── -->
@@ -49,11 +51,11 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
 <div class="card mb-2">
   <div class="card-title" style="cursor:pointer" onclick="toggleDataPekerjaan()">
     <i class="ti ti-file-text"></i> Data Pekerjaan OPD Teknis
-    <span class="text-xs text-muted fw-500" style="margin-left:8px" id="dp-hint">Klik untuk lihat detail</span>
-    <i class="ti ti-chevron-down" id="dp-chevron" style="margin-left:auto"></i>
+    <span class="text-xs text-muted fw-500" style="margin-left:8px" id="dp-hint"></span>
+    <i class="ti ti-chevron-up" id="dp-chevron" style="margin-left:auto"></i>
   </div>
 
-  <div id="dataPekerjaan" style="display:none">
+  <div id="dataPekerjaan">
     <!-- Ringkasan cepat -->
     <div class="g3 mb-2">
       <div>
@@ -92,11 +94,63 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
         <tr><td class="text-muted">13. Tgl. BAST</td><td><?= tgl_indo($p->tgl_bast) ?></td></tr>
         <?php endif; ?>
         <tr><td class="text-muted">14. Nilai Kontrak</td><td class="fw-500 text-biru"><?= rupiah($p->nilai_kontrak) ?></td></tr>
-        <tr><td class="text-muted">15. Belanja Pendukung</td><td><?= rupiah($p->nilai_belanja_pendukung) ?></td></tr>
+        <tr>
+          <td class="text-muted" style="vertical-align:top">15. Belanja Pendukung</td>
+          <td>
+            <span class="fw-500"><?= rupiah($p->nilai_belanja_pendukung) ?></span>
+            <?php
+            // Tampilkan breakdown rincian belanja pendukung jika tersedia
+            $bp_json = !empty($p->belanja_pendukung_json) ? json_decode($p->belanja_pendukung_json, TRUE) : [];
+            if (!empty($bp_json) && is_array($bp_json)):
+            ?>
+            <div style="margin-top:4px;padding:6px 8px;background:var(--biru-light);border-radius:4px;font-size:11px">
+              <div class="text-muted fw-600 mb-1">Rincian:</div>
+              <?php foreach ($bp_json as $i => $item): if (empty($item['uraian']) || empty($item['nilai'])) continue; ?>
+              <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:2px">
+                <span><?= ($i+1) ?>. <?= htmlspecialchars($item['uraian']) ?></span>
+                <span class="fw-500 mono" style="white-space:nowrap"><?= rupiah((float)$item['nilai']) ?></span>
+              </div>
+              <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+          </td>
+        </tr>
         <tr><td class="text-muted">16. Perda APBD</td><td><?= $p->no_perda ? 'No. '.htmlspecialchars($p->no_perda).' / '.tgl_indo($p->tgl_perda) : '—' ?></td></tr>
         <tr><td class="text-muted">17. Perkada/Pergub BKP</td><td><?= $p->no_perkada ? 'No. '.htmlspecialchars($p->no_perkada).' / '.tgl_indo($p->tgl_perkada) : '—' ?></td></tr>
       </tbody>
     </table>
+
+    <!-- Peta Lokasi Pekerjaan — Google Maps embed (read-only, tanpa library JS) -->
+    <?php if ($p->latitude && $p->longitude): ?>
+    <div class="mb-2">
+      <div class="text-xs text-muted fw-600 mb-1" style="text-transform:uppercase;letter-spacing:0.5px">
+        <i class="ti ti-map-pin"></i> Lokasi Pekerjaan
+      </div>
+      <?php if ($p->lokasi_deskripsi): ?>
+      <div class="text-xs text-muted mb-1"><?= htmlspecialchars($p->lokasi_deskripsi) ?></div>
+      <?php endif; ?>
+      <div class="text-xs text-muted mb-1">
+        📍 <?= $p->latitude ?>, <?= $p->longitude ?>
+        &nbsp;
+        <a href="https://maps.google.com/?q=<?= $p->latitude ?>,<?= $p->longitude ?>"
+           target="_blank" style="font-size:11px">
+          <i class="ti ti-external-link"></i> Buka di Google Maps
+        </a>
+      </div>
+      <iframe
+        src="https://maps.google.com/maps?q=<?= (float)$p->latitude ?>,<?= (float)$p->longitude ?>&z=16&output=embed"
+        width="100%" height="220"
+        style="border:1px solid var(--border);border-radius:var(--radius);display:block"
+        loading="lazy"
+        allowfullscreen
+        referrerpolicy="no-referrer-when-downgrade">
+      </iframe>
+    </div>
+    <?php else: ?>
+    <div class="mb-2 text-sm text-muted">
+      <i class="ti ti-map-off"></i> Lokasi belum ditentukan oleh OPD.
+    </div>
+    <?php endif; ?>
 
     <!-- Dokumen yang diupload OPD -->
     <div>
@@ -155,27 +209,27 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
   </div>
   <div class="stat-card">
     <div class="stat-icon" style="background:var(--hijau-light)"><i class="ti ti-circle-check" style="color:var(--hijau-mid)"></i></div>
-    <div class="stat-val" style="color:var(--hijau-mid)"><?= $stat['sesuai'] ?></div>
+    <div class="stat-val" id="statSesuai" style="color:var(--hijau-mid)"><?= $stat['sesuai'] ?></div>
     <div class="stat-label">Sesuai</div>
   </div>
   <div class="stat-card">
     <div class="stat-icon" style="background:var(--merah-light)"><i class="ti ti-circle-x" style="color:var(--merah-mid)"></i></div>
-    <div class="stat-val" style="color:var(--merah-mid)"><?= $stat['tidak_sesuai'] ?></div>
+    <div class="stat-val" id="statTidakSesuai" style="color:var(--merah-mid)"><?= $stat['tidak_sesuai'] ?></div>
     <div class="stat-label">Tidak Sesuai</div>
   </div>
   <div class="stat-card">
     <div class="stat-icon" style="background:var(--abu-light)"><i class="ti ti-minus-circle" style="color:var(--abu)"></i></div>
-    <div class="stat-val"><?= $stat['tidak_berlaku'] ?></div>
+    <div class="stat-val" id="statTidakBerlaku"><?= $stat['tidak_berlaku'] ?></div>
     <div class="stat-label">Tidak Berlaku / N/A</div>
   </div>
 </div>
 <div style="margin-bottom:16px">
   <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
     <span>Progress pengisian checklist</span>
-    <span class="fw-500"><?= $filled ?> / <?= $total_item ?> diisi · <?= $pct_filled ?>%</span>
+    <span class="fw-500" id="progressText"><?= $filled ?> / <?= $total_item ?> diisi · <?= $pct_filled ?>%</span>
   </div>
   <div style="height:8px;background:var(--bg);border-radius:4px;overflow:hidden">
-    <div style="height:100%;background:<?= $pct_filled >= 100 ? 'var(--hijau-mid)' : 'var(--biru)' ?>;width:<?= $pct_filled ?>%;transition:width 0.3s"></div>
+    <div id="progressFill" style="height:100%;background:<?= $pct_filled >= 100 ? 'var(--hijau-mid)' : 'var(--biru)' ?>;width:<?= $pct_filled ?>%;transition:width 0.3s"></div>
   </div>
   <?php if ($confirmed): ?>
   <div class="text-xs mt-1" style="color:var(--hijau-mid)">
@@ -191,7 +245,7 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
 <?php if ($can_input && $r && !$confirmed): ?>
 <?= form_open(site_url('reviu/simpan-checklist/'.$r->id), ['id'=>'formChecklist']) ?>
 <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
-<?= form_hidden('action', 'save', ['id'=>'hiddenAction']) ?>
+<input type="hidden" name="action" id="hiddenAction" value="save">
 <?php endif; ?>
 
 <div class="card mb-2">
@@ -275,6 +329,47 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
   </table>
   </div>
 
+  <!-- Data Reviewer — disimpan bersama checklist, tampil saat belum/sudah dikunci -->
+  <?php if ($can_input && $r): ?>
+  <div style="margin-top:14px;padding:12px;background:var(--biru-light);border-radius:var(--radius)">
+    <div class="text-xs text-muted fw-600 mb-2">
+      <i class="ti ti-user-check"></i> Data Reviewer / Pemeriksa
+    </div>
+    <div class="g3">
+      <div class="form-group mb-0">
+        <label>Nama Reviewer</label>
+        <?php if (!$confirmed): ?>
+        <input type="text" name="reviewer_nama" class="form-control fc fc-sm"
+               value="<?= htmlspecialchars($r->reviewer_nama ?? ($pejabat->nama ?? '')) ?>"
+               placeholder="Nama lengkap reviewer">
+        <?php else: ?>
+        <div class="fw-500 text-sm"><?= htmlspecialchars($r->reviewer_nama ?: '—') ?></div>
+        <?php endif; ?>
+      </div>
+      <div class="form-group mb-0">
+        <label>NIP</label>
+        <?php if (!$confirmed): ?>
+        <input type="text" name="reviewer_nip" class="form-control fc fc-sm mono"
+               value="<?= htmlspecialchars($r->reviewer_nip ?? ($pejabat->nip ?? '')) ?>"
+               placeholder="NIP reviewer">
+        <?php else: ?>
+        <div class="text-sm mono"><?= htmlspecialchars($r->reviewer_nip ?: '—') ?></div>
+        <?php endif; ?>
+      </div>
+      <div class="form-group mb-0">
+        <label>Jabatan</label>
+        <?php if (!$confirmed): ?>
+        <input type="text" name="reviewer_jabatan" class="form-control fc fc-sm"
+               value="<?= htmlspecialchars($r->reviewer_jabatan ?? 'Inspektur') ?>"
+               placeholder="Jabatan">
+        <?php else: ?>
+        <div class="text-sm"><?= htmlspecialchars($r->reviewer_jabatan ?: '—') ?></div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
+
   <!-- Tombol aksi checklist (hanya saat belum terkunci) -->
   <?php if ($can_input && $r && !$confirmed): ?>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px">
@@ -286,16 +381,14 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
         <i class="ti ti-device-floppy"></i> Simpan Draft
       </button>
     </div>
-    <button type="button" class="btn btn-primary btn-sm" onclick="konfirmasiKunci()"
+    <button type="button" id="btnKunci" class="btn btn-primary btn-sm" onclick="konfirmasiKunci()"
             <?= $semua_terisi ? '' : 'disabled title="Isi semua item checklist terlebih dahulu"' ?>>
       <i class="ti ti-lock"></i> Selesai & Kunci Checklist
     </button>
   </div>
-  <?php if (!$semua_terisi): ?>
-  <div class="text-xs text-muted mt-1" style="text-align:right">
-    Isi semua <?= $total_item - $filled ?> item yang belum terisi untuk mengunci checklist.
+  <div id="hintKunci" class="text-xs text-muted mt-1" style="text-align:right;<?= $semua_terisi ? 'display:none' : '' ?>">
+    Isi semua item checklist terlebih dahulu untuk mengunci.
   </div>
-  <?php endif; ?>
   <?php endif; ?>
 
   <?php endif; // end empty items ?>
@@ -306,9 +399,37 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
 <?php endif; ?>
 
 <!-- ══════════════════════════════════════════════════════════
-     BLOK 4: CETAK + LHR (muncul setelah checklist terkunci)
+     BLOK 4A: KEMBALIKAN KE OPD (muncul jika ada item tidak sesuai)
      ══════════════════════════════════════════════════════════ -->
-<?php if ($r && $confirmed && !$keputusan): ?>
+<?php if ($r && $confirmed && !$keputusan && $ada_tidak_sesuai): ?>
+<div class="card mb-2" style="border-left:4px solid var(--kuning-mid)">
+  <div class="card-title"><i class="ti ti-arrow-back-up"></i> Kembalikan ke OPD Teknis</div>
+  <div class="alert alert-warning mb-2" style="font-size:12px">
+    <i class="ti ti-alert-triangle"></i>
+    <div>Ada <strong><?= $stat['tidak_sesuai'] ?></strong> item checklist ditandai
+    <strong>Tidak Sesuai</strong>. Isi catatan di bawah dan kembalikan ke OPD untuk diperbaiki.</div>
+  </div>
+  <?= form_open(site_url('reviu/putuskan/'.$r->id)) ?>
+  <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
+  <?= form_hidden('hasil_reviu', 'perlu_perbaikan') ?>
+  <div class="form-group mb-3">
+    <label>Catatan untuk OPD Teknis <span class="req">*</span></label>
+    <textarea name="catatan" class="form-control" rows="4" required
+      placeholder="Uraikan temuan dan bagian yang perlu diperbaiki OPD secara spesifik..."><?= htmlspecialchars($r->catatan ?? '') ?></textarea>
+    <div class="form-hint">Catatan ini akan diterima OPD Teknis saat memperbaiki data.</div>
+  </div>
+  <button type="submit" class="btn btn-outline" style="border-color:var(--kuning-mid);color:var(--kuning-mid)"
+          onclick="return confirm('Kembalikan pekerjaan ini ke OPD Teknis?\n\nOPD akan menerima notifikasi.')">
+    <i class="ti ti-arrow-back-up"></i> Kembalikan ke OPD
+  </button>
+  <?= form_close() ?>
+</div>
+<?php endif; ?>
+
+<!-- ══════════════════════════════════════════════════════════
+     BLOK 4B: CETAK + LHR + APPROVE (hanya jika semua sesuai)
+     ══════════════════════════════════════════════════════════ -->
+<?php if ($r && $confirmed && !$keputusan && $semua_sesuai): ?>
 <div class="g2 mb-2">
 
   <!-- Panel Print Kertas Kerja -->
@@ -318,20 +439,21 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
       Cetak kertas kerja checklist untuk ditandatangani oleh reviewer.
       Masukkan data reviewer sebelum mencetak.
     </p>
+    <!-- Pre-fill dari data tersimpan di DB, fallback ke data pejabat -->
     <div class="form-group mb-2">
       <label>Nama Reviewer</label>
       <input type="text" id="rvNama" class="form-control" placeholder="Nama lengkap reviewer"
-             value="<?= htmlspecialchars($pejabat->nama ?? '') ?>">
+             value="<?= htmlspecialchars($r->reviewer_nama ?? ($pejabat->nama ?? '')) ?>">
     </div>
     <div class="form-group mb-2">
       <label>NIP</label>
       <input type="text" id="rvNip" class="form-control mono" placeholder="NIP reviewer"
-             value="<?= htmlspecialchars($pejabat->nip ?? '') ?>">
+             value="<?= htmlspecialchars($r->reviewer_nip ?? ($pejabat->nip ?? '')) ?>">
     </div>
     <div class="form-group mb-3">
       <label>Jabatan</label>
       <input type="text" id="rvJabatan" class="form-control" placeholder="Jabatan reviewer"
-             value="Inspektur">
+             value="<?= htmlspecialchars($r->reviewer_jabatan ?? 'Inspektur') ?>">
     </div>
     <button type="button" class="btn btn-primary" onclick="cetakKertasKerja()">
       <i class="ti ti-printer"></i> Cetak Kertas Kerja
@@ -429,33 +551,6 @@ $ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
     <?= form_close() ?>
   </div>
 
-  <!-- Kembalikan ke OPD -->
-  <div class="card" style="border-left:4px solid var(--kuning-mid)">
-    <div class="card-title"><i class="ti ti-arrow-back-up"></i> Kembalikan ke OPD Teknis</div>
-    <p class="text-sm text-muted mb-3">
-      Terdapat temuan yang perlu diperbaiki OPD. Isi catatan dengan jelas
-      agar OPD memahami bagian mana yang perlu diperbaiki.
-    </p>
-    <?= form_open(site_url('reviu/putuskan/'.$r->id)) ?>
-    <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
-    <?= form_hidden('hasil_reviu', 'perlu_perbaikan') ?>
-    <div class="form-group mb-3">
-      <label>Catatan untuk OPD Teknis <span class="req">*</span></label>
-      <textarea name="catatan" class="form-control" rows="4" required
-        placeholder="Uraikan temuan dan bagian yang perlu diperbaiki OPD secara spesifik...
-Contoh:
-- Item CK-05: Nomor SPMK tidak sesuai dengan dokumen kontrak
-- Item CK-12: Foto dokumentasi belum dilampirkan
-- Nilai kontrak melebihi nilai BKP yang disepakati"></textarea>
-      <div class="form-hint">Catatan ini akan terlihat oleh OPD Teknis saat memperbaiki data.</div>
-    </div>
-    <button type="submit" class="btn btn-outline"
-            style="border-color:var(--kuning-mid);color:var(--kuning-mid)"
-            onclick="return confirm('Kembalikan pekerjaan ini ke OPD Teknis?\n\nOPD akan menerima notifikasi dan bisa memperbaiki data.')">
-      <i class="ti ti-arrow-back-up"></i> Kembalikan ke OPD
-    </button>
-    <?= form_close() ?>
-  </div>
 </div>
 <?php endif; ?>
 
@@ -533,14 +628,14 @@ $h = $hmap[$keputusan] ?? ['abu','—','ti-question-mark',''];
 <script>
 /* ── Toggle Data Pekerjaan ── */
 function toggleDataPekerjaan() {
-  var el  = document.getElementById('dataPekerjaan');
-  var chv = document.getElementById('dp-chevron');
-  var hint= document.getElementById('dp-hint');
-  var show= el.style.display === 'none';
-  el.style.display  = show ? 'block' : 'none';
-  chv.className     = show ? 'ti ti-chevron-up' : 'ti ti-chevron-down';
-  hint.textContent  = show ? '' : 'Klik untuk lihat detail';
+  var el   = document.getElementById('dataPekerjaan');
+  var chv  = document.getElementById('dp-chevron');
+  var hint = document.getElementById('dp-hint');
+  var open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  chv.className    = open ? 'ti ti-chevron-down' : 'ti ti-chevron-up';
   chv.style.marginLeft = 'auto';
+  hint.textContent = open ? 'Klik untuk lihat detail' : '';
 }
 
 /* ── Cetak Kertas Kerja (buka tab baru dengan param reviewer) ── */
@@ -593,15 +688,42 @@ function isiSemua(nilai) {
 }
 
 function updateProgressBar() {
-  var total   = <?= $total_item ?>;
+  var total        = <?= $total_item ?>;
   if (!total) return;
-  var radios  = document.querySelectorAll('#tblChecklist tbody tr');
-  var filled  = 0;
-  radios.forEach(function(row) {
+  var rows         = document.querySelectorAll('#tblChecklist tbody tr');
+  var filled       = 0, sesuai = 0, tidakSesuai = 0, tidakBerlaku = 0;
+  rows.forEach(function(row) {
     var checked = row.querySelector('input[type="radio"]:checked');
-    if (checked) filled++;
+    if (!checked) return;
+    filled++;
+    if (checked.value === 'sesuai')         sesuai++;
+    else if (checked.value === 'tidak_sesuai') tidakSesuai++;
+    else if (checked.value === 'tidak_berlaku') tidakBerlaku++;
   });
-  // Update stat cards jika ada
+
+  var countable = sesuai + tidakSesuai;
+  var pct       = Math.round(countable / total * 100);
+  var warna     = (pct >= 100) ? 'var(--hijau-mid)' : 'var(--biru)';
+
+  var el;
+  if ((el = document.getElementById('progressText')))
+    el.textContent = countable + ' / ' + total + ' diisi · ' + pct + '%';
+  if ((el = document.getElementById('progressFill'))) {
+    el.style.width      = pct + '%';
+    el.style.background = warna;
+  }
+  if ((el = document.getElementById('statSesuai')))       el.textContent = sesuai;
+  if ((el = document.getElementById('statTidakSesuai')))  el.textContent = tidakSesuai;
+  if ((el = document.getElementById('statTidakBerlaku'))) el.textContent = tidakBerlaku;
+
+  var btn = document.getElementById('btnKunci');
+  if (btn) {
+    var semua = (filled >= total);
+    btn.disabled = !semua;
+    btn.title    = semua ? '' : 'Isi semua item checklist terlebih dahulu';
+  }
+  var hint = document.getElementById('hintKunci');
+  if (hint) hint.style.display = (filled >= total) ? 'none' : '';
 }
 
 function simpanDraft() {
@@ -626,8 +748,6 @@ window.addEventListener('beforeunload', function(e) {
     e.preventDefault(); e.returnValue = '';
   }
 });
-<?php if (document.getElementById('formChecklist')): // always false in PHP, JS runs later ?>
-<?php endif; ?>
 document.addEventListener('DOMContentLoaded', function() {
   var form = document.getElementById('formChecklist');
   if (!form) return;
@@ -642,3 +762,4 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
+

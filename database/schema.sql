@@ -551,6 +551,10 @@ CREATE TABLE `trx_reviu_inspektorat` (
   `tgl_reviu_selesai` date DEFAULT NULL,
   `hasil_reviu` enum('disetujui','ditolak','perlu_perbaikan') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `catatan` text COLLATE utf8mb4_unicode_ci,
+  `checklist_confirmed_at` datetime DEFAULT NULL,
+  `reviewer_nama` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reviewer_nip` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reviewer_jabatan` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `no_lhr` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `tgl_lhr` date DEFAULT NULL,
   `file_lhr_path` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -759,4 +763,5 @@ SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '448bbbb8-00cd-11f1-9d50-42a88396694b:1-
 
 -- Setting default (nilai dikonfigurasi lewat UI atau env var)
 INSERT IGNORE INTO ref_app_setting (kode, nilai, keterangan) VALUES
-('telegram_bot_token', '', 'Token Bot Telegram — isi via menu Pengaturan > Notif Telegram');
+('telegram_bot_token', '', 'Token Bot Telegram — isi via menu Pengaturan > Notif Telegram'),
+('logo_provinsi', '', 'Path file logo Pemerintah Provinsi — upload via Parameter > Logo Provinsi');

@@ -93,8 +93,11 @@ class Reviu extends Auth_Controller
             redirect('reviu'); return;
         }
 
-        // Cek status valid untuk direviu
-        if (!in_array($tahapan->status, ['opd_input','inspektorat_reviu','inspektorat_revisi'])) {
+        // Cek status valid untuk direviu atau lihat hasil reviu
+        $reviu_selesai = $this->Reviu_model->get_by_tahapan($tahapan_id);
+        $bisa_lihat    = $reviu_selesai && $reviu_selesai->hasil_reviu === 'disetujui';
+        if (!in_array($tahapan->status, ['opd_input','inspektorat_reviu','inspektorat_revisi','inspektorat_approved'])
+            && !$bisa_lihat) {
             $this->session->set_flashdata('error',
                 'Tahapan ini tidak dalam status yang dapat direviu.');
             redirect('reviu'); return;
@@ -178,6 +181,19 @@ class Reviu extends Auth_Controller
         $this->Reviu_model->simpan_checklist($reviu_id, $isian);
         $stat = $this->Reviu_model->hitung_checklist($reviu_id);
 
+        // Simpan data reviewer jika dikirim
+        $reviewer_nama    = $this->input->post('reviewer_nama', TRUE);
+        $reviewer_nip     = $this->input->post('reviewer_nip',  TRUE);
+        $reviewer_jabatan = $this->input->post('reviewer_jabatan', TRUE);
+        if ($reviewer_nama || $reviewer_nip || $reviewer_jabatan) {
+            $upd = array_filter([
+                'reviewer_nama'    => $reviewer_nama    ?: NULL,
+                'reviewer_nip'     => $reviewer_nip     ?: NULL,
+                'reviewer_jabatan' => $reviewer_jabatan ?: NULL,
+            ], fn($v) => $v !== NULL);
+            if ($upd) $this->Reviu_model->update($reviu_id, $upd);
+        }
+
         // Jika dari AJAX return JSON
         if ($this->input->is_ajax_request()) {
             $this->json(['ok' => TRUE, 'stat' => $stat]);
@@ -232,7 +248,7 @@ class Reviu extends Auth_Controller
         ]);
 
         $file_path = NULL;
-        if ($this->input->files('file_lhr')['name'] ?? '') {
+        if (!empty($_FILES['file_lhr']['name'])) {
             if (!$this->upload->do_upload('file_lhr')) {
                 $this->session->set_flashdata('error',
                     'Upload LHR gagal: ' . $this->upload->display_errors('', ''));
@@ -375,6 +391,15 @@ class Reviu extends Auth_Controller
                     $pekerjaan->id
                 );
             }
+
+            // Telegram ke Admin Provinsi — reviu selesai, siap verifikasi provinsi
+            telegram_notif_admin_prov(
+                "\xE2\x9C\x85 <b>Reviu Inspektorat Selesai</b>\n\n" .
+                "BKP: <b>" . htmlspecialchars($pekerjaan->kode_bkp) . "</b>\n" .
+                htmlspecialchars($pekerjaan->uraian_bkp) . "\n" .
+                "LHR: No. " . htmlspecialchars($reviu->no_lhr) . "\n\n" .
+                "Pekerjaan siap untuk verifikasi SKPKD Provinsi."
+            );
         }
 
         $pesan_flash = [
@@ -414,12 +439,15 @@ class Reviu extends Auth_Controller
         ])->result();
         foreach ($rows as $p) $pejabat[$p->jenis] = $p;
 
-        // Data reviewer dari form modal (GET param) atau dari data pejabat DB
+        // Prioritas reviewer: GET param → data tersimpan di DB → data pejabat
         $insp = $pejabat['inspektur'] ?? NULL;
         $reviewer = [
-            'nama'    => $this->input->get('nama',    TRUE) ?: ($insp->nama    ?? ''),
-            'nip'     => $this->input->get('nip',     TRUE) ?: ($insp->nip     ?? ''),
-            'jabatan' => $this->input->get('jabatan', TRUE) ?: 'Inspektur',
+            'nama'    => $this->input->get('nama',    TRUE)
+                      ?: ($reviu->reviewer_nama    ?? ($insp->nama    ?? '')),
+            'nip'     => $this->input->get('nip',     TRUE)
+                      ?: ($reviu->reviewer_nip     ?? ($insp->nip     ?? '')),
+            'jabatan' => $this->input->get('jabatan', TRUE)
+                      ?: ($reviu->reviewer_jabatan ?? 'Inspektur'),
         ];
 
         $this->render_plain('reviu/cetak_kertas_kerja', [

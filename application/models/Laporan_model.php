@@ -49,17 +49,14 @@ class Laporan_model extends CI_Model
         $pek_status = [];
         foreach ($pek_rows as $r) $pek_status[$r->status] = (int)$r->total;
 
-        // SP2D & realisasi
-        $sp2d = $this->db
-            ->select('COUNT(*) as total_sp2d,
-                      SUM(pd.nilai_transfer) as total_transfer,
-                      COUNT(CASE WHEN pd.status_transfer="selesai" THEN 1 END) as selesai')
-            ->from('trx_penyaluran_dana pd')
-            ->join('trx_tahapan_penyaluran t', 't.id = pd.tahapan_id')
-            ->join('trx_pekerjaan p', 'p.id = t.pekerjaan_id')
-            ->join('ref_bkp b', 'b.id = p.bkp_id')
-            ->where('b.tahun', $tahun)
-            ->get()->row();
+        // SP2D & realisasi — baca dari trx_permohonan (sumber data SP2D)
+        $sp2d = $this->db->query("
+            SELECT COUNT(*) as total_sp2d,
+                   COALESCE(SUM(nilai_sp2d), 0) as total_transfer,
+                   COUNT(CASE WHEN status_sp2d = 'selesai' THEN 1 END) as selesai
+            FROM trx_permohonan
+            WHERE tahun = ? AND no_sp2d IS NOT NULL
+        ", [$tahun])->row();
 
         // Kab/kota yang sudah punya pekerjaan
         $kab_aktif = $this->db
@@ -92,14 +89,12 @@ class Laporan_model extends CI_Model
         $pek_status = [];
         foreach ($pek_rows as $r) $pek_status[$r->status] = (int)$r->total;
 
-        $sp2d = $this->db
-            ->select('COUNT(*) as total_sp2d, SUM(pd.nilai_transfer) as total_transfer')
-            ->from('trx_penyaluran_dana pd')
-            ->join('trx_tahapan_penyaluran t', 't.id = pd.tahapan_id')
-            ->join('trx_pekerjaan p', 'p.id = t.pekerjaan_id')
-            ->join('ref_bkp b', 'b.id = p.bkp_id')
-            ->where(['b.tahun'=>$tahun, 'b.kabkota_id'=>$kabkota_id])
-            ->get()->row();
+        $sp2d = $this->db->query("
+            SELECT COUNT(*) as total_sp2d,
+                   COALESCE(SUM(nilai_sp2d), 0) as total_transfer
+            FROM trx_permohonan
+            WHERE tahun = ? AND kabkota_id = ? AND no_sp2d IS NOT NULL
+        ", [$tahun, $kabkota_id])->row();
 
         return ['bkp'=>$bkp, 'pek_status'=>$pek_status, 'sp2d'=>$sp2d];
     }
@@ -119,19 +114,20 @@ class Laporan_model extends CI_Model
     /** Distribusi per kabkota (untuk peta/chart provinsi) */
     public function get_per_kabkota($tahun)
     {
+        $t = $this->db->escape($tahun);
         return $this->db
-            ->select('k.nama, k.id as kabkota_id,
+            ->select("k.nama, k.id as kabkota_id,
                       COUNT(DISTINCT b.id) as total_bkp,
                       SUM(b.nilai) as total_nilai_bkp,
                       COUNT(DISTINCT p.id) as total_pekerjaan,
                       SUM(p.nilai_kontrak) as total_kontrak,
-                      SUM(pd.nilai_transfer) as total_disalurkan,
-                      COUNT(DISTINCT pd.id) as total_sp2d')
+                      (SELECT COALESCE(SUM(pm.nilai_sp2d),0) FROM trx_permohonan pm
+                       WHERE pm.kabkota_id = k.id AND pm.tahun = $t AND pm.no_sp2d IS NOT NULL) as total_disalurkan,
+                      (SELECT COUNT(*) FROM trx_permohonan pm
+                       WHERE pm.kabkota_id = k.id AND pm.tahun = $t AND pm.no_sp2d IS NOT NULL) as total_sp2d", FALSE)
             ->from('ref_kabkota k')
-            ->join('ref_bkp b',   'b.kabkota_id = k.id AND b.tahun = '.$this->db->escape($tahun).' AND b.is_active = 1', 'left')
+            ->join('ref_bkp b',       'b.kabkota_id = k.id AND b.tahun = '.$t.' AND b.is_active = 1', 'left')
             ->join('trx_pekerjaan p', 'p.bkp_id = b.id', 'left')
-            ->join('trx_tahapan_penyaluran t', 't.pekerjaan_id = p.id', 'left')
-            ->join('trx_penyaluran_dana pd', 'pd.tahapan_id = t.id', 'left')
             ->where('k.is_active', 1)
             ->group_by('k.id')
             ->order_by('total_disalurkan', 'DESC')

@@ -19,8 +19,10 @@ h2{font-size:11pt;text-align:center;text-transform:uppercase;margin:10px 0 8px;f
 .tbl .right{text-align:right} .tbl .center{text-align:center}
 .tbl .total{background:#f0f0f0;font-weight:bold}
 .ttd{display:flex;justify-content:flex-end;margin-top:24px}
-.ttd-blok{width:38%;text-align:center}
-.ttd-blok .garis{margin-top:55px;border-top:1px solid #000;padding-top:2px;font-weight:bold;font-size:9pt}
+.ttd-blok{width:40%;text-align:center}
+.ttd-blok .ttd-space{height:60px}
+.ttd-blok .ttd-nama{border-top:1px solid #000;padding-top:2px;font-weight:bold;font-size:9pt;display:inline-block;min-width:200px}
+.ttd-blok .ttd-nip{font-size:8pt;margin-top:2px}
 .footer{font-size:8pt;color:#666;border-top:1px solid #ccc;padding-top:6px;margin-top:12px;text-align:center}
 @media print{body{padding:0.8cm 1.2cm}.no-print{display:none}}
 </style>
@@ -94,10 +96,26 @@ h2{font-size:11pt;text-align:center;text-transform:uppercase;margin:10px 0 8px;f
 
 <div class="ttd">
   <div class="ttd-blok">
+    <?php if ($is_provinsi): ?>
+    <!-- Penandatangan Provinsi: Kepala BKAD Provinsi -->
     <p>Medan, <?= $tgl_cetak ?></p>
     <p>Kepala BKAD Provinsi Sumatera Utara</p>
-    <div class="garis">.................................................</div>
-    <div style="font-size:8pt">NIP. ................................</div>
+    <div class="ttd-space"></div>
+    <div class="ttd-nama">.................................................</div>
+    <div class="ttd-nip">NIP. ................................</div>
+    <?php else: ?>
+    <!-- Penandatangan Kab/Kota: Kepala BKAD Kab/Kota dari Data Umum Pemda -->
+    <p><?= $kabkota ? htmlspecialchars($kabkota->nama) : '.....................' ?>, <?= $tgl_cetak ?></p>
+    <p>Kepala BKAD <?= $kabkota ? htmlspecialchars($kabkota->nama) : '.....................' ?></p>
+    <div class="ttd-space"></div>
+    <?php if ($pejabat_ttd && $pejabat_ttd->nama): ?>
+    <div class="ttd-nama"><?= htmlspecialchars($pejabat_ttd->nama) ?></div>
+    <div class="ttd-nip">NIP. <?= htmlspecialchars($pejabat_ttd->nip ?? '................................') ?></div>
+    <?php else: ?>
+    <div class="ttd-nama" style="min-width:220px">&nbsp;</div>
+    <div class="ttd-nip">NIP. ................................</div>
+    <?php endif; ?>
+    <?php endif; ?>
   </div>
 </div>
 <div class="footer">SIBERKAH SUMUT · SE Gubernur Sumut No. 900.1.1.3689 · <?= $tgl_cetak ?></div>

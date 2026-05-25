@@ -50,7 +50,14 @@
       <i class="ti ti-arrow-back-up"></i> Batalkan Pengajuan
     </a>
     <?php endif; ?>
-    <a href="<?= site_url('pekerjaan') ?>" class="btn btn-outline btn-sm"><i class="ti ti-arrow-left"></i> Kembali</a>
+    <?php if ($this->rbac->can('pekerjaan.submit') && $p->status === 'inspektorat_revisi'): ?>
+    <a href="<?= site_url('pekerjaan/kirim-revisi/'.$p->id) ?>"
+       class="btn btn-primary btn-sm"
+       onclick="return confirm('Kirim perbaikan ke Inspektorat?\n\nPastikan pekerjaan sudah diperbaiki sesuai catatan Inspektorat.')">
+      <i class="ti ti-send"></i> Kirim Revisi ke Inspektorat
+    </a>
+    <?php endif; ?>
+    <a href="<?= $back_url ?>" class="btn btn-outline btn-sm"><i class="ti ti-arrow-left"></i> Kembali</a>
   </div>
 </div>
 
@@ -240,13 +247,30 @@
     <!-- Tahapan Penyaluran -->
     <div class="card mb-2">
       <div class="card-title"><i class="ti ti-layers-intersect"></i> Tahapan Penyaluran</div>
-      <?php if (!empty($tahapan)): foreach ($tahapan as $t):
+      <?php if (!empty($tahapan)):
+        // Untuk bertahap: hanya tampilkan Tahap I di sini.
+        // Tahap II akan muncul di menu Capaian setelah Tahap I selesai disalurkan.
+        $tahapan_tampil = ($p->jenis_penyaluran === 'bertahap')
+            ? array_filter($tahapan, fn($t) => $t->kode_tahap === 'tahap_1')
+            : $tahapan;
+      foreach ($tahapan_tampil as $t):
         $dl = $deadline_info[$t->id] ?? ['ok'=>TRUE,'pesan'=>'','bw'=>NULL];
         $lewat = isset($dl['bw']) && $dl['bw'] && date('Y-m-d') > $dl['bw']->batas_pengajuan;
       ?>
       <?php
-      // Nilai total = kontrak + belanja pendukung
-      $nilai_total_pengajuan = ($p->nilai_kontrak ?? 0) + ($p->nilai_belanja_pendukung ?? 0);
+      // Formula nilai pengajuan per tahapan:
+      //   Bertahap Tahap I : (persen_nilai% × nilai_kontrak) + 100% nilai_pendukung
+      //   Bertahap Tahap II: persen_nilai% × nilai_kontrak (pendukung sudah di Tahap I)
+      //   Sekaligus/Khusus : nilai_kontrak + nilai_pendukung
+      $pct      = (float)($t->persen_nilai ?? 100) / 100;
+      $pendukung= (float)($p->nilai_belanja_pendukung ?? 0);
+      if ($p->jenis_penyaluran === 'bertahap') {
+          $nilai_pengajuan = ($p->nilai_kontrak * $pct) + $pendukung;  // Tahap I saja yang ditampilkan
+          $label_formula   = rupiah($p->nilai_kontrak * $pct).' (kontrak) + '.rupiah($pendukung).' (pendukung)';
+      } else {
+          $nilai_pengajuan = ($p->nilai_kontrak ?? 0) + $pendukung;
+          $label_formula   = $pendukung > 0 ? rupiah($p->nilai_kontrak).' + '.rupiah($pendukung) : NULL;
+      }
       // Dokumen draft yang diupload sebelum submit
       $dok_draft_tampil = [
           'SPK'  => ['path' => $p->dok_spk_path  ?? NULL, 'icon' => 'file-text'],
@@ -263,16 +287,13 @@
           <?= badge_status($t->status === 'belum' ? 'draft' : $t->status) ?>
         </div>
 
-        <!-- Nilai pengajuan: kontrak + pendukung -->
+        <!-- Nilai pengajuan dengan formula per jenis penyaluran -->
         <div class="g2 text-sm mb-2">
           <div>
-            <span class="text-muted">Nilai Pengajuan (Kontrak + Pendukung):</span><br>
-            <strong style="color:var(--biru);font-size:15px"><?= rupiah($nilai_total_pengajuan) ?></strong>
-            <?php if (($p->nilai_belanja_pendukung ?? 0) > 0): ?>
-            <div class="text-xs text-muted mt-1">
-              Kontrak: <?= rupiah($p->nilai_kontrak) ?> +
-              Pendukung: <?= rupiah($p->nilai_belanja_pendukung) ?>
-            </div>
+            <span class="text-muted">Nilai Pengajuan:</span><br>
+            <strong style="color:var(--biru);font-size:15px"><?= rupiah($nilai_pengajuan) ?></strong>
+            <?php if ($label_formula): ?>
+            <div class="text-xs text-muted mt-1"><?= $label_formula ?></div>
             <?php endif; ?>
           </div>
           <div>
@@ -340,6 +361,14 @@
         Tahapan akan terbentuk otomatis setelah pekerjaan disubmit ke Inspektorat.
       </div>
       <?php endif; ?>
+
+      <?php if ($p->jenis_penyaluran === 'bertahap' && !empty($tahapan)): ?>
+      <div class="alert alert-info mt-1" style="font-size:12px">
+        <i class="ti ti-info-circle"></i>
+        <div>Jenis <strong>Bertahap</strong>: Tahap II (50%) akan muncul di menu <strong>Capaian</strong>
+        setelah Tahap I selesai disalurkan dan dikonfirmasi.</div>
+      </div>
+      <?php endif; ?>
     </div>
 
     <!-- Timeline Status -->
@@ -372,7 +401,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const mapD = L.map('mapDetail').setView([<?= $p->latitude ?>, <?= $p->longitude ?>], 15);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '© OpenStreetMap contributors', maxZoom: 19
 }).addTo(mapD);
 L.marker([<?= $p->latitude ?>, <?= $p->longitude ?>])

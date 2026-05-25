@@ -92,6 +92,48 @@ class Dashboard extends Auth_Controller
     }
 
     /**
+     * JSON endpoint: data lokasi semua pekerjaan yang punya koordinat
+     * Digunakan oleh peta cluster Leaflet di dashboard
+     */
+    public function peta_data()
+    {
+        $tahun       = $this->input->get('tahun') ?? $this->tahun;
+        $is_provinsi = $this->rbac->isProvinsi();
+
+        $this->db->select('p.id, p.latitude, p.longitude, p.lokasi_deskripsi, p.status, p.nilai_kontrak, b.kode_bkp, b.uraian_bkp, k.nama as nama_kabkota')
+            ->from('trx_pekerjaan p')
+            ->join('ref_bkp b', 'b.id = p.bkp_id')
+            ->join('ref_kabkota k', 'k.id = b.kabkota_id')
+            ->where('b.tahun', $tahun)
+            ->where('p.latitude IS NOT NULL', NULL, FALSE)
+            ->where('p.longitude IS NOT NULL', NULL, FALSE)
+            ->where('p.latitude !=', '')
+            ->where('p.longitude !=', '');
+
+        if (!$is_provinsi) {
+            $this->db->where('b.kabkota_id', (int)$this->kabkota_id);
+        }
+
+        $rows = $this->db->get()->result();
+
+        $data = [];
+        foreach ($rows as $r) {
+            $data[] = [
+                'lat'    => (float)$r->latitude,
+                'lng'    => (float)$r->longitude,
+                'id'     => (int)$r->id,
+                'kode'   => $r->kode_bkp,
+                'uraian' => $r->uraian_bkp,
+                'kab'    => $r->nama_kabkota,
+                'status' => $r->status,
+                'lokasi' => $r->lokasi_deskripsi,
+            ];
+        }
+
+        $this->json($data);
+    }
+
+    /**
      * Kumpulkan daftar aksi mendesak sesuai role user saat ini.
      * Digunakan untuk blok "Perlu Dilakukan" di dashboard.
      * Return array item: [icon, label, url, warna]

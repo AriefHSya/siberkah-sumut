@@ -12,15 +12,22 @@ $status_labels = [
 ?>
 <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
   <div class="stat-card" style="min-width:100px;text-align:center">
-    <div class="stat-val" style="color:var(--biru)"><?= count($list) ?></div>
+    <div class="stat-val" style="color:var(--biru)"><?= $paging['total'] ?></div>
     <div class="stat-label">Total Antrian</div>
   </div>
-  <?php foreach ($status_labels as $st => [$cl,$lab]): if (empty($count_status[$st])) continue; ?>
+  <?php foreach ($status_labels as $st => [$cl,$lab]): ?>
+  <?php if ($st === 'inspektorat_approved' || empty($count_status[$st])) continue; ?>
   <div class="stat-card" style="min-width:90px;text-align:center">
     <div class="stat-val" style="font-size:20px;color:var(--<?= $cl ?>-mid,var(--biru))"><?= $count_status[$st] ?></div>
     <div class="stat-label"><?= $lab ?></div>
   </div>
   <?php endforeach; ?>
+  <a href="<?= site_url('reviu?status=inspektorat_approved') ?>" style="text-decoration:none">
+    <div class="stat-card" style="min-width:100px;text-align:center;cursor:pointer">
+      <div class="stat-val" style="color:var(--hijau-mid)"><?= $count_status['inspektorat_approved'] ?? 0 ?></div>
+      <div class="stat-label">Reviu Selesai</div>
+    </div>
+  </a>
 </div>
 
 <!-- Filter -->
@@ -98,9 +105,13 @@ $status_labels = [
             'opd_input'            => ['biru',  'Menunggu'],
             'inspektorat_reviu'    => ['kuning','Dalam Reviu'],
             'inspektorat_revisi'   => ['oranye','Dikembalikan'],
-            'inspektorat_approved' => ['hijau', 'Disetujui'],
+            'inspektorat_approved' => ['hijau', 'Selesai'],
           ];
-          $sl = $st_label[$r->status] ?? ['abu',$r->status];
+          if ($r->hasil_reviu === 'disetujui' && !isset($st_label[$r->status])) {
+              $sl = ['hijau', 'Selesai'];
+          } else {
+              $sl = $st_label[$r->status] ?? ['abu', $r->status];
+          }
           ?>
           <span class="badge badge-<?= $sl[0] ?>"><?= $sl[1] ?></span>
         </td>

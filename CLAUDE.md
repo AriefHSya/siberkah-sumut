@@ -23,11 +23,17 @@ OPD Teknis → input form 17 field + pin lokasi + upload dokumen
     ↓ (cek batas waktu dari ref_batas_waktu)
 Inspektorat → reviu 21-item checklist otomatis + upload LHR
     ↓
-SKPKD Kab/Kota → verifikasi + upload permohonan pencairan
+SKPKD Kab/Kota → verifikasi kegiatan individual (menu: Verifikasi)
     ↓
-Admin Provinsi → verifikasi final + input SP2D + konfirmasi transfer
+SKPKD Kab/Kota → buat Permohonan bundel kegiatan + ajukan (menu: Permohonan)
     ↓
-SKPKD Kab/Kota → konfirmasi penerimaan dana (upload bukti RKUD)
+Admin Provinsi → verifikasi per-tahapan + cetak Nota Kabid/Kabadan/Ringkasan
+    ↓
+Admin Provinsi → input SP2D per-permohonan (menu: Penyaluran)
+    ↓
+SKPKD Kab/Kota → konfirmasi RKUD: kode transaksi + nilai + tanggal (menu: Penyaluran)
+    ↓ (jika Tahap I bertahap)
+OPD Teknis → input Capaian Output Fisik (menu: Capaian)
 ```
 
 Satu BKP = satu pekerjaan. Jenis penyaluran: `bertahap` (2 tahap), `sekaligus`, `khusus_mendesak`, `khusus_bencana`.
@@ -56,23 +62,29 @@ application/
 ├── models/
 │   ├── User_model.php
 │   ├── Role_model.php
-│   ├── Parameter_model.php     # ref_tahun, ref_bkp, ref_batas_waktu, ref_pemda
+│   ├── Parameter_model.php     # ref_tahun, ref_bkp, ref_batas_waktu, ref_pemda, ref_pejabat_bkad_prov
 │   ├── Notifikasi_model.php
 │   ├── Pekerjaan_model.php     # trx_pekerjaan, trx_tahapan, trx_dokumen
 │   ├── Reviu_model.php         # trx_reviu_inspektorat, trx_checklist_reviu
 │   ├── Verifikasi_kab_model.php
-│   ├── Verifikasi_prov_model.php
+│   ├── Verifikasi_prov_model.php  # trx_verifikasi_skpkd_prov, trx_penyaluran_dana
+│   ├── Permohonan_model.php    # trx_permohonan, trx_permohonan_item
+│   ├── Penyaluran_kab_model.php   # konfirmasi RKUD oleh SKPKD Kab/Kota
+│   ├── Capaian_model.php       # trx_capaian_output
 │   └── Laporan_model.php       # statistik, funnel, rekap per bidang/kab
 │
 ├── controllers/
 │   ├── Auth.php            # login, logout — extends Guest_Controller
 │   ├── Dashboard.php       # stats, funnel, antrian aksi per role
-│   ├── Parameter.php       # tahun, batas_waktu, bkp, pemda, log
+│   ├── Parameter.php       # tahun, batas_waktu, bkp, pemda, pejabat_prov, log
 │   ├── Pekerjaan.php       # input, edit, detail, submit, upload_dok, cetak
 │   ├── Reviu.php           # form reviu, simpan_checklist, upload_lhr, putuskan
-│   ├── Verif_kab.php       # verifikasi kab, upload_dok, konfirmasi dana
-│   ├── Verif_prov.php      # verifikasi prov, simpan_sp2d, konfirmasi_transfer
-│   ├── Laporan.php         # rekap_bkp, rekap_penyaluran, export CSV
+│   ├── Verif_kab.php       # verifikasi kab individual, upload_dok, putuskan
+│   ├── Permohonan.php      # buat bundel permohonan, ajukan ke provinsi
+│   ├── Verif_prov.php      # verifikasi prov, cetak nota, simpan_sp2d
+│   ├── Penyaluran_kab.php  # konfirmasi RKUD oleh SKPKD Kab/Kota
+│   ├── Capaian.php         # input capaian output fisik (setelah Tahap I dikonfirmasi)
+│   ├── Laporan.php         # rekap_bkp, rekap_penyaluran, export CSV/XLSX
 │   ├── Admin_users.php     # CRUD user dengan role-level guard
 │   ├── Admin_roles.php     # CRUD role, save_permissions, logs
 │   └── Welcome.php         # landing page
@@ -81,11 +93,14 @@ application/
     ├── layouts/main.php    # layout utama: sidebar RBAC-driven, topbar, flash
     ├── auth/               # login.php
     ├── dashboard/          # index.php, pilih_tahun.php
-    ├── parameter/          # tahun, batas_waktu, bkp, pemda, log
+    ├── parameter/          # tahun, batas_waktu, bkp, pemda, pejabat_provinsi, log
     ├── pekerjaan/          # index, form (17 field + Leaflet), detail, cetak
     ├── reviu/              # index, form (checklist), cetak_kertas_kerja, cetak_rekap
     ├── verif_kab/          # index, form, cetak_rekap
-    ├── verif_prov/         # index, form (SP2D), cetak_rekap_penyaluran
+    ├── permohonan/         # index, detail (bundel kegiatan)
+    ├── verif_prov/         # index, detail_permohonan, form, cetak_nota_*, cetak_rekap_penyaluran
+    ├── penyaluran_kab/     # index (daftar permohonan + konfirmasi RKUD)
+    ├── capaian/            # index, form (capaian output fisik)
     ├── laporan/            # rekap_bkp, rekap_penyaluran, cetak_rekap_bkp
     └── admin/              # users/ & roles/
 
@@ -216,6 +231,7 @@ verif_kab.view, verif_kab.input, verif_kab.approve
 verif_kab.konfirmasi, verif_kab.cetak_rekap
 verif_prov.view, verif_prov.approve
 penyaluran.view, penyaluran.input_sp2d
+penyaluran_kab.view, penyaluran_kab.konfirmasi
 capaian.view, capaian.input
 laporan.view, laporan.cetak_rekap_bkp, laporan.cetak_rekap_penyaluran, laporan.export
 admin.view, admin.user.view, admin.user.create, admin.user.edit
@@ -422,16 +438,21 @@ Fitur-fitur ini ada dalam blueprint tapi belum diimplementasi — **prioritas un
 
 | Fitur | File Terkait | Keterangan |
 |---|---|---|
-| **Import Excel BKP** | `views/parameter/bkp_import.php` | View sudah ada tapi isinya stub. Butuh: PhpSpreadsheet, controller `bkp_proses_import`, `bkp_preview_import`, validasi duplikat |
-| **Capaian Output** | Belum ada controller/view | Tabel `trx_capaian_output` sudah ada di DB. Diperlukan setelah Tahap I dikonfirmasi |
-| **Export Excel (XLSX)** | `Laporan.php` | Saat ini hanya CSV. Perlu PhpSpreadsheet untuk format XLSX proper |
+| **Import Excel BKP** | `views/parameter/bkp_import.php` | View ada tapi stub. Butuh: PhpSpreadsheet, controller `bkp_proses_import`, `bkp_preview_import`, validasi duplikat |
 | **Notifikasi Email** | `Notifikasi_model.php` | Hanya in-app. Perlu tambah SMTP / PHPMailer |
-| **Reset Password via Email** | `Admin_users.php` | Tombol reset sudah ada, tapi hanya reset ke 'password123' |
-| **Foto Dokumentasi** | `trx_capaian_output.foto_path` | Field ada di DB, belum ada UI upload foto capaian |
-| **Peta Overview Provinsi** | `Dashboard.php` | Dashboard sudah ada tabel per kab, tapi belum ada peta Leaflet cluster semua kab |
-| **Pagination** | Semua index view | Tabel tanpa pagination — bisa jadi lambat jika data besar |
-| **API JSON** | — | Tidak ada endpoint API. Perlu jika akan ada integrasi sistem lain |
-| **Notif Realtime** | — | Saat ini notif hanya muncul saat page refresh |
+| **Reset Password via Email** | `Admin_users.php` | Reset saat ini set ke 'password123', belum kirim email |
+| **Peta Overview Provinsi** | `Dashboard.php` | Tabel per kab ada, peta Leaflet cluster belum dibuat |
+| **API JSON** | — | Tidak ada endpoint API. Perlu jika integrasi dengan sistem e-budgeting daerah |
+| **Notif Realtime** | — | Notifikasi hanya muncul saat page refresh |
+
+**Fitur SELESAI** (sebelumnya tercatat sebagai stub, kini sudah diimplementasi):
+- ✅ **Capaian Output** — `Capaian.php` + `Capaian_model.php` + `capaian/index.php` + `capaian/form.php`
+- ✅ **Export XLSX** — `Laporan.php` menggunakan XlsxWriter library
+- ✅ **Pagination** — `Admin_users`, `Parameter BKP` sudah ada pagination
+- ✅ **Penyaluran Kab** — `Penyaluran_kab.php` + konfirmasi RKUD (kode transaksi, nilai, tanggal)
+- ✅ **Permohonan bundel** — SKPKD Kab buat bundel kegiatan dalam satu permohonan
+- ✅ **Nota Dinas cetak** — `cetak_nota_kabid.php`, `cetak_nota_kabadan.php`, `cetak_ringkasan.php`
+- ✅ **Pejabat BKAD Provinsi** — `ref_pejabat_bkad_prov` + parameter UI
 
 ---
 
@@ -633,24 +654,69 @@ $db['default']['database'] // 'siberkah_sumut'
 
 ---
 
+## MIGRASI DATABASE (wajib dijalankan manual)
+
+Jalankan SQL berikut jika belum ada di database:
+
+```sql
+-- Tabel pejabat BKAD Provinsi (untuk TTD Nota Dinas)
+CREATE TABLE IF NOT EXISTS ref_pejabat_bkad_prov (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  tahun YEAR NOT NULL,
+  jenis ENUM('kepala_badan','kabid_anggaran','bendahara_pengeluaran') NOT NULL,
+  nama VARCHAR(200) NOT NULL,
+  nip VARCHAR(50) NULL,
+  jabatan VARCHAR(200) NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_pejabat_bkad (tahun, jenis)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Kolom bundel permohonan + SP2D + RKUD di trx_permohonan
+ALTER TABLE trx_permohonan
+  ADD COLUMN IF NOT EXISTS nota_kabid_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS nota_kabadan_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS ringkasan_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS no_sp2d VARCHAR(100) NULL,
+  ADD COLUMN IF NOT EXISTS tgl_sp2d DATE NULL,
+  ADD COLUMN IF NOT EXISTS nilai_sp2d BIGINT UNSIGNED NULL,
+  ADD COLUMN IF NOT EXISTS rek_asal VARCHAR(100) NULL,
+  ADD COLUMN IF NOT EXISTS nama_bank_asal VARCHAR(100) NULL,
+  ADD COLUMN IF NOT EXISTS rek_tujuan VARCHAR(100) NULL,
+  ADD COLUMN IF NOT EXISTS nama_bank_tujuan VARCHAR(100) NULL,
+  ADD COLUMN IF NOT EXISTS status_sp2d ENUM('proses','selesai','gagal') NULL,
+  ADD COLUMN IF NOT EXISTS kode_transaksi_rkud VARCHAR(100) NULL,
+  ADD COLUMN IF NOT EXISTS nilai_rkud BIGINT UNSIGNED NULL,
+  ADD COLUMN IF NOT EXISTS tgl_rkud DATE NULL,
+  ADD COLUMN IF NOT EXISTS tgl_konfirmasi_rkud DATETIME NULL;
+
+-- Permission baru untuk Penyaluran Kab/Kota
+INSERT IGNORE INTO permissions (kode, nama, modul, jenis) VALUES
+('penyaluran_kab.view',       'Lihat Penyaluran Kab',       'penyaluran_kab', 'menu'),
+('penyaluran_kab.konfirmasi', 'Konfirmasi RKUD',            'penyaluran_kab', 'aksi');
+
+-- Assign ke role skpkd_kabkota (sesuaikan role_id)
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r, permissions p
+WHERE r.kode = 'skpkd_kabkota'
+  AND p.kode IN ('penyaluran_kab.view','penyaluran_kab.konfirmasi');
+```
+
+---
+
 ## ROADMAP PENGEMBANGAN
 
 ### Prioritas Tinggi
 1. **Import Excel BKP** — paling sering dibutuhkan operator, data bisa ratusan baris
-2. **Capaian Output fisik** — wajib untuk Tahap II pada jenis bertahap
-3. **Pagination** — tabel bisa >200 row jika semua kab/kota aktif
-4. **Validasi form sisi klien** — saat ini hanya validasi server-side
 
 ### Prioritas Menengah
-5. **Export XLSX** — lebih rapi dari CSV untuk laporan ke pimpinan
-6. **Peta cluster Leaflet** — visualisasi lokasi semua pekerjaan di satu peta provinsi
-7. **Notifikasi email** — SMTP untuk notif penting (batas waktu mendekati, dll)
-8. **Print to PDF langsung** — saat ini pakai browser print; bisa upgrade ke wkhtmltopdf/DomPDF
+2. **Peta cluster Leaflet** — visualisasi lokasi semua pekerjaan di satu peta provinsi
+3. **Notifikasi email** — SMTP untuk notif penting (batas waktu mendekati, dll)
 
 ### Prioritas Rendah
-9. **Dashboard chart interaktif** — Chart.js/ApexCharts untuk grafik realisasi
-10. **API JSON endpoint** — untuk integrasi dengan sistem e-budgeting daerah
-11. **Audit log UI** — tampilkan `user_logs` lengkap dengan filter di menu admin
+4. **Dashboard chart interaktif** — Chart.js/ApexCharts untuk grafik realisasi
+5. **API JSON endpoint** — untuk integrasi dengan sistem e-budgeting daerah
+6. **Audit log UI** — tampilkan `user_logs` lengkap dengan filter di menu admin
 12. **Multi-bahasa** — saat ini hanya Bahasa Indonesia
 13. **Dark mode** — CSS variables sudah siap, tinggal tambah theme toggle
 

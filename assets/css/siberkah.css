@@ -478,16 +478,14 @@ body.landing-body { min-height: 100vh; height: auto; overflow: auto; }
 .pilar-ic-kuning { color: #F5C469; }
 .pilar-ic-merah  { color: #F08080; }
 
-/* ── Tombol kembali ke landing dari login ── */
+/* ── Tombol kembali ke landing — di-override per halaman di bawah ── */
 .back-to-landing {
   position: fixed; top: 16px; left: 16px; z-index: 10;
   display: inline-flex; align-items: center; gap: 6px;
-  background: rgba(255,255,255,0.15); backdrop-filter: blur(4px);
-  border: 1px solid rgba(255,255,255,0.3); border-radius: 8px;
-  padding: 8px 14px; font-size: 13px; color: #fff; text-decoration: none;
+  border-radius: 8px; border: 1px solid;
+  padding: 8px 14px; font-size: 13px; text-decoration: none;
   transition: background 0.15s;
 }
-.back-to-landing:hover { background: rgba(255,255,255,0.25); text-decoration: none; color: #fff; }
 
 /* ── Responsive landing ── */
 @media (max-width: 900px) { .foto-box { display: none; } .slideshow-box { height: 160px; } }
@@ -507,41 +505,54 @@ body.landing-body { min-height: 100vh; height: auto; overflow: auto; }
    konflik dengan reset global di atas.
    ══════════════════════════════════════════════════════════════ */
 
-/* Override body untuk layout login */
+/* Override body untuk layout login — latar putih */
 body.login-body {
-  background: linear-gradient(135deg, #0d3f7a, #1A5EA8);
+  background: #f0f4f8;
   min-height: 100vh; height: auto; overflow: auto;
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }
 
 /* Wrapper kartu login */
 .login-wrap   { width: 100%; max-width: 440px; }
-.login-header { text-align: center; margin-bottom: 28px; color: #fff; }
-.login-header h1 { font-size: 28px; font-weight: 700; letter-spacing: 1px; }
-.login-header p  { font-size: 13px; opacity: 0.7; margin-top: 6px; }
+
+/* Header: teks & logo di atas kartu biru */
+.login-header { text-align: center; margin-bottom: 0; color: #1A5EA8; }
+.login-header h1 { font-size: 24px; font-weight: 700; letter-spacing: 1px; }
+.login-header p  { font-size: 12px; color: #5F5E5A; margin-top: 4px; }
 .login-logo      { width: 72px; height: 72px; object-fit: contain; margin-bottom: 10px; }
 
-/* Kartu form putih */
-.login-card { background: #fff; border-radius: 14px; padding: 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-
-/* Alert error di dalam kartu login */
-.login-card .alert { padding: 12px 14px; border-radius: 8px; margin-bottom: 18px; font-size: 13px; display: flex; align-items: center; gap: 8px; background: #FCEBEB; color: #791F1F; border: 1px solid #F7C1C1; }
-
-/* Form group dalam login — margin-based (berbeda dari admin panel yang flex) */
-.login-card .form-group { margin-bottom: 16px; }
-.login-card label { display: block; font-size: 12px; font-weight: 600; color: #4b5563; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.4px; }
-.login-card input[type="text"], .login-card input[type="password"] {
-  width: 100%; padding: 10px 13px; border: 1.5px solid #e5e7eb; border-radius: 8px;
-  font-size: 14px; transition: border-color 0.15s;
+/* Kartu form biru */
+.login-card {
+  background: linear-gradient(145deg, #1A5EA8, #134a8a);
+  border-radius: 16px; padding: 32px;
+  box-shadow: 0 20px 60px rgba(26,94,168,0.35);
+  margin-top: 20px;
 }
-.login-card input:focus { outline: none; border-color: #1A5EA8; box-shadow: 0 0 0 3px rgba(26,94,168,0.12); }
 
-/* Tombol submit login */
-.btn-login { width: 100%; padding: 12px; background: #1A5EA8; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; transition: background 0.15s; }
-.btn-login:hover { background: #134a8a; }
+/* Alert error di dalam kartu */
+.login-card .alert { padding: 12px 14px; border-radius: 8px; margin-bottom: 18px; font-size: 13px; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
 
-/* Footer kecil di bawah kartu */
-.login-footer { text-align: center; margin-top: 24px; color: rgba(255,255,255,0.6); font-size: 12px; }
+/* Form group dalam login */
+.login-card .form-group { margin-bottom: 16px; }
+.login-card label { display: block; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.8); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+.login-card input[type="text"], .login-card input[type="password"] {
+  width: 100%; padding: 10px 13px; border: 1.5px solid rgba(255,255,255,0.3);
+  border-radius: 8px; font-size: 14px; transition: all 0.15s;
+  background: rgba(255,255,255,0.12); color: #fff;
+}
+.login-card input::placeholder { color: rgba(255,255,255,0.45); }
+.login-card input:focus { outline: none; border-color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.2); box-shadow: 0 0 0 3px rgba(255,255,255,0.1); }
+
+/* Tombol submit */
+.btn-login { width: 100%; padding: 12px; background: #fff; color: #1A5EA8; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 8px; transition: all 0.15s; }
+.btn-login:hover { background: #E6F1FB; }
+
+/* Tombol kembali ke landing di atas latar putih */
+.back-to-landing { color: #1A5EA8; background: rgba(26,94,168,0.08); border-color: rgba(26,94,168,0.2); }
+.back-to-landing:hover { background: rgba(26,94,168,0.15); color: #1A5EA8; }
+
+/* Footer kecil */
+.login-footer { text-align: center; margin-top: 20px; color: #5F5E5A; font-size: 12px; }
 .login-footer p + p { margin-top: 4px; }
 
 /* ══════════════════════════════════════════════════════════════

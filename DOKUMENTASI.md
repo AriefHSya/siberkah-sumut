@@ -27,12 +27,16 @@ CI_Controller
     │   ├── Dashboard
     │   ├── Pekerjaan
     │   ├── Reviu
-    │   ├── Verif_kab
-    │   ├── Verif_prov
+    │   ├── Verif_kab        → verifikasi kegiatan individual oleh SKPKD Kab
+    │   ├── Permohonan       → bundel kegiatan → ajukan ke Provinsi
+    │   ├── Verif_prov       → verifikasi provinsi + cetak nota + input SP2D
+    │   ├── Penyaluran_kab   → konfirmasi RKUD oleh SKPKD Kab (menu Penyaluran)
+    │   ├── Capaian          → input capaian output fisik (OPD, setelah Tahap I dikonfirmasi)
     │   ├── Laporan
     │   ├── Parameter
     │   ├── Admin_users
-    │   └── Admin_roles
+    │   ├── Admin_roles
+    │   └── Admin_telegram
     └── Guest_Controller   → redirect ke dashboard jika sudah login
         ├── Auth
         └── Welcome
@@ -551,21 +555,35 @@ Model utama untuk transaksi pekerjaan.
 
 ### `Verifikasi_prov_model.php`
 
-**Tabel:** `trx_verifikasi_skpkd_prov`, `trx_penyaluran_dana`
+**Tabel:** `trx_verifikasi_skpkd_prov`, `trx_penyaluran_dana`, `trx_permohonan`
 
 | Method | Signature | Return | Fungsi |
 |--------|-----------|--------|--------|
-| `get_antrian` | `get_antrian($filters=[])` | array | Antrian verif prov |
+| `get_permohonan_list` | `get_permohonan_list($filters, $limit, $offset)` | array | Daftar permohonan masuk |
+| `get_permohonan_by_id` | `get_permohonan_by_id($id)` | object | Detail permohonan |
+| `get_permohonan_items_for_prov` | `get_permohonan_items_for_prov($pm_id)` | array | Kegiatan dalam permohonan |
+| `get_antrian` | `get_antrian($filters=[])` | array | Antrian tahapan individual siap verif prov |
 | `get_verif_by_tahapan` | `get_verif_by_tahapan($tahapan_id)` | object | Verif prov record |
-| `get_verif_by_id` | `get_verif_by_id($id)` | object | Get by ID |
 | `buat_atau_ambil_verif` | `buat_atau_ambil_verif($tahapan_id, $user_id)` | int | Insert jika belum ada; return ID |
 | `update_verif` | `update_verif($id, $data)` | bool | Update |
-| `get_penyaluran` | `get_penyaluran($tahapan_id)` | object | SP2D data |
-| `simpan_sp2d` | `simpan_sp2d($tahapan_id, $data, $user_id)` | int | Insert SP2D; return `penyaluran_id` |
-| `update_status_transfer` | `update_status_transfer($penyaluran_id, $status)` | void | Update kolom `status_transfer` |
-| `get_daftar_sp2d` | `get_daftar_sp2d($tahun, $kabkota_id=NULL)` | array | Daftar SP2D + join pekerjaan/kabkota |
-| `rekap_penyaluran` | `rekap_penyaluran($tahun)` | object | Sum total transfer per tahun |
-| `count_by_status` | `count_by_status($tahun)` | array | Count per status (dashboard) |
+| `simpan_sp2d` | `simpan_sp2d($tahapan_id, $data, $user_id)` | int | Upsert SP2D per-tahapan; return ID |
+| `get_daftar_sp2d` | `get_daftar_sp2d($tahun, $kabkota_id=NULL)` | array | Daftar SP2D per-permohonan |
+| `rekap_penyaluran` | `rekap_penyaluran($tahun)` | object | Sum total transfer dari `trx_permohonan` |
+
+---
+
+### `Penyaluran_kab_model.php` *(baru)*
+
+**Tabel:** `trx_permohonan`, `trx_permohonan_item`, `trx_tahapan_penyaluran`
+
+| Method | Signature | Return | Fungsi |
+|--------|-----------|--------|--------|
+| `get_list` | `get_list($kabkota_id, $tahun, $filters, $limit, $offset)` | array | Daftar permohonan SKPKD Kab untuk tampilan Penyaluran |
+| `count_list` | `count_list($kabkota_id, $tahun, $filters)` | int | Count untuk paginasi |
+| `get_by_id` | `get_by_id($pm_id)` | object | Detail satu permohonan |
+| `get_items` | `get_items($pm_id)` | array | Kegiatan (tahapan) dalam permohonan |
+| `simpan_konfirmasi` | `simpan_konfirmasi($pm_id, $data)` | bool | Simpan kode transaksi RKUD + nilai + tanggal |
+| `rekap` | `rekap($kabkota_id, $tahun)` | object | Stat cards: total permohonan, ada SP2D, dikonfirmasi, total RKUD |
 
 ---
 
@@ -859,11 +877,13 @@ draft → opd_submitted → inspektorat_reviu → inspektorat_revisi
 | `trx_checklist_reviu` | `id`, `reviu_id`, `item_id`, `nilai`, `catatan` | Isian checklist per item |
 | `trx_verifikasi_skpkd_kab` | `id`, `tahapan_id`, `user_id`, `hasil_verifikasi`, `catatan` | Verifikasi kab (UNIQUE per tahapan) |
 | `trx_verifikasi_skpkd_prov` | `id`, `tahapan_id`, `user_id`, `hasil_verifikasi`, `catatan` | Verifikasi prov (UNIQUE per tahapan) |
-| `trx_penyaluran_dana` | `id`, `tahapan_id`, `no_sp2d`, `tgl_sp2d`, `nilai_transfer`, `status_transfer` | Data SP2D (UNIQUE per tahapan) |
+| `trx_permohonan` | `id`, `kabkota_id`, `tahun`, `no_permohonan`, `jenis_penyaluran`, `kode_tahap`, `status`, `no_sp2d`, `tgl_sp2d`, `nilai_sp2d`, `status_sp2d`, `kode_transaksi_rkud`, `nilai_rkud`, `tgl_rkud`, `tgl_konfirmasi_rkud`, `nota_kabid_at`, `nota_kabadan_at`, `ringkasan_at` | Bundel permohonan pencairan + data SP2D + konfirmasi RKUD |
+| `trx_permohonan_item` | `id`, `permohonan_id`, `tahapan_id` | Relasi permohonan ↔ tahapan |
+| `trx_penyaluran_dana` | `id`, `tahapan_id`, `no_sp2d`, `tgl_sp2d`, `nilai_transfer`, `status_transfer` | SP2D per-tahapan (sync dari trx_permohonan untuk laporan) |
 | `trx_bukti_transfer` | `id`, `penyaluran_id`, `file_path`, `keterangan` | Bukti RKUD dari kab |
 | `trx_status_history` | `id`, `pekerjaan_id`, `status_lama`, `status_baru`, `user_id`, `catatan` | Audit trail status |
 | `trx_notifikasi` | `id`, `user_id`, `judul`, `pesan`, `jenis`, `url`, `is_read` | In-app notification |
-| `trx_capaian_output` | `id`, `tahapan_id`, `deskripsi`, `foto_path` | Capaian output fisik (tabel ada, UI belum) |
+| `trx_capaian_output` | `id`, `tahapan_id`, `persen_fisik`, `tgl_realisasi`, `no_ba_kemajuan`, `keterangan`, `foto_path` | Capaian output fisik setelah Tahap I dikonfirmasi |
 
 ### Tabel Log (`_log`)
 

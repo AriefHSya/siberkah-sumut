@@ -475,6 +475,119 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
 <?php endif; ?>
 
 <!-- ══════════════════════════════════════════════════════════════
+     PETA LOKASI PEKERJAAN — Leaflet Marker Cluster
+     ══════════════════════════════════════════════════════════════ -->
+<div class="card mb-2" id="peta-card">
+  <div class="card-title">
+    <i class="ti ti-map-pin"></i> Peta Lokasi Pekerjaan TA <?= $tahun ?>
+    <span id="peta-count" class="text-xs text-muted fw-500" style="margin-left:8px"></span>
+    <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
+      <span class="text-xs" style="display:flex;gap:8px;align-items:center">
+        <span style="display:flex;gap:3px;align-items:center"><span style="width:10px;height:10px;border-radius:50%;background:#1A5EA8;display:inline-block"></span> Proses</span>
+        <span style="display:flex;gap:3px;align-items:center"><span style="width:10px;height:10px;border-radius:50%;background:#3B6D11;display:inline-block"></span> Selesai</span>
+        <span style="display:flex;gap:3px;align-items:center"><span style="width:10px;height:10px;border-radius:50%;background:#854F0B;display:inline-block"></span> Draft</span>
+        <span style="display:flex;gap:3px;align-items:center"><span style="width:10px;height:10px;border-radius:50%;background:#A32D2D;display:inline-block"></span> Ditolak</span>
+      </span>
+    </span>
+  </div>
+  <div id="peta-container" style="height:420px;border-radius:6px;overflow:hidden;background:#f0f0f0;display:flex;align-items:center;justify-content:center">
+    <span class="text-muted text-sm"><i class="ti ti-loader" style="font-size:20px;margin-bottom:4px;display:block;text-align:center"></i> Memuat peta…</span>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+(function() {
+  var container = document.getElementById('peta-container');
+  if (!container || typeof L === 'undefined') return;
+
+  // Init map — center di Sumatera Utara
+  container.innerHTML = '';
+  var map = L.map(container).setView([2.1674, 99.0167], 7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 18,
+  }).addTo(map);
+
+  // Warna berdasarkan status
+  var statusColor = {
+    'draft': '#854F0B',
+    'ditolak': '#A32D2D',
+    'selesai': '#3B6D11',
+    'disalurkan_tahap1': '#3B6D11',
+    'disalurkan_tahap2': '#3B6D11',
+    'disalurkan_sekaligus': '#3B6D11',
+    'dikonfirmasi_tahap1': '#27500A',
+    'dikonfirmasi': '#27500A',
+  };
+  function getColor(status) {
+    return statusColor[status] || '#1A5EA8';
+  }
+  function makeIcon(color) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="30" viewBox="0 0 22 30">' +
+      '<path d="M11 0C4.92 0 0 4.92 0 11c0 8.25 11 19 11 19S22 19.25 22 11C22 4.92 17.08 0 11 0z" fill="' + color + '" stroke="#fff" stroke-width="1.5"/>' +
+      '<circle cx="11" cy="11" r="4.5" fill="#fff"/>' +
+      '</svg>';
+    return L.divIcon({
+      html: svg,
+      iconSize: [22, 30],
+      iconAnchor: [11, 30],
+      popupAnchor: [0, -28],
+      className: '',
+    });
+  }
+
+  var cluster = L.markerClusterGroup({ maxClusterRadius: 60 });
+
+  // Fetch data dari server
+  fetch('<?= site_url('dashboard/peta-data?tahun='.$tahun) ?>')
+    .then(function(r) { return r.json(); })
+    .then(function(points) {
+      var countEl = document.getElementById('peta-count');
+      if (!points || !points.length) {
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.justifyContent = 'center';
+        container.innerHTML = '<span class="text-muted text-sm">Belum ada pekerjaan dengan koordinat lokasi TA <?= $tahun ?>.</span>';
+        return;
+      }
+      if (countEl) countEl.textContent = '— ' + points.length + ' titik';
+
+      var bounds = [];
+      points.forEach(function(p) {
+        if (!p.lat || !p.lng) return;
+        var icon   = makeIcon(getColor(p.status));
+        var popup  = '<div style="font-size:12px;min-width:180px">' +
+                     '<div style="font-weight:600;color:#1A5EA8;margin-bottom:2px">' + p.kode + '</div>' +
+                     '<div style="margin-bottom:4px">' + p.uraian + '</div>' +
+                     '<div style="color:#6b7280;margin-bottom:4px">' + p.kab + '</div>' +
+                     (p.lokasi ? '<div style="color:#6b7280;font-size:11px;margin-bottom:4px">' + p.lokasi + '</div>' : '') +
+                     '<a href="<?= site_url('pekerjaan/detail/') ?>' + p.id + '" style="color:#1A5EA8;font-weight:600;font-size:11px">Lihat Detail →</a>' +
+                     '</div>';
+        L.marker([p.lat, p.lng], { icon: icon })
+          .bindPopup(popup)
+          .addTo(cluster);
+        bounds.push([p.lat, p.lng]);
+      });
+
+      map.addLayer(cluster);
+      if (bounds.length > 1) {
+        map.fitBounds(bounds, { padding: [32, 32] });
+      } else if (bounds.length === 1) {
+        map.setView(bounds[0], 13);
+      }
+    })
+    .catch(function() {
+      container.innerHTML = '<span class="text-muted text-sm">Gagal memuat data peta.</span>';
+    });
+})();
+</script>
+
+<!-- ══════════════════════════════════════════════════════════════
      CHART.JS INITIALIZATION
      Data di-pass dari PHP via json_encode — aman karena tidak ada
      user input di sini, semua data dari DB yang sudah trusted.

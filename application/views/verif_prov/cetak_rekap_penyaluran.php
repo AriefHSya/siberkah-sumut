@@ -76,17 +76,23 @@ TAHUN ANGGARAN <?= $tahun ?></h2>
 </div>
 
 <!-- Tabel SP2D -->
+<?php
+function _label_jenis_sp2d($jenis, $kode) {
+    if ($jenis === 'bertahap') return 'Bertahap ' . ($kode === 'tahap_1' ? 'Tahap I' : 'Tahap II');
+    $m = ['sekaligus'=>'Sekaligus','khusus_mendesak'=>'Khusus Mendesak','khusus_bencana'=>'Khusus Bencana'];
+    return isset($m[$jenis]) ? $m[$jenis] : ucfirst(str_replace('_',' ',$jenis));
+}
+?>
 <table class="tbl">
   <thead>
     <tr>
       <th style="width:30px">No.</th>
+      <th>No. Permohonan</th>
       <th>Kab/Kota</th>
-      <th>Kode BKP</th>
-      <th>Nama Kegiatan</th>
-      <th>Tahapan</th>
-      <th>Jenis</th>
+      <th>Jenis Penyaluran</th>
       <th>No. SP2D</th>
       <th>Tgl SP2D</th>
+      <th class="center" style="width:60px">Jml Keg.</th>
       <th class="right">Nilai Transfer (Rp)</th>
       <th>Status</th>
     </tr>
@@ -95,7 +101,6 @@ TAHUN ANGGARAN <?= $tahun ?></h2>
   <?php
   $no = 1;
   $grand_total = 0;
-  $kab_saat_ini = '';
 
   if (!empty($daftar_sp2d)):
     foreach ($daftar_sp2d as $row):
@@ -103,26 +108,23 @@ TAHUN ANGGARAN <?= $tahun ?></h2>
   ?>
   <tr>
     <td class="center"><?= $no++ ?></td>
+    <td style="font-size:9pt"><?= htmlspecialchars($row->no_permohonan) ?></td>
     <td><?= htmlspecialchars($row->nama_kabkota) ?></td>
-    <td class="mono" style="font-size:9pt"><?= htmlspecialchars($row->kode_bkp) ?></td>
-    <td style="font-size:9pt"><?= htmlspecialchars($row->nama_kegiatan_dok ?: $row->uraian_bkp) ?></td>
-    <td class="center" style="font-size:9pt"><?= htmlspecialchars($row->label_tahap) ?></td>
-    <td class="center" style="font-size:9pt"><?= ucfirst(str_replace('_',' ',$row->jenis_penyaluran)) ?></td>
-    <td class="mono" style="font-size:9pt"><?= htmlspecialchars($row->no_sp2d) ?></td>
+    <td class="center" style="font-size:9pt"><?= _label_jenis_sp2d($row->jenis_penyaluran, $row->kode_tahap) ?></td>
+    <td style="font-size:9pt"><?= htmlspecialchars($row->no_sp2d) ?></td>
     <td class="center" style="font-size:9pt"><?= tgl_short($row->tgl_sp2d) ?></td>
+    <td class="center"><?= (int)($row->jumlah_item ?? 0) ?></td>
     <td class="right"><?= number_format($row->nilai_transfer, 0, ',', '.') ?></td>
-    <td class="center" style="font-size:9pt">
-      <?= strtoupper($row->status_transfer) ?>
-    </td>
+    <td class="center" style="font-size:9pt"><?= strtoupper($row->status_transfer) ?></td>
   </tr>
   <?php endforeach; ?>
   <tr class="total">
-    <td colspan="8" class="right">TOTAL (<?= count($daftar_sp2d) ?> SP2D)</td>
+    <td colspan="7" class="right">TOTAL (<?= count($daftar_sp2d) ?> SP2D)</td>
     <td class="right"><?= number_format($grand_total, 0, ',', '.') ?></td>
     <td></td>
   </tr>
   <?php else: ?>
-  <tr><td colspan="10" class="center" style="padding:20px;color:#888">Belum ada data penyaluran.</td></tr>
+  <tr><td colspan="9" class="center" style="padding:20px;color:#888">Belum ada data penyaluran.</td></tr>
   <?php endif; ?>
   </tbody>
 </table>

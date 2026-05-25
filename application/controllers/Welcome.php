@@ -29,9 +29,15 @@ class Welcome extends Guest_Controller
             ->order_by('urutan', 'ASC')
             ->get('ref_landing_slideshow')->result();
 
+        // Logo Pemerintah Provinsi
+        $setting_logo = $this->db->get_where('ref_app_setting', ['kode' => 'logo_provinsi'])->row();
+        $logo_prov = ($setting_logo && !empty($setting_logo->nilai))
+            ? base_url($setting_logo->nilai) : NULL;
+
         $this->load->view('landing/index', array_merge($this->data, [
-            'pejabat'   => $pejabat,
-            'slideshow' => $slideshow,
+            'pejabat'    => $pejabat,
+            'slideshow'  => $slideshow,
+            'logo_prov'  => $logo_prov,
         ]));
     }
 }

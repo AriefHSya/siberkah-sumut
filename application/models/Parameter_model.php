@@ -112,9 +112,8 @@ class Parameter_model extends CI_Model
     }
 
     // ─── REF_BKP ──────────────────────────────────────────────
-    public function get_bkp($filters = []) {
-        $this->db->select('r.*, k.nama as nama_kabkota, b.nama as nama_bidang')
-            ->from('ref_bkp r')
+    private function _bkp_filter($filters) {
+        $this->db->from('ref_bkp r')
             ->join('ref_kabkota k','k.id = r.kabkota_id')
             ->join('ref_bidang b','b.id = r.bidang_id');
         if (!empty($filters['tahun']))      $this->db->where('r.tahun',$filters['tahun']);
@@ -122,7 +121,19 @@ class Parameter_model extends CI_Model
         if (!empty($filters['bidang_id']))  $this->db->where('r.bidang_id',$filters['bidang_id']);
         if (!empty($filters['q']))          $this->db->like('r.uraian_bkp',$filters['q']);
         $this->db->where('r.is_active',1);
-        return $this->db->order_by('r.kode_bkp','ASC')->get()->result();
+    }
+
+    public function count_bkp($filters = []) {
+        $this->_bkp_filter($filters);
+        return $this->db->count_all_results();
+    }
+
+    public function get_bkp($filters = [], $limit = NULL, $offset = 0) {
+        $this->db->select('r.*, k.nama as nama_kabkota, b.nama as nama_bidang');
+        $this->_bkp_filter($filters);
+        $this->db->order_by('r.kode_bkp','ASC');
+        if ($limit !== NULL) $this->db->limit($limit, $offset);
+        return $this->db->get()->result();
     }
     public function get_bkp_by_id($id) {
         return $this->db->select('r.*, k.nama as nama_kabkota, b.nama as nama_bidang')
@@ -163,11 +174,15 @@ class Parameter_model extends CI_Model
         if ($kabkota_id) $this->db->where('kabkota_id',$kabkota_id);
         return $this->db->get('ref_bkp')->row();
     }
-    public function get_log_bkp($tahun = NULL, $limit = 100) {
+    public function count_log_bkp($tahun = NULL) {
+        if ($tahun) $this->db->where('l.tahun', $tahun);
+        return $this->db->from('ref_bkp_log l')->count_all_results();
+    }
+    public function get_log_bkp($tahun = NULL, $limit = 50, $offset = 0) {
         if ($tahun) $this->db->where('l.tahun',$tahun);
         return $this->db->select('l.*, u.nama as nama_user')
             ->from('ref_bkp_log l')->join('users u','u.id = l.user_id','left')
-            ->order_by('l.created_at','DESC')->limit($limit)->get()->result();
+            ->order_by('l.created_at','DESC')->limit($limit, $offset)->get()->result();
     }
 
     // ─── REF_PEMDA ────────────────────────────────────────────
@@ -219,6 +234,29 @@ class Parameter_model extends CI_Model
             ->join('users u','u.id = l.user_id','left')
             ->join('ref_kabkota k','k.id = l.kabkota_id','left')
             ->order_by('l.created_at','DESC')->limit($limit)->get()->result();
+    }
+
+    // ─── PEJABAT BKAD PROVINSI ───────────────────────────────
+
+    public function get_pejabat_bkad_prov($tahun)
+    {
+        $rows = $this->db->get_where('ref_pejabat_bkad_prov', ['tahun' => $tahun])->result();
+        $map  = [];
+        foreach ($rows as $r) $map[$r->jenis] = $r;
+        return $map;
+    }
+
+    public function simpan_pejabat_bkad_prov($data)
+    {
+        $data['updated_at'] = date('Y-m-d H:i:s');
+        $ada = $this->db->get_where('ref_pejabat_bkad_prov',
+            ['tahun' => $data['tahun'], 'jenis' => $data['jenis']])->row();
+        if ($ada) {
+            $this->db->where('id', $ada->id)->update('ref_pejabat_bkad_prov', $data);
+        } else {
+            $data['created_at'] = date('Y-m-d H:i:s');
+            $this->db->insert('ref_pejabat_bkad_prov', $data);
+        }
     }
 
     // ─── MASTER DROPDOWN ─────────────────────────────────────
