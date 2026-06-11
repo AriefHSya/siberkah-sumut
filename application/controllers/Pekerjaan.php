@@ -167,8 +167,9 @@ class Pekerjaan extends Auth_Controller
         }
 
         // Validasi: pendukung maks 5% dari nilai BKP (untuk bertahap)
+        // Gunakan perbandingan integer (x20) agar tidak ada masalah presisi float pada nilai miliaran
         if ($jenis === 'bertahap') {
-            if ($bkp && $nilai_pendukung > ($bkp->nilai * 0.05)) {
+            if ($bkp && ($nilai_pendukung * 20) > $bkp->nilai) {
                 $this->session->set_flashdata('error',
                     'Belanja pendukung tidak boleh melebihi 5% dari nilai BKP (' . rupiah($bkp->nilai * 0.05) . ').');
                 redirect('pekerjaan/input'); return;
@@ -274,8 +275,27 @@ class Pekerjaan extends Auth_Controller
         $pekerjaan = $this->Pekerjaan_model->get_by_id($id);
         if (!$pekerjaan) { show_404(); return; }
 
+        // Hanya bisa edit jika masih draft atau dikembalikan untuk revisi
+        if (!in_array($pekerjaan->status, ['draft','inspektorat_revisi','skpkd_kab_revisi'])) {
+            $this->session->set_flashdata('error', 'Pekerjaan tidak dapat diedit pada status ini.');
+            redirect('pekerjaan/detail/'.$id); return;
+        }
+
+        // Hanya OPD pemilik atau admin yang bisa edit
+        if (!$this->rbac->isProvinsi() && $pekerjaan->created_by != $this->user_id) {
+            $this->session->set_flashdata('error', 'Anda tidak berwenang mengedit pekerjaan ini.');
+            redirect('pekerjaan/detail/'.$id); return;
+        }
+
         $nilai_kontrak   = (int) str_replace(['.','Rp',' ',','], '', $this->input->post('nilai_kontrak'));
         $nilai_pendukung = (int) str_replace(['.','Rp',' ',','], '', $this->input->post('nilai_belanja_pendukung'));
+        $jenis_edit      = $this->input->post('jenis_penyaluran', TRUE);
+
+        // Validasi: bertahap wajib nilai_kontrak > 200jt
+        if ($jenis_edit === 'bertahap' && $nilai_kontrak <= 200000000) {
+            $this->session->set_flashdata('error', 'Jenis Bertahap memerlukan nilai kontrak > Rp 200.000.000.');
+            redirect('pekerjaan/edit/'.$id); return;
+        }
 
         // Validasi: nilai kontrak + pendukung tidak boleh melebihi nilai BKP
         $bkp_edit = $this->db->get_where('ref_bkp', ['id'=>$pekerjaan->bkp_id])->row();
@@ -287,8 +307,8 @@ class Pekerjaan extends Auth_Controller
         }
 
         // Validasi: pendukung maks 5% dari nilai BKP (untuk bertahap)
-        $jenis_edit = $this->input->post('jenis_penyaluran', TRUE);
-        if ($jenis_edit === 'bertahap' && $bkp_edit && $nilai_pendukung > ($bkp_edit->nilai * 0.05)) {
+        // Gunakan perbandingan integer (x20) agar tidak ada masalah presisi float pada nilai miliaran
+        if ($jenis_edit === 'bertahap' && $bkp_edit && ($nilai_pendukung * 20) > $bkp_edit->nilai) {
             $this->session->set_flashdata('error',
                 'Belanja pendukung tidak boleh melebihi 5% dari nilai BKP (' . rupiah($bkp_edit->nilai * 0.05) . ').');
             redirect('pekerjaan/edit/'.$id); return;
@@ -657,6 +677,19 @@ class Pekerjaan extends Auth_Controller
             redirect('pekerjaan/detail/'.$pekerjaan_id); return;
         }
 
+        // Validasi MIME sebenarnya sebelum menyimpan
+        $mime_ok = ['application/pdf','application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'image/jpeg','image/png'];
+        if (!$this->_mime_valid($_FILES['file_dok']['tmp_name'], $mime_ok)) {
+            $this->session->set_flashdata('error', 'Jenis file tidak diizinkan. Gunakan PDF, DOC, DOCX, JPG, atau PNG.');
+            redirect('pekerjaan/detail/'.$pekerjaan_id); return;
+        }
+
+        $orig_name  = basename($_FILES['file_dok']['name']);
+        $ext        = strtolower(pathinfo($orig_name, PATHINFO_EXTENSION));
+        $rand_name  = $this->_random_filename($ext);
+
         $upload_dir = FCPATH . 'uploads/dokumen/' . $pekerjaan_id . '/';
         if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, TRUE);
 
@@ -665,7 +698,7 @@ class Pekerjaan extends Auth_Controller
             'upload_path'   => $upload_dir,
             'allowed_types' => 'pdf|doc|docx|jpg|jpeg|png',
             'max_size'      => 10240,
-            'file_name'     => $jenis . '_' . $pekerjaan_id . '_' . time(),
+            'file_name'     => $rand_name,
         ]);
 
         if (!$this->upload->do_upload('file_dok')) {
@@ -681,10 +714,11 @@ class Pekerjaan extends Auth_Controller
         $file_lama = $pekerjaan->$kolom ?? NULL;
         if ($file_lama && file_exists(FCPATH . $file_lama)) @unlink(FCPATH . $file_lama);
 
-        // Simpan path ke kolom yang sesuai
+        // Simpan path + nama asli ke kolom yang sesuai
         $this->db->where('id', $pekerjaan_id)->update('trx_pekerjaan', [
-            $kolom       => $file_path,
-            'updated_at' => date('Y-m-d H:i:s'),
+            $kolom                   => $file_path,
+            'nama_dok_' . $jenis     => $orig_name,
+            'updated_at'             => date('Y-m-d H:i:s'),
         ]);
 
         $label = strtoupper($jenis);
@@ -742,6 +776,22 @@ class Pekerjaan extends Auth_Controller
         $jenis_dok    = $this->input->post('jenis_dokumen', TRUE);
         $keterangan   = $this->input->post('keterangan', TRUE);
 
+        // Validasi MIME + nama acak
+        if (empty($_FILES['file_dok']['name'])) {
+            $this->session->set_flashdata('error', 'Tidak ada file yang dipilih.');
+            redirect('pekerjaan/detail/'.$pekerjaan_id); return;
+        }
+        $mime_ok = ['application/pdf','application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'image/jpeg','image/png'];
+        if (!$this->_mime_valid($_FILES['file_dok']['tmp_name'], $mime_ok)) {
+            $this->session->set_flashdata('error', 'Jenis file tidak diizinkan. Gunakan PDF, DOC, DOCX, JPG, atau PNG.');
+            redirect('pekerjaan/detail/'.$pekerjaan_id); return;
+        }
+        $orig_name = basename($_FILES['file_dok']['name']);
+        $ext       = strtolower(pathinfo($orig_name, PATHINFO_EXTENSION));
+        $rand_name = $this->_random_filename($ext);
+
         // Konfigurasi upload
         $upload_dir = FCPATH . 'uploads/dokumen/' . $pekerjaan_id . '/';
         if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, TRUE);
@@ -750,7 +800,7 @@ class Pekerjaan extends Auth_Controller
             'upload_path'   => $upload_dir,
             'allowed_types' => 'pdf|doc|docx|jpg|jpeg|png',
             'max_size'      => 10240,
-            'file_name'     => 'dok_' . $tahapan_id . '_' . $jenis_dok . '_' . time(),
+            'file_name'     => $rand_name,
         ]);
 
         if (!$this->upload->do_upload('file_dok')) {
@@ -763,6 +813,7 @@ class Pekerjaan extends Auth_Controller
             'tahapan_id'    => $tahapan_id,
             'jenis_dokumen' => $jenis_dok,
             'nama_file'     => $up['file_name'],
+            'nama_asli'     => $orig_name,
             'file_path'     => 'uploads/dokumen/' . $pekerjaan_id . '/' . $up['file_name'],
             'ukuran_kb'     => (int)($up['file_size']),
             'keterangan'    => $keterangan,
