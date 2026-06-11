@@ -150,6 +150,7 @@ class Rbac
             ['key'=>'users',    'url'=>'admin/users',    'label'=>'Manajemen User',   'icon'=>'users',         'perm'=>'admin.user.view', 'provinsi_only'=>FALSE],
             ['key'=>'roles',    'url'=>'admin/roles',    'label'=>'Role & Hak Akses', 'icon'=>'shield-lock',   'perm'=>'admin.role.view', 'provinsi_only'=>FALSE],
             ['key'=>'telegram', 'url'=>'admin/telegram', 'label'=>'Notif Telegram',   'icon'=>'brand-telegram','perm'=>'admin.view',      'provinsi_only'=>TRUE],
+            ['key'=>'logs',     'url'=>'admin/logs',     'label'=>'Log Aktivitas',    'icon'=>'history',       'perm'=>'admin.logs.view', 'provinsi_only'=>TRUE],
         ];
         return array_values(array_filter($sub, function($s) {
             if (!$this->can($s['perm'])) return FALSE;
