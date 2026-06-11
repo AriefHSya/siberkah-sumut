@@ -112,6 +112,11 @@ uploads/                    # file upload user — jangan commit ke git
 ├── dokumen/
 ├── lhr/
 ├── permohonan/
+├── capaian/
+├── logo/
+├── landing/
+│   ├── pejabat/
+│   └── slideshow/
 └── temp/
 ```
 
@@ -130,6 +135,10 @@ uploads/                    # file upload user — jangan commit ke git
 | `ref_checklist_item` | 21 item checklist statis (CK-01 s/d CK-21) |
 | `ref_pemda_pejabat` | KDH, Kepala BKAD, Inspektur per kab per tahun |
 | `ref_pemda_dokumen` | Perda/Pergub/Perkada per kab per tahun |
+| `ref_pejabat_bkad_prov` | Kepala Badan, Kabid Anggaran, Bendahara BKAD Provinsi (untuk TTD nota) |
+| `ref_app_setting` | Konfigurasi aplikasi: `logo_provinsi` (path file), SMTP, dll |
+| `ref_landing_pejabat` | Foto pejabat Provinsi untuk landing page |
+| `ref_landing_slideshow` | Foto slideshow landing page |
 
 ### Tabel RBAC
 | Tabel | Isi |
@@ -222,6 +231,7 @@ parameter.view, parameter.tahun.view, parameter.tahun.manage
 parameter.bkp.view, parameter.bkp.manage
 parameter.pemda.view, parameter.pemda.manage
 parameter.batas_waktu.view, parameter.batas_waktu.manage
+parameter.landing.view, parameter.landing.manage
 pekerjaan.view, pekerjaan.view_all, pekerjaan.input, pekerjaan.edit
 pekerjaan.upload_dok, pekerjaan.download_dok, pekerjaan.submit
 pekerjaan.cetak_permohonan
@@ -238,6 +248,18 @@ admin.view, admin.user.view, admin.user.create, admin.user.edit
 admin.user.delete, admin.user.toggle, admin.user.reset_pw
 admin.role.view, admin.role.create, admin.role.edit
 admin.role.delete, admin.role.permission
+```
+
+### Catatan Sidebar Menu (Rbac::getMenus)
+
+Menu "Penyaluran" muncul **satu** per user tapi tujuan URL berbeda berdasarkan role:
+- **Provinsi** (`superadmin`, `admin_provinsi`) → `verifikasi/prov` — dengan flag `provinsi_only => TRUE`
+- **Kabkota** (`skpkd_kabkota`, dll.) → `penyaluran-kab` — dengan flag `kabkota_only => TRUE`
+
+Gunakan flag yang sama saat menambah menu baru yang scope-nya spesifik:
+```php
+['key'=>'...',  'url'=>'...', ..., 'provinsi_only'=>TRUE]  // hanya muncul untuk role provinsi
+['key'=>'...',  'url'=>'...', ..., 'kabkota_only'=>TRUE]   // hanya muncul untuk role kabkota
 ```
 
 ---
@@ -447,12 +469,15 @@ Fitur-fitur ini ada dalam blueprint tapi belum diimplementasi — **prioritas un
 
 **Fitur SELESAI** (sebelumnya tercatat sebagai stub, kini sudah diimplementasi):
 - ✅ **Capaian Output** — `Capaian.php` + `Capaian_model.php` + `capaian/index.php` + `capaian/form.php`
-- ✅ **Export XLSX** — `Laporan.php` menggunakan XlsxWriter library
+- ✅ **Export XLSX** — `Laporan.php` menggunakan `XlsxWriter` library (tanpa Composer)
 - ✅ **Pagination** — `Admin_users`, `Parameter BKP` sudah ada pagination
 - ✅ **Penyaluran Kab** — `Penyaluran_kab.php` + konfirmasi RKUD (kode transaksi, nilai, tanggal)
 - ✅ **Permohonan bundel** — SKPKD Kab buat bundel kegiatan dalam satu permohonan
 - ✅ **Nota Dinas cetak** — `cetak_nota_kabid.php`, `cetak_nota_kabadan.php`, `cetak_ringkasan.php`
-- ✅ **Pejabat BKAD Provinsi** — `ref_pejabat_bkad_prov` + parameter UI
+- ✅ **Pejabat BKAD Provinsi** — `ref_pejabat_bkad_prov` + parameter UI (`parameter/pejabat-provinsi`)
+- ✅ **Logo Provinsi** — upload via `parameter/logo`, disimpan ke `uploads/logo/` + ditampilkan di login & landing
+- ✅ **Laporan Akhir Kab/Kota** — `laporan_akhir_kab()` + `cetak_laporan_akhir_kab()` di `Laporan.php`
+- ✅ **Tampilan Landing Page** — slideshow + foto pejabat Provinsi via `parameter/landing`
 
 ---
 
@@ -601,18 +626,47 @@ var(--abu-light)    /* #F1EFE8 */
 ## ENVIRONMENT & DEPENDENCIES
 
 ```
-PHP          : 7.4+ (target), 8.x (direkomendasikan)
+PHP          : 7.4+ (target), 8.x (direkomendasikan) — Railway: PHP 8.2
 CodeIgniter  : 3.1.13
 MySQL        : 5.7+ / MariaDB 10.3+
 Leaflet.js   : 1.9.4 (CDN)
 Tabler Icons : 2.44.0 (CDN)
 OpenStreetMap: tile server (CDN)
+XlsxWriter   : application/libraries/XlsxWriter.php (native, tanpa Composer)
 
 # Tidak ada Composer — semua dependency via CDN atau manual
-# Jika ingin tambah library PHP (misal PhpSpreadsheet):
-#   → Simpan di application/libraries/ atau application/third_party/
-#   → Load manual di controller/autoload
+# Jika ingin tambah library PHP: simpan di application/libraries/ atau application/third_party/
 ```
+
+### Deployment Railway
+
+Aplikasi di-deploy ke Railway menggunakan **Dockerfile** (`debian:bookworm-slim` + Apache + PHP 8.2).
+
+| File | Fungsi |
+|---|---|
+| `Dockerfile` | Build image: install Apache+PHP, setup VirtualHost, copy kode, buat folder runtime |
+| `docker-entrypoint.sh` | Startup: set PORT Railway, buat semua subfolder `uploads/`, set permission |
+| `.htaccess` | URL rewriting CI3 + blokir akses ke `application/` dan `system/` |
+
+**Penting — Railway Volume:**
+- Railway menggunakan ephemeral filesystem. Semua file yang diupload user **akan hilang** saat redeploy.
+- Solusi: mount Railway Volume ke `/var/www/html/uploads` di Railway Dashboard.
+- `docker-entrypoint.sh` membuat semua subfolder uploads saat startup — ini diperlukan karena Volume mount mengganti isi direktori.
+
+**Variabel environment wajib di Railway:**
+```
+APP_ENV=production
+APP_URL=https://domain.up.railway.app/
+ENCRYPTION_KEY=<64-char hex dari php -r "echo bin2hex(random_bytes(32));">
+DB_HOST=<host MySQL>
+DB_USER=<user>
+DB_PASS=<password>
+DB_NAME=siberkah_sumut
+```
+
+**Catatan .htaccess:**
+- `uploads/` **tidak** diblokir — file perlu dapat diakses langsung via URL (logo, foto, dll)
+- Hanya `application/` dan `system/` yang diblokir
 
 ---
 
@@ -724,4 +778,4 @@ WHERE r.kode = 'skpkd_kabkota'
 
 *File ini adalah konteks utama untuk Claude Code.*
 *Update file ini setiap kali ada perubahan arsitektur, konvensi, atau fitur baru.*
-*Terakhir diupdate: Mei 2026 — Sprint 1-6 selesai*
+*Terakhir diupdate: Juni 2026 — Sprint 7 selesai (Railway Volume, logo provinsi, sidebar RBAC fix)*

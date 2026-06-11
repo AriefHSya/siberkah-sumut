@@ -296,7 +296,11 @@ Menampilkan jumlah pekerjaan di setiap tahap alur bisnis.
 | Tidak bisa akses menu tertentu | Hak akses role tidak mencukupi | Hubungi Superadmin |
 | Data Kab/Kota lain tidak terlihat | Normal — OPD/Inspektorat/SKPKD hanya lihat data sendiri | — |
 | Lupa password | — | Hubungi Admin Provinsi / Superadmin untuk reset |
+| Logo provinsi hilang setelah update | Server menggunakan container (Railway/Docker) — file tidak persisten | Admin harus upload ulang logo; pastikan Volume sudah terpasang di server |
+| Menu Penyaluran tidak muncul (SKPKD Kab) | Permission `penyaluran_kab.view` belum di-assign | Superadmin → Pengaturan → Role → Hak Akses → centang Penyaluran Kab |
+| Konfirmasi RKUD tidak bisa dilakukan | SP2D belum diinput oleh Admin Provinsi | Tunggu Admin Provinsi menginput SP2D di menu Penyaluran |
+| Export XLSX tidak berfungsi | Browser memblokir download | Cek popup blocker; coba klik kanan → Save As |
 
 ---
 
-*Manual Book SIBERKAH SUMUT v4.1.0 — BKAD Provinsi Sumatera Utara — Mei 2026*
+*Manual Book SIBERKAH SUMUT v4.1.0 — BKAD Provinsi Sumatera Utara — Juni 2026*
