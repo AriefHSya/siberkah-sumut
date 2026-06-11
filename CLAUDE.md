@@ -71,10 +71,13 @@ application/
 │   ├── Permohonan_model.php    # trx_permohonan, trx_permohonan_item
 │   ├── Penyaluran_kab_model.php   # konfirmasi RKUD oleh SKPKD Kab/Kota
 │   ├── Capaian_model.php       # trx_capaian_output
-│   └── Laporan_model.php       # statistik, funnel, rekap per bidang/kab
+│   ├── Laporan_model.php       # statistik, funnel, rekap per bidang/kab
+│   └── Admin_logs_model.php    # user_logs + trx_status_history (read-only)
 │
 ├── controllers/
 │   ├── Auth.php            # login, logout — extends Guest_Controller
+│   ├── Akun.php            # ganti password sendiri — extends Auth_Controller
+│   ├── Berkas.php          # unduhan file privat — RBAC + scope check, path dari DB
 │   ├── Dashboard.php       # stats, funnel, antrian aksi per role
 │   ├── Parameter.php       # tahun, batas_waktu, bkp, pemda, pejabat_prov, log
 │   ├── Pekerjaan.php       # input, edit, detail, submit, upload_dok, cetak
@@ -87,6 +90,7 @@ application/
 │   ├── Laporan.php         # rekap_bkp, rekap_penyaluran, export CSV/XLSX
 │   ├── Admin_users.php     # CRUD user dengan role-level guard
 │   ├── Admin_roles.php     # CRUD role, save_permissions, logs
+│   ├── Admin_logs.php      # log aktivitas (user_logs) + riwayat status (trx_status_history) — read-only
 │   └── Welcome.php         # landing page
 │
 └── views/
@@ -102,7 +106,7 @@ application/
     ├── penyaluran_kab/     # index (daftar permohonan + konfirmasi RKUD)
     ├── capaian/            # index, form (capaian output fisik)
     ├── laporan/            # rekap_bkp, rekap_penyaluran, cetak_rekap_bkp
-    └── admin/              # users/ & roles/
+    └── admin/              # users/, roles/ & logs/ (log aktivitas + riwayat status)
 
 assets/
 ├── css/siberkah.css        # design system lengkap (CSS variables, komponen)
@@ -248,6 +252,7 @@ admin.view, admin.user.view, admin.user.create, admin.user.edit
 admin.user.delete, admin.user.toggle, admin.user.reset_pw
 admin.role.view, admin.role.create, admin.role.edit
 admin.role.delete, admin.role.permission
+admin.logs.view
 ```
 
 ### Catatan Sidebar Menu (Rbac::getMenus)
@@ -281,6 +286,7 @@ $this->session->userdata('kabkota_nama')    // string|NULL
 $this->session->userdata('instansi_jenis')  // enum: bkad_provinsi|skpkd_kabkota|inspektorat|opd_teknis|lainnya
 $this->session->userdata('opd_nama')        // string|NULL
 $this->session->userdata('tahun_anggaran')  // year string: '2026'
+$this->session->userdata('must_change_password') // int 0|1 — paksa redirect ke ganti-password jika 1
 ```
 
 Di `Auth_Controller`, shortcut:
@@ -433,7 +439,9 @@ if ($jenis === 'bertahap' && $nilai_kontrak <= 200000000) {
 
 ### 3. Belanja Pendukung — Maks 5% dari nilai BKP
 ```php
-if ($jenis === 'bertahap' && $nilai_pendukung > ($bkp->nilai * 0.05)) {
+// Gunakan perbandingan integer (x20), BUKAN ($bkp->nilai * 0.05),
+// agar tidak ada masalah presisi float pada nilai miliaran
+if ($jenis === 'bertahap' && ($nilai_pendukung * 20) > $bkp->nilai) {
     // Tolak dengan error
 }
 ```
@@ -452,6 +460,67 @@ if (in_array($hasil, ['ditolak','perlu_perbaikan']) && empty($catatan)) {
 }
 ```
 
+### 6. Wajib Ganti Password — HARD BLOCK
+```php
+// Di Auth_Controller::__construct() — semua controller terproteksi
+if ($this->session->userdata('must_change_password')) {
+    // redirect paksa ke ganti-password, kecuali controller Akun sendiri
+    redirect('ganti-password'); exit;
+}
+```
+Di-set `1` saat: admin reset password user (`Admin_users::reset_pw`) atau admin
+membuat user baru (`Admin_users::simpan`). Direset ke `0` setelah user berhasil
+ganti password via `Akun::update_password`.
+
+### 7. Transisi Status & Scoping Kab/Kota — Guard di method `putuskan()`/keputusan
+
+Setiap method yang mengambil keputusan atas suatu tahapan (`Reviu::putuskan`,
+`Verif_kab::putuskan`, `Verif_prov::putuskan`, `Verif_prov::konfirmasi_transfer`,
+`Verif_prov::simpan_sp2d_permohonan`) **wajib** memvalidasi:
+
+1. **Scoping kabkota (anti-IDOR)** — untuk role kabkota (`inspektorat`,
+   `skpkd_kabkota`), `$pekerjaan->kabkota_id` harus sama dengan
+   `$this->kabkota_id` sebelum mengubah data tahapan/pekerjaan milik
+   kab/kota lain.
+   ```php
+   if ($this->role_kode === 'inspektorat'
+       && $pekerjaan->kabkota_id != $this->kabkota_id) {
+       $this->session->set_flashdata('error', 'Akses ditolak.');
+       redirect('reviu'); return;
+   }
+   ```
+
+2. **Status sebelumnya (anti re-submit/IDOR transisi)** — `$tahapan->status`
+   harus berada di status "aktif menunggu keputusan" untuk tahap ini.
+   Mapping status aktif per modul:
+   | Modul | Status aktif yang valid untuk `putuskan()` |
+   |---|---|
+   | `Reviu::putuskan` | `inspektorat_reviu` |
+   | `Verif_kab::putuskan` | `skpkd_kab_verif` |
+   | `Verif_prov::putuskan` | `skpkd_prov_verif` **dan** `verif_prov->hasil_verifikasi !== 'disetujui'` (karena status tetap `skpkd_prov_verif` setelah disetujui, menunggu SP2D) |
+   ```php
+   if ($tahapan->status !== 'inspektorat_reviu') {
+       $this->session->set_flashdata('error', 'Tahapan ini tidak dalam status menunggu keputusan reviu.');
+       redirect('reviu/form/' . $reviu->tahapan_id); return;
+   }
+   ```
+
+3. **Idempotensi aksi penyaluran** — `Verif_prov::konfirmasi_transfer` dan
+   `Verif_prov::simpan_sp2d_permohonan` harus menolak pemrosesan ulang jika
+   `status_transfer`/`status_sp2d` sudah `'selesai'`, agar notifikasi/Telegram
+   dan `set_status()` tidak terkirim/terpanggil ganda.
+
+### 8. Race Condition Upsert 1:1 per Tahapan
+
+Pola `buat_atau_ambil($tahapan_id)` (cek-lalu-insert tanpa transaksi) di
+`Reviu_model`, `Verifikasi_kab_model`, `Verifikasi_prov_model` mengandalkan
+`UNIQUE KEY (tahapan_id)` di tabel `trx_reviu_inspektorat`,
+`trx_verifikasi_skpkd_kab`, `trx_verifikasi_skpkd_prov`, dan
+`trx_penyaluran_dana` sebagai jaring pengaman terakhir terhadap duplikasi
+record saat dua request bersamaan. `schema.sql` sudah mendefinisikan
+constraint ini; untuk database lama jalankan
+`database/upsert_unique_migration.sql`.
+
 ---
 
 ## FITUR YANG BELUM SELESAI (STUB)
@@ -460,10 +529,8 @@ Fitur-fitur ini ada dalam blueprint tapi belum diimplementasi — **prioritas un
 
 | Fitur | File Terkait | Keterangan |
 |---|---|---|
-| **Import Excel BKP** | `views/parameter/bkp_import.php` | View ada tapi stub. Butuh: PhpSpreadsheet, controller `bkp_proses_import`, `bkp_preview_import`, validasi duplikat |
 | **Notifikasi Email** | `Notifikasi_model.php` | Hanya in-app. Perlu tambah SMTP / PHPMailer |
-| **Reset Password via Email** | `Admin_users.php` | Reset saat ini set ke 'password123', belum kirim email |
-| **Peta Overview Provinsi** | `Dashboard.php` | Tabel per kab ada, peta Leaflet cluster belum dibuat |
+| **Reset Password via Email** | `Admin_users.php` | Reset sudah generate password acak 12 karakter (ditampilkan sekali via flashdata + `must_change_password=1`), tapi belum dikirim ke email user |
 | **API JSON** | — | Tidak ada endpoint API. Perlu jika integrasi dengan sistem e-budgeting daerah |
 | **Notif Realtime** | — | Notifikasi hanya muncul saat page refresh |
 
@@ -478,6 +545,8 @@ Fitur-fitur ini ada dalam blueprint tapi belum diimplementasi — **prioritas un
 - ✅ **Logo Provinsi** — upload via `parameter/logo`, disimpan ke `uploads/logo/` + ditampilkan di login & landing
 - ✅ **Laporan Akhir Kab/Kota** — `laporan_akhir_kab()` + `cetak_laporan_akhir_kab()` di `Laporan.php`
 - ✅ **Tampilan Landing Page** — slideshow + foto pejabat Provinsi via `parameter/landing`
+- ✅ **Import Excel BKP** — `parameter/bkp/import` (2 langkah: upload → preview+validasi → konfirmasi). Parser native via `XlsxReader.php` (xlsx) atau CSV. Validasi: kabkota tidak dikenal, bidang tidak dikenal (fuzzy+alias), nilai bukan angka, duplikat (tahun+kabkota+uraian) dengan opsi update/skip per baris. Template unduhan: XLSX (`bkp/import/template-xlsx`, via `XlsxWriter`) dan CSV (`bkp/import/template`)
+- ✅ **Peta Cluster Leaflet (Dashboard)** — `dashboard/index.php` + `Dashboard::peta_data()` (endpoint `dashboard/peta-data`). Marker cluster (Leaflet.markercluster via CDN), warna marker per status, popup ringkas (kode BKP, uraian, kab/kota, nilai kontrak, badge status, link detail). Hanya tampil untuk role provinsi (`superadmin`/`admin_provinsi`) dan `pengawas`
 
 ---
 
@@ -646,7 +715,7 @@ Aplikasi di-deploy ke Railway menggunakan **Dockerfile** (`debian:bookworm-slim`
 |---|---|
 | `Dockerfile` | Build image: install Apache+PHP, setup VirtualHost, copy kode, buat folder runtime |
 | `docker-entrypoint.sh` | Startup: set PORT Railway, buat semua subfolder `uploads/`, set permission |
-| `.htaccess` | URL rewriting CI3 + blokir akses ke `application/` dan `system/` |
+| `.htaccess` | URL rewriting CI3 + blokir akses ke `application/`, `system/`, dan subfolder upload privat |
 
 **Penting — Railway Volume:**
 - Railway menggunakan ephemeral filesystem. Semua file yang diupload user **akan hilang** saat redeploy.
@@ -665,8 +734,28 @@ DB_NAME=siberkah_sumut
 ```
 
 **Catatan .htaccess:**
-- `uploads/` **tidak** diblokir — file perlu dapat diakses langsung via URL (logo, foto, dll)
-- Hanya `application/` dan `system/` yang diblokir
+- Subfolder upload **privat** diblokir akses langsung: `uploads/dokumen/`, `uploads/lhr/`, `uploads/permohonan/`, `uploads/capaian/`, `uploads/temp/`
+- Subfolder upload **publik** tetap bisa diakses via URL: `uploads/logo/`, `uploads/landing/`
+- Semua unduhan file privat harus melalui `Berkas.php` controller (`berkas/unduh/...`)
+- `application/` dan `system/` tetap diblokir
+
+**Pola unduhan file privat (wajib gunakan controller Berkas):**
+```
+berkas/unduh/dok/{id}               → trx_dokumen_persyaratan by ID
+berkas/unduh/lhr/{reviu_id}         → trx_reviu_inspektorat LHR
+berkas/unduh/capaian/{pekerjaan_id} → trx_capaian_output foto
+berkas/unduh/bukti/{bukti_id}       → trx_bukti_transfer
+berkas/unduh/draft/{pekerjaan_id}/{spk|spmk|bast}  → trx_pekerjaan draft docs
+berkas/unduh/pm/{permohonan_id}/{jenis}             → trx_permohonan surat
+```
+Setiap unduhan: cek RBAC + scope kabkota + log aktivitas.
+
+**Upload file privat — konvensi:**
+- Nama file disimpan sebagai `bin2hex(random_bytes(16)).<ext>` (tidak dapat ditebak)
+- Nama file asli disimpan di kolom `nama_asli` / `nama_lhr_asli` / `nama_foto_asli` / `nama_{jenis}` untuk ditampilkan ke user
+- Validasi MIME dengan `finfo` (bukan hanya ekstensi) menggunakan `_mime_valid()` di MY_Controller
+- Nama file acak dibuat dengan `_random_filename($ext)` di MY_Controller
+- Migration: `database/secure_uploads_migration.sql`
 
 ---
 
@@ -754,14 +843,38 @@ INSERT IGNORE INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.kode = 'skpkd_kabkota'
   AND p.kode IN ('penyaluran_kab.view','penyaluran_kab.konfirmasi');
+
+-- Flag wajib ganti password (reset oleh admin / akun baru)
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS must_change_password TINYINT(1) NOT NULL DEFAULT 0
+    COMMENT 'Wajib ganti password saat login berikutnya (1=ya)'
+    AFTER password;
+
+-- Defensif: UNIQUE KEY tahapan_id pada tabel upsert 1:1 (jika DB lama belum punya)
+-- Lihat database/upsert_unique_migration.sql
+ALTER TABLE trx_reviu_inspektorat
+  ADD UNIQUE IF NOT EXISTS uq_reviu_tahapan (tahapan_id);
+ALTER TABLE trx_verifikasi_skpkd_kab
+  ADD UNIQUE IF NOT EXISTS uq_verif_kab_tahapan (tahapan_id);
+ALTER TABLE trx_verifikasi_skpkd_prov
+  ADD UNIQUE IF NOT EXISTS uq_verif_prov_tahapan (tahapan_id);
+ALTER TABLE trx_penyaluran_dana
+  ADD UNIQUE IF NOT EXISTS uq_penyaluran_tahapan (tahapan_id);
+
+-- Permission baru untuk modul Log Aktivitas (Admin_logs.php)
+INSERT IGNORE INTO permissions (kode, nama, modul, jenis) VALUES
+('admin.logs.view', 'Lihat Log Aktivitas', 'admin', 'menu');
+
+-- Assign default ke superadmin & admin_provinsi
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r, permissions p
+WHERE r.kode IN ('superadmin','admin_provinsi')
+  AND p.kode = 'admin.logs.view';
 ```
 
 ---
 
 ## ROADMAP PENGEMBANGAN
-
-### Prioritas Tinggi
-1. **Import Excel BKP** — paling sering dibutuhkan operator, data bisa ratusan baris
 
 ### Prioritas Menengah
 2. **Peta cluster Leaflet** — visualisasi lokasi semua pekerjaan di satu peta provinsi
