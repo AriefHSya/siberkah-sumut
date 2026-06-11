@@ -106,6 +106,7 @@ class Admin_users extends Auth_Controller
             'jabatan'           => $this->input->post('jabatan',TRUE),
             'telegram_chat_id'  => $this->input->post('telegram_chat_id',TRUE) ?: NULL,
             'is_active'         => 1,
+            'must_change_password' => 1,
             'created_by'        => $this->user_id,
         ];
         $this->User_model->insert($data);
@@ -198,12 +199,16 @@ class Admin_users extends Auth_Controller
         $user = $this->User_model->get_by_id($id);
         if (!$user) { show_404(); return; }
 
-        // Generate password acak 10 karakter
-        $pw_baru = substr(str_shuffle('abcdefghijkmnpqrstuvwxyz23456789'), 0, 5)
-                 . substr(str_shuffle('ABCDEFGHJKLMNPQRSTUVWXYZ'), 0, 2)
-                 . substr(str_shuffle('23456789'), 0, 3);
+        // Generate password acak 12 karakter: huruf besar, huruf kecil, angka
+        $pw_baru = substr(str_shuffle('abcdefghijkmnopqrstuvwxyz'), 0, 5)
+                 . substr(str_shuffle('ABCDEFGHJKLMNPQRSTUVWXYZ'), 0, 4)
+                 . substr(str_shuffle('0123456789'), 0, 3);
+        $pw_baru = str_shuffle($pw_baru);
 
-        $this->User_model->update($id, ['password' => password_hash($pw_baru, PASSWORD_BCRYPT)]);
+        $this->User_model->update($id, [
+            'password'             => password_hash($pw_baru, PASSWORD_BCRYPT),
+            'must_change_password' => 1,
+        ]);
         $this->log_aktivitas('admin.user.reset_pw', 'Reset password user id='.$id.' username='.$user->username);
 
         // Kirim email jika user punya email & SMTP dikonfigurasi
@@ -216,16 +221,14 @@ class Admin_users extends Auth_Controller
             }
         }
 
+        $pesan = 'Password user <strong>'.$user->username.'</strong> berhasil direset menjadi: '.
+            '<strong>'.htmlspecialchars($pw_baru).'</strong> — '.
+            'sampaikan ke user melalui jalur internal. Password ini hanya ditampilkan sekali ' .
+            'dan user akan diminta mengganti password saat login berikutnya.';
         if ($email_terkirim) {
-            $this->session->set_flashdata('success',
-                'Password user <strong>'.$user->username.'</strong> berhasil direset. ' .
-                'Password sementara telah dikirim ke email <strong>'.$user->email.'</strong>.');
-        } else {
-            $this->session->set_flashdata('success',
-                'Password berhasil direset ke: <strong>'.$pw_baru.'</strong> — ' .
-                'sampaikan ke user dan minta segera ganti setelah login.' .
-                (!empty($user->email) ? ' (Email tidak terkirim — cek konfigurasi SMTP di Pengaturan)' : ' (User tidak punya email terdaftar)'));
+            $pesan .= ' Password sementara juga telah dikirim ke email <strong>'.htmlspecialchars($user->email).'</strong>.';
         }
+        $this->session->set_flashdata('success', $pesan);
         redirect('admin/users');
     }
 

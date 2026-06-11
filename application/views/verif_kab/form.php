@@ -106,11 +106,11 @@
             </div>
           </div>
           <div class="aksi-row">
-            <a href="<?= base_url($reviu->file_lhr_path) ?>" target="_blank"
+            <a href="<?= site_url('berkas/unduh/lhr/'.$reviu->id) ?>" target="_blank"
                class="btn btn-outline btn-xs" title="Lihat LHR">
               <i class="ti ti-eye"></i> Lihat
             </a>
-            <a href="<?= base_url($reviu->file_lhr_path) ?>" download
+            <a href="<?= site_url('berkas/unduh/lhr/'.$reviu->id) ?>"
                class="btn-icon" title="Unduh LHR">
               <i class="ti ti-download"></i>
             </a>
@@ -135,7 +135,7 @@
         <div class="text-xs text-muted fw-500" style="margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px">
           <i class="ti ti-folder"></i> Dokumen Pekerjaan (OPD Teknis)
         </div>
-        <?php foreach ($dok_draft as $dok): if (empty($dok['path'])) continue; ?>
+        <?php foreach ($dok_draft as $_dk_jenis => $dok): if (empty($dok['path'])) continue; ?>
         <div style="display:flex;align-items:center;justify-content:space-between;
                     padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);
                     margin-bottom:6px;font-size:12px">
@@ -144,9 +144,9 @@
             <div class="fw-500"><?= $dok['label'] ?></div>
           </div>
           <div class="aksi-row">
-            <a href="<?= base_url($dok['path']) ?>" target="_blank"
+            <a href="<?= site_url('berkas/unduh/draft/'.$p->id.'/'.$_dk_jenis) ?>" target="_blank"
                class="btn btn-outline btn-xs"><i class="ti ti-eye"></i> Lihat</a>
-            <a href="<?= base_url($dok['path']) ?>" download
+            <a href="<?= site_url('berkas/unduh/draft/'.$p->id.'/'.$_dk_jenis) ?>"
                class="btn-icon" title="Unduh"><i class="ti ti-download"></i></a>
           </div>
         </div>
@@ -164,9 +164,9 @@
             </div>
           </div>
           <div class="aksi-row">
-            <a href="<?= base_url($d->file_path) ?>" target="_blank"
+            <a href="<?= site_url('berkas/unduh/dok/'.$d->id) ?>" target="_blank"
                class="btn btn-outline btn-xs"><i class="ti ti-eye"></i> Lihat</a>
-            <a href="<?= base_url($d->file_path) ?>" download
+            <a href="<?= site_url('berkas/unduh/dok/'.$d->id) ?>"
                class="btn-icon" title="Unduh"><i class="ti ti-download"></i></a>
           </div>
         </div>
@@ -204,11 +204,11 @@
             </div>
           </div>
           <div class="aksi-row">
-            <a href="<?= base_url($d->file_path) ?>" target="_blank"
+            <a href="<?= site_url('berkas/unduh/dok/'.$d->id) ?>" target="_blank"
                class="btn btn-outline btn-xs" title="Lihat/Preview">
               <i class="ti ti-eye"></i> Lihat
             </a>
-            <a href="<?= base_url($d->file_path) ?>" download
+            <a href="<?= site_url('berkas/unduh/dok/'.$d->id) ?>"
                class="btn-icon" title="Unduh">
               <i class="ti ti-download"></i>
             </a>
@@ -298,9 +298,9 @@
               $st = $st_map[$penyaluran->status_transfer] ?? ['abu',$penyaluran->status_transfer];
               echo '<span class="badge badge-'.$st[0].'">'.$st[1].'</span>';
             ?></td></tr>
-        <?php if ($penyaluran->bukti_path): ?>
+        <?php if ($penyaluran->bukti_path && $penyaluran->bukti_id): ?>
         <tr><td class="text-muted text-sm">Bukti Transfer RKUD</td>
-            <td><a href="<?= base_url($penyaluran->bukti_path) ?>" target="_blank"
+            <td><a href="<?= site_url('berkas/unduh/bukti/'.$penyaluran->bukti_id) ?>" target="_blank"
                    class="btn btn-outline btn-xs"><i class="ti ti-download"></i> Download Bukti</a></td></tr>
         <?php endif; ?>
       </table>
@@ -337,8 +337,8 @@
       <div style="margin-top:10px;padding:10px;background:var(--hijau-light);border-radius:var(--radius)">
         <i class="ti ti-circle-check" style="color:var(--hijau-mid)"></i>
         <strong style="color:var(--hijau-mid)"> Dana telah dikonfirmasi diterima.</strong>
-        <?php if ($penyaluran->bukti_path): ?>
-        <a href="<?= base_url($penyaluran->bukti_path) ?>" target="_blank"
+        <?php if ($penyaluran->bukti_path && $penyaluran->bukti_id): ?>
+        <a href="<?= site_url('berkas/unduh/bukti/'.$penyaluran->bukti_id) ?>" target="_blank"
            class="btn btn-outline btn-xs" style="margin-left:8px">
           <i class="ti ti-download"></i> Bukti RKUD
         </a>

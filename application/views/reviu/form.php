@@ -165,7 +165,7 @@ $semua_sesuai    = $confirmed && !$ada_tidak_sesuai && $semua_terisi;
         foreach ($dok_draft as $label => $path):
           if (!$path) continue;
         ?>
-        <a href="<?= base_url($path) ?>" target="_blank"
+        <a href="<?= site_url('berkas/unduh/draft/'.$p->id.'/'.strtolower($label)) ?>" target="_blank"
            style="display:flex;align-items:center;gap:6px;padding:7px 12px;
                   border:1px solid var(--hijau-mid);border-radius:var(--radius);
                   font-size:12px;text-decoration:none;color:var(--hijau-mid);
@@ -175,7 +175,7 @@ $semua_sesuai    = $confirmed && !$ada_tidak_sesuai && $semua_terisi;
         </a>
         <?php endforeach; ?>
         <?php if (!empty($dokumen)): foreach ($dokumen as $d): ?>
-        <a href="<?= base_url($d->file_path) ?>" target="_blank"
+        <a href="<?= site_url('berkas/unduh/dok/'.$d->id) ?>" target="_blank"
            style="display:flex;align-items:center;gap:6px;padding:7px 12px;
                   border:1px solid var(--border);border-radius:var(--radius);
                   font-size:12px;text-decoration:none;color:var(--text)">
@@ -481,7 +481,7 @@ $semua_sesuai    = $confirmed && !$ada_tidak_sesuai && $semua_terisi;
       <div class="text-sm mt-1">No. LHR: <strong><?= htmlspecialchars($r->no_lhr) ?></strong></div>
       <div class="text-sm">Tanggal: <?= tgl_indo($r->tgl_lhr) ?></div>
       <div style="margin-top:8px;display:flex;gap:8px">
-        <a href="<?= base_url($r->file_lhr_path) ?>" target="_blank" class="btn btn-outline btn-xs">
+        <a href="<?= site_url('berkas/unduh/lhr/'.$r->id) ?>" target="_blank" class="btn btn-outline btn-xs">
           <i class="ti ti-eye"></i> Lihat File LHR
         </a>
       </div>
@@ -593,7 +593,7 @@ $h = $hmap[$keputusan] ?? ['abu','—','ti-question-mark',''];
   <?php endif; ?>
   <div class="mt-2" style="display:flex;gap:8px">
     <?php if ($r->file_lhr_path): ?>
-    <a href="<?= base_url($r->file_lhr_path) ?>" target="_blank" class="btn btn-outline btn-sm">
+    <a href="<?= site_url('berkas/unduh/lhr/'.$r->id) ?>" target="_blank" class="btn btn-outline btn-sm">
       <i class="ti ti-download"></i> Download LHR
     </a>
     <?php endif; ?>

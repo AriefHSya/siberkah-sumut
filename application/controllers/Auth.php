@@ -66,6 +66,7 @@ class Auth extends Guest_Controller
             'instansi_jenis' => $user->instansi_jenis,
             'opd_nama'       => $user->opd_nama,
             'tahun_anggaran' => $tahun_aktif,
+            'must_change_password' => (int)$user->must_change_password,
         ]);
 
         $this->User_model->update_last_login($user->id);

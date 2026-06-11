@@ -102,7 +102,7 @@
               <div class="text-muted"><?= $d->ukuran_kb ?> KB</div>
             </div>
           </div>
-          <a href="<?= base_url($d->file_path) ?>" target="_blank"
+          <a href="<?= site_url('berkas/unduh/dok/'.$d->id) ?>" target="_blank"
              class="btn-icon" title="Download">
             <i class="ti ti-download"></i>
           </a>

@@ -120,16 +120,27 @@ class Capaian extends Auth_Controller
         }
 
         // Handle upload foto dokumentasi
-        $foto_path = $detail->foto_path ?? NULL;
+        $foto_path      = $detail->foto_path ?? NULL;
+        $nama_foto_asli = NULL;
         if (!empty($_FILES['foto_dokumentasi']['name'])) {
             $dir = FCPATH . 'uploads/capaian/' . $pekerjaan_id . '/';
             if (!is_dir($dir)) mkdir($dir, 0755, TRUE);
+
+            $mime_ok = ['image/jpeg','image/png','application/pdf'];
+            if (!$this->_mime_valid($_FILES['foto_dokumentasi']['tmp_name'], $mime_ok)) {
+                $this->session->set_flashdata('error',
+                    'Jenis file tidak diizinkan. Gunakan JPG, PNG, atau PDF.');
+                redirect('capaian/form/' . $pekerjaan_id); return;
+            }
+            $nama_foto_asli = basename($_FILES['foto_dokumentasi']['name']);
+            $ext            = strtolower(pathinfo($nama_foto_asli, PATHINFO_EXTENSION));
+            $rand_name      = $this->_random_filename($ext);
 
             $this->load->library('upload', [
                 'upload_path'   => $dir,
                 'allowed_types' => 'jpg|jpeg|png|pdf',
                 'max_size'      => 5120,
-                'file_name'     => 'capaian_' . $pekerjaan_id . '_' . time(),
+                'file_name'     => $rand_name,
             ]);
 
             if (!$this->upload->do_upload('foto_dokumentasi')) {
@@ -148,6 +159,7 @@ class Capaian extends Auth_Controller
             'tgl_ba_kemajuan'   => $this->input->post('tgl_ba_kemajuan') ?: NULL,
             'keterangan'        => $this->input->post('keterangan', TRUE),
             'foto_path'         => $foto_path,
+            'nama_foto_asli'    => $nama_foto_asli !== NULL ? $nama_foto_asli : ($detail->nama_foto_asli ?? NULL),
         ];
 
         $this->Capaian_model->simpan($detail->tahapan_id, $data_capaian, $this->user_id);

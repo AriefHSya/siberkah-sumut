@@ -131,7 +131,7 @@
       <?php if ($detail->foto_path): ?>
       <div class="alert alert-info" style="margin-bottom:8px;font-size:13px">
         <i class="ti ti-photo"></i> Foto sudah ada:
-        <a href="<?= site_url($detail->foto_path) ?>" target="_blank"><?= basename($detail->foto_path) ?></a>
+        <a href="<?= site_url('berkas/unduh/capaian/'.$detail->id) ?>" target="_blank"><?= htmlspecialchars($detail->nama_foto_asli ?? basename($detail->foto_path)) ?></a>
         &nbsp;—&nbsp; Upload baru untuk mengganti.
       </div>
       <?php endif; ?>
@@ -170,7 +170,7 @@
       <div><?= nl2br(htmlspecialchars($detail->keterangan ?? '—')) ?></div></div>
     <?php if ($detail->foto_path): ?>
     <div style="grid-column:1/-1"><div class="form-label text-muted" style="font-size:11px">DOKUMENTASI</div>
-      <a href="<?= site_url($detail->foto_path) ?>" target="_blank" class="btn btn-outline btn-sm">
+      <a href="<?= site_url('berkas/unduh/capaian/'.$detail->id) ?>" target="_blank" class="btn btn-outline btn-sm">
         <i class="ti ti-download"></i> Lihat Foto/Dokumen
       </a></div>
     <?php endif; ?>
