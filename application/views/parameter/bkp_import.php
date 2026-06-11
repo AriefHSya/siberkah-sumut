@@ -72,7 +72,10 @@
         <li>Nilai cukup angka tanpa titik atau Rp (mis: <code>1000000000</code>)</li>
         <li>Duplikat dideteksi berdasarkan Tahun + Kab/Kota + Uraian yang sama</li>
       </ul>
-      <div style="margin-top:14px">
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+        <a href="<?= site_url('parameter/bkp/import/template-xlsx') ?>" class="btn btn-outline btn-sm">
+          <i class="ti ti-file-spreadsheet"></i> Download Template XLSX
+        </a>
         <a href="<?= site_url('parameter/bkp/import/template') ?>" class="btn btn-outline btn-sm">
           <i class="ti ti-download"></i> Download Template CSV
         </a>

@@ -476,7 +476,9 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
 
 <!-- ══════════════════════════════════════════════════════════════
      PETA LOKASI PEKERJAAN — Leaflet Marker Cluster
+     Hanya untuk role provinsi (superadmin/admin_provinsi) & pengawas
      ══════════════════════════════════════════════════════════════ -->
+<?php if ($is_provinsi || $current_user->role_kode === 'pengawas'): ?>
 <div class="card mb-2" id="peta-card">
   <div class="card-title">
     <i class="ti ti-map-pin"></i> Peta Lokasi Pekerjaan TA <?= $tahun ?>
@@ -561,10 +563,13 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
       points.forEach(function(p) {
         if (!p.lat || !p.lng) return;
         var icon   = makeIcon(getColor(p.status));
+        var nilaiFmt = 'Rp ' + (p.nilai || 0).toLocaleString('id-ID');
         var popup  = '<div style="font-size:12px;min-width:180px">' +
                      '<div style="font-weight:600;color:#1A5EA8;margin-bottom:2px">' + p.kode + '</div>' +
                      '<div style="margin-bottom:4px">' + p.uraian + '</div>' +
                      '<div style="color:#6b7280;margin-bottom:4px">' + p.kab + '</div>' +
+                     '<div style="margin-bottom:4px">' + nilaiFmt + '</div>' +
+                     '<div style="margin-bottom:4px"><span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;background:' + getColor(p.status) + '22;color:' + getColor(p.status) + '">' + p.status_label + '</span></div>' +
                      (p.lokasi ? '<div style="color:#6b7280;font-size:11px;margin-bottom:4px">' + p.lokasi + '</div>' : '') +
                      '<a href="<?= site_url('pekerjaan/detail/') ?>' + p.id + '" style="color:#1A5EA8;font-weight:600;font-size:11px">Lihat Detail →</a>' +
                      '</div>';
@@ -586,6 +591,7 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
     });
 })();
 </script>
+<?php endif; ?>
 
 <!-- ══════════════════════════════════════════════════════════════
      CHART.JS INITIALIZATION

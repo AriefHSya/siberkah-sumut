@@ -343,7 +343,14 @@ class Parameter extends Auth_Controller
             $bidang_warning = $bidang_result['warning']; // peringatan jika pakai fuzzy
             if (!$bidang) $row_errors[] = 'Bidang "' . htmlspecialchars($nama_bid) . '" tidak dikenali';
 
-            $nilai = (int)preg_replace('/[^0-9]/', '', $nilai_raw);
+            // Validasi nilai harus angka — bersihkan format umum (Rp, titik, koma, spasi)
+            $nilai_bersih = str_replace(['Rp', '.', ',', ' '], '', $nilai_raw);
+            if ($nilai_bersih !== '' && !is_numeric($nilai_bersih)) {
+                $row_errors[] = 'Nilai "' . htmlspecialchars($nilai_raw) . '" bukan angka';
+                $nilai = 0;
+            } else {
+                $nilai = (int)$nilai_bersih;
+            }
 
             // Cek duplikat berdasarkan (tahun + kabkota_id + uraian)
             $existing = NULL;
@@ -505,6 +512,32 @@ class Parameter extends Auth_Controller
         fputcsv($out, ['5', '2026', 'Kab. Karo',        'Pariwisata',    'Pengembangan Destinasi Wisata Berastagi',           '350000000'], ';');
         fclose($out);
         exit;
+    }
+
+    /** Download template XLSX sesuai format yang diharapkan */
+    public function bkp_template_xlsx() {
+        $this->requirePerm('parameter.bkp.manage');
+
+        require_once APPPATH . 'libraries/XlsxWriter.php';
+        $headers = [
+            ['label'=>'No Urut',          'format'=>'number'],
+            ['label'=>'Tahun',            'format'=>'number'],
+            ['label'=>'Kab/Kota',         'format'=>'string'],
+            ['label'=>'Bidang Pekerjaan', 'format'=>'string'],
+            ['label'=>'Uraian',           'format'=>'string'],
+            ['label'=>'Nilai',            'format'=>'number'],
+        ];
+        $rows = [
+            [1, 2026, 'Kota Medan',        'Infrastruktur', 'Pembangunan Jalan Lingkungan Kec. Medan Kota', 1500000000],
+            [2, 2026, 'Kota Medan',        'Pendidikan',    'Pengadaan Sarana Pendidikan Dasar Kota Medan', 800000000],
+            [3, 2026, 'Kota Binjai',       'Kesehatan',     'Peningkatan Fasilitas Puskesmas Kota Binjai',  600000000],
+            [4, 2026, 'Kab. Deli Serdang', 'Pertanian',     'Pengembangan Irigasi Teknis Deli Serdang',     450000000],
+            [5, 2026, 'Kab. Karo',         'Pariwisata',    'Pengembangan Destinasi Wisata Berastagi',      350000000],
+        ];
+
+        $writer = new XlsxWriter();
+        $writer->writeSheet('Template Import BKP', $rows, $headers);
+        $writer->download('template_import_bkp.xlsx');
     }
 
     // ─── PRIVATE HELPERS ─────────────────────────────────────────
