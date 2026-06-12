@@ -176,10 +176,10 @@ $dok_types = [
     </div>
     <div class="aksi-row">
       <?php if ($file): ?>
-      <a href="<?= base_url($file) ?>" target="_blank" class="btn btn-outline btn-xs">
+      <a href="<?= site_url('berkas/unduh/pm/'.$pm->id.'/'.$jenis) ?>" target="_blank" class="btn btn-outline btn-xs">
         <i class="ti ti-eye"></i> Lihat
       </a>
-      <a href="<?= base_url($file) ?>" download class="btn-icon" title="Unduh">
+      <a href="<?= site_url('berkas/unduh/pm/'.$pm->id.'/'.$jenis) ?>" class="btn-icon" title="Unduh">
         <i class="ti ti-download"></i>
       </a>
       <?= form_open(site_url('permohonan/hapus-dok/'.$pm->id.'/'.$jenis)) ?>

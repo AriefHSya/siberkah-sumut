@@ -184,7 +184,7 @@
         <!-- Aksi -->
         <div class="aksi-row" style="flex-shrink:0">
           <?php if ($uploaded): ?>
-          <a href="<?= base_url($dok['path']) ?>" target="_blank"
+          <a href="<?= site_url('berkas/unduh/draft/'.$p->id.'/'.$jenis) ?>" target="_blank"
              class="btn btn-outline btn-xs" title="Download / Lihat">
             <i class="ti ti-eye"></i> Lihat
           </a>
@@ -322,12 +322,12 @@
                         background:var(--hijau-light)">
               <i class="ti ti-<?= $dok['icon'] ?>" style="color:var(--hijau-mid);font-size:14px"></i>
               <span class="text-xs fw-600" style="color:var(--hijau-mid)"><?= $label ?></span>
-              <a href="<?= base_url($dok['path']) ?>" target="_blank"
+              <a href="<?= site_url('berkas/unduh/draft/'.$p->id.'/'.strtolower($label)) ?>" target="_blank"
                  class="btn btn-xs" style="padding:2px 8px;background:var(--hijau-mid);color:#fff;border:none"
                  title="Preview / Download <?= $label ?>">
                 <i class="ti ti-eye"></i> Lihat
               </a>
-              <a href="<?= base_url($dok['path']) ?>" download
+              <a href="<?= site_url('berkas/unduh/draft/'.$p->id.'/'.strtolower($label)) ?>"
                  class="btn btn-xs" style="padding:2px 8px;background:#fff;color:var(--hijau-mid);border:1px solid var(--hijau-mid)"
                  title="Download <?= $label ?>">
                 <i class="ti ti-download"></i>
@@ -348,7 +348,7 @@
             <i class="ti <?= icon_file($d->file_path) ?>" style="color:var(--biru)"></i>
             <span><?= label_jenis_dok($d->jenis_dokumen) ?></span>
             <span class="text-muted">(<?= $d->ukuran_kb ?> KB)</span>
-            <a href="<?= base_url($d->file_path) ?>" target="_blank" class="btn-icon" title="Lihat / Download" style="width:22px;height:22px;font-size:13px"><i class="ti ti-download"></i></a>
+            <a href="<?= site_url('berkas/unduh/dok/'.$d->id) ?>" target="_blank" class="btn-icon" title="Lihat / Download" style="width:22px;height:22px;font-size:13px"><i class="ti ti-download"></i></a>
           </div>
           <?php endforeach; ?>
         </div>

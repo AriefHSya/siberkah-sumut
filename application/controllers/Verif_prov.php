@@ -178,6 +178,15 @@ class Verif_prov extends Auth_Controller
         $pekerjaan = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
         if (!$pekerjaan) { show_404(); return; }
 
+        // Guard transisi status — hanya bisa diputuskan saat tahapan sedang diverifikasi provinsi
+        // dan belum pernah diputuskan (status tetap 'skpkd_prov_verif' setelah disetujui,
+        // sehingga hasil_verifikasi yang menandai keputusan sudah diambil).
+        if ($tahapan->status !== 'skpkd_prov_verif' || $verif_prov->hasil_verifikasi === 'disetujui') {
+            $this->session->set_flashdata('error',
+                'Tahapan ini tidak dalam status menunggu keputusan verifikasi provinsi.');
+            redirect('verifikasi/prov/form/' . $tahapan->id); return;
+        }
+
         $hasil   = $this->input->post('hasil_verifikasi', TRUE);
         $catatan = $this->input->post('catatan', TRUE);
 
@@ -328,6 +337,12 @@ class Verif_prov extends Auth_Controller
 
         $tahapan   = $this->Pekerjaan_model->get_tahapan_by_id($penyaluran->tahapan_id);
         $pekerjaan = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
+
+        // Guard idempotensi — transfer yang sudah selesai tidak boleh dikonfirmasi ulang
+        if ($penyaluran->status_transfer === 'selesai') {
+            $this->session->set_flashdata('warning', 'Transfer ini sudah dikonfirmasi selesai sebelumnya.');
+            redirect('verifikasi/prov/form/' . $tahapan->id); return;
+        }
 
         $this->Verifikasi_prov_model->update_status_transfer($penyaluran_id, 'selesai');
         $this->_set_disalurkan($tahapan, $pekerjaan, $penyaluran->no_sp2d);
@@ -498,6 +513,12 @@ class Verif_prov extends Auth_Controller
 
         $pm = $this->Verifikasi_prov_model->get_permohonan_by_id($pm_id);
         if (!$pm) { show_404(); return; }
+
+        // Guard idempotensi — SP2D yang sudah selesai tidak boleh diproses ulang
+        if ($pm->status_sp2d === 'selesai') {
+            $this->session->set_flashdata('warning', 'SP2D untuk permohonan ini sudah selesai diproses sebelumnya.');
+            redirect('verifikasi/prov/permohonan/'.$pm_id); return;
+        }
 
         // Validasi: semua nota sudah digenerate
         if (empty($pm->nota_kabid_at) || empty($pm->nota_kabadan_at) || empty($pm->ringkasan_at)) {

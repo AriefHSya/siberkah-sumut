@@ -239,15 +239,19 @@ class Reviu_model extends CI_Model
 
     // ─── UPLOAD LHR ───────────────────────────────────────────
 
-    public function update_lhr($reviu_id, $no_lhr, $tgl_lhr, $file_path, $ref_inspektur_id)
+    public function update_lhr($reviu_id, $no_lhr, $tgl_lhr, $file_path, $ref_inspektur_id, $nama_lhr_asli = NULL)
     {
-        return $this->db->where('id', $reviu_id)->update('trx_reviu_inspektorat', [
+        $data = [
             'no_lhr'           => $no_lhr,
             'tgl_lhr'          => $tgl_lhr,
             'file_lhr_path'    => $file_path,
             'ref_inspektur_id' => $ref_inspektur_id ?: NULL,
             'updated_at'       => date('Y-m-d H:i:s'),
-        ]);
+        ];
+        if ($nama_lhr_asli !== NULL) {
+            $data['nama_lhr_asli'] = $nama_lhr_asli;
+        }
+        return $this->db->where('id', $reviu_id)->update('trx_reviu_inspektorat', $data);
     }
 
     // ─── STATISTIK ────────────────────────────────────────────

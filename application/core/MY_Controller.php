@@ -100,6 +100,31 @@ class MY_Controller extends CI_Controller
             'created_at' => date('Y-m-d H:i:s'),
         ]);
     }
+
+    /**
+     * Generate nama file acak agar path tidak dapat ditebak.
+     * Gunakan untuk semua upload ke folder privat (dokumen, lhr, permohonan, capaian).
+     */
+    protected function _random_filename($ext)
+    {
+        return bin2hex(random_bytes(16)) . '.' . strtolower(ltrim($ext, '.'));
+    }
+
+    /**
+     * Validasi MIME type sebenarnya dari file yang diupload.
+     * Lebih andal daripada cek ekstensi saja karena membaca bytes aktual file.
+     *
+     * @param string $tmp_path Path sementara ($_FILES[...]['tmp_name'])
+     * @param array  $allowed  MIME type yang diizinkan
+     */
+    protected function _mime_valid($tmp_path, $allowed)
+    {
+        if (!function_exists('finfo_open')) return TRUE;
+        $fi   = finfo_open(FILEINFO_MIME_TYPE);
+        $mime = finfo_file($fi, $tmp_path);
+        finfo_close($fi);
+        return in_array($mime, $allowed, TRUE);
+    }
 }
 
 /**
@@ -133,6 +158,19 @@ class Auth_Controller extends MY_Controller
             $this->session->set_flashdata('error', 'Silakan login terlebih dahulu.');
             redirect('login'); exit;
         }
+        // Guard: paksa ganti password jika flag must_change_password aktif.
+        // Hanya controller Akun (ganti_password & update_password) yang dikecualikan,
+        // agar tidak terjadi redirect loop.
+        if ($this->session->userdata('must_change_password')) {
+            $kelas  = strtolower($this->router->fetch_class());
+            $metode = strtolower($this->router->fetch_method());
+            $allowed = ($kelas === 'akun' && in_array($metode, ['ganti_password','update_password']));
+            if (!$allowed) {
+                $this->session->set_flashdata('warning', 'Anda harus mengganti password terlebih dahulu sebelum melanjutkan.');
+                redirect('ganti-password'); exit;
+            }
+        }
+
         $this->load->library('Rbac');
         $this->user_id    = $this->session->userdata('user_id');
         $this->role_kode  = $this->session->userdata('role_kode');

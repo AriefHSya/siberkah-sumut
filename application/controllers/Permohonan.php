@@ -219,12 +219,29 @@ class Permohonan extends Auth_Controller
         $dir   = FCPATH . 'uploads/permohonan/' . $id . '/';
         if (!is_dir($dir)) mkdir($dir, 0755, TRUE);
 
+        if (empty($_FILES['file_dok']['name'])) {
+            $this->session->set_flashdata('error', 'Tidak ada file yang dipilih.');
+            redirect('permohonan/detail/' . $id); return;
+        }
+
+        $mime_ok = ['application/pdf','application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'image/jpeg','image/png'];
+        if (!$this->_mime_valid($_FILES['file_dok']['tmp_name'], $mime_ok)) {
+            $this->session->set_flashdata('error', 'Jenis file tidak diizinkan. Gunakan PDF, DOC, DOCX, JPG, atau PNG.');
+            redirect('permohonan/detail/' . $id); return;
+        }
+
+        $orig_name = basename($_FILES['file_dok']['name']);
+        $ext       = strtolower(pathinfo($orig_name, PATHINFO_EXTENSION));
+        $rand_name = $this->_random_filename($ext);
+
         $this->load->library('upload');
         $this->upload->initialize([
             'upload_path'   => $dir,
             'allowed_types' => 'pdf|doc|docx|jpg|jpeg|png',
             'max_size'      => 10240,
-            'file_name'     => $jenis . '_' . $id . '_' . time(),
+            'file_name'     => $rand_name,
         ]);
 
         if (!$this->upload->do_upload('file_dok')) {
@@ -239,8 +256,10 @@ class Permohonan extends Auth_Controller
         $lama = $permohonan->$kolom ?? NULL;
         if ($lama && file_exists(FCPATH . $lama)) @unlink(FCPATH . $lama);
 
+        $kolom_nama = 'nama_' . $jenis;
         $this->db->where('id', $id)->update('trx_permohonan', [
             $kolom       => $file_path,
+            $kolom_nama  => $orig_name,
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
 

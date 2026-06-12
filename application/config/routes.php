@@ -10,6 +10,10 @@ $route['login']            = 'auth/login';
 $route['login/proses']     = 'auth/proses';
 $route['logout']           = 'auth/logout';
 
+// ─── AKUN ─────────────────────────────────────────────────────
+$route['ganti-password']        = 'akun/ganti_password';
+$route['ganti-password/simpan'] = 'akun/update_password';
+
 // ─── DASHBOARD ────────────────────────────────────────────────
 $route['dashboard']              = 'dashboard/index';
 $route['dashboard/pilih-tahun']  = 'dashboard/pilih_tahun';
@@ -34,6 +38,7 @@ $route['parameter/bkp/import']                = 'parameter/bkp_import';
 $route['parameter/bkp/import/preview']        = 'parameter/bkp_preview_import';
 $route['parameter/bkp/import/proses']         = 'parameter/bkp_proses_import';
 $route['parameter/bkp/import/template']       = 'parameter/bkp_template';
+$route['parameter/bkp/import/template-xlsx']  = 'parameter/bkp_template_xlsx';
 $route['parameter/bkp/cetak']                 = 'parameter/bkp_cetak';
 $route['parameter/bkp/generate-kode']         = 'parameter/bkp_generate_kode';
 $route['parameter/pemda']                     = 'parameter/pemda';
@@ -76,6 +81,10 @@ $route['admin/roles/logs']                    = 'admin_roles/logs';
 $route['admin/telegram']                      = 'admin_telegram/index';
 $route['admin/telegram/simpan-token']         = 'admin_telegram/simpan_token';
 $route['admin/telegram/test/(:num)']          = 'admin_telegram/test/$1';
+$route['admin/logs']                          = 'admin_logs/index';
+$route['admin/logs/status']                   = 'admin_logs/status_history';
+$route['admin/logs/export']                   = 'admin_logs/export_aktivitas';
+$route['admin/logs/export-status']            = 'admin_logs/export_status';
 
 // ─── PEKERJAAN ────────────────────────────────────────────────
 $route['pekerjaan']                           = 'pekerjaan/index';
@@ -143,6 +152,10 @@ $route['penyaluran-kab/konfirmasi/(:num)']  = 'penyaluran_kab/konfirmasi/$1';
 $route['capaian']                    = 'capaian/index';
 $route['capaian/form/(:num)']        = 'capaian/form/$1';
 $route['capaian/simpan/(:num)']      = 'capaian/simpan/$1';
+
+// ─── BERKAS (unduhan file privat via controller) ─────────────
+$route['berkas/unduh/(:any)/(:num)/(:any)'] = 'berkas/unduh_sub/$1/$2/$3';
+$route['berkas/unduh/(:any)/(:num)']        = 'berkas/unduh/$1/$2';
 
 // ─── LAPORAN ──────────────────────────────────────────────────
 $route['laporan']                           = 'laporan/index';

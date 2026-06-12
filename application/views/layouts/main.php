@@ -63,6 +63,9 @@
           <i class="ti ti-logout" aria-hidden="true"></i>
           <span>Keluar</span>
         </a>
+        <div class="sidebar-version" style="text-align:center;font-size:11px;color:var(--abu);padding:6px 0 2px">
+          v<?= htmlspecialchars($app_version) ?>
+        </div>
       </div>
     </aside>
 
@@ -113,10 +116,10 @@
         </div>
 
         <!-- User pill -->
-        <div class="user-pill">
+        <a href="<?= site_url('ganti-password') ?>" class="user-pill" title="Ganti Password" style="text-decoration:none;color:inherit">
           <div class="user-ava"><?= strtoupper(substr($current_user->nama ?? 'U', 0, 1)) ?></div>
           <span class="text-sm"><?= htmlspecialchars(explode(' ', $current_user->nama ?? '')[0]) ?></span>
-        </div>
+        </a>
       </header>
 
       <!-- SUB NAV -->

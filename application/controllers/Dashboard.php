@@ -110,7 +110,8 @@ class Dashboard extends Auth_Controller
             ->where('p.latitude !=', '')
             ->where('p.longitude !=', '');
 
-        if (!$is_provinsi) {
+        // Provinsi & pengawas melihat seluruh kab/kota; role kabkota dibatasi ke kab/kota sendiri
+        if (!$is_provinsi && $this->role_kode !== 'pengawas') {
             $this->db->where('b.kabkota_id', (int)$this->kabkota_id);
         }
 
@@ -119,14 +120,16 @@ class Dashboard extends Auth_Controller
         $data = [];
         foreach ($rows as $r) {
             $data[] = [
-                'lat'    => (float)$r->latitude,
-                'lng'    => (float)$r->longitude,
-                'id'     => (int)$r->id,
-                'kode'   => $r->kode_bkp,
-                'uraian' => $r->uraian_bkp,
-                'kab'    => $r->nama_kabkota,
-                'status' => $r->status,
-                'lokasi' => $r->lokasi_deskripsi,
+                'lat'          => (float)$r->latitude,
+                'lng'          => (float)$r->longitude,
+                'id'           => (int)$r->id,
+                'kode'         => $r->kode_bkp,
+                'uraian'       => $r->uraian_bkp,
+                'kab'          => $r->nama_kabkota,
+                'status'       => $r->status,
+                'status_label' => strip_tags(badge_status($r->status)),
+                'nilai'        => (int)$r->nilai_kontrak,
+                'lokasi'       => $r->lokasi_deskripsi,
             ];
         }
 

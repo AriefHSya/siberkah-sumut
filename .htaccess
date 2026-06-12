@@ -3,7 +3,10 @@ DirectoryIndex index.php index.html
 
 RewriteEngine On
 
-# Blokir akses langsung ke folder system dan application (bukan uploads)
+# Blokir akses langsung ke subfolder upload privat
+RewriteRule ^uploads/(dokumen|lhr|permohonan|capaian|temp)/.*$ - [F,L]
+
+# Blokir akses langsung ke folder system dan application
 RewriteRule ^(application|system)/.*$ - [F,L]
 
 # Arahkan semua request ke index.php (kecuali file/folder yang benar-benar ada)

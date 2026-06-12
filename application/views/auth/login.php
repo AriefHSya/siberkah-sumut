@@ -46,7 +46,7 @@
     <?= form_close() ?>
   </div>
   <div class="login-footer">
-    <p>BKAD Provinsi Sumatera Utara &copy; <?= date('Y') ?></p>
+    <p>BKAD Provinsi Sumatera Utara &copy; <?= date('Y') ?> &middot; SIBERKAH SUMUT v<?= htmlspecialchars($app_version) ?></p>
   </div>
 </div>
 </body>

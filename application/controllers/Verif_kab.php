@@ -183,11 +183,26 @@ class Verif_kab extends Auth_Controller
         $dir = FCPATH . 'uploads/permohonan/' . $pekerjaan->id . '/';
         if (!is_dir($dir)) mkdir($dir, 0755, TRUE);
 
+        if (empty($_FILES['file_dok']['name'])) {
+            $this->session->set_flashdata('error', 'Tidak ada file yang dipilih.');
+            redirect('verifikasi/kab/form/' . $tahapan_id); return;
+        }
+        $mime_ok = ['application/pdf','application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'image/jpeg','image/png'];
+        if (!$this->_mime_valid($_FILES['file_dok']['tmp_name'], $mime_ok)) {
+            $this->session->set_flashdata('error', 'Jenis file tidak diizinkan. Gunakan PDF, DOC, DOCX, JPG, atau PNG.');
+            redirect('verifikasi/kab/form/' . $tahapan_id); return;
+        }
+        $orig_name = basename($_FILES['file_dok']['name']);
+        $ext       = strtolower(pathinfo($orig_name, PATHINFO_EXTENSION));
+        $rand_name = $this->_random_filename($ext);
+
         $this->load->library('upload', [
             'upload_path'   => $dir,
             'allowed_types' => 'pdf|doc|docx|jpg|jpeg|png',
             'max_size'      => 10240,
-            'file_name'     => 'dok_kab_' . $tahapan_id . '_' . time(),
+            'file_name'     => $rand_name,
         ]);
 
         if (!$this->upload->do_upload('file_dok')) {
@@ -204,6 +219,7 @@ class Verif_kab extends Auth_Controller
             'tahapan_id'    => $tahapan_id,
             'jenis_dokumen' => $jenis,
             'nama_file'     => $up['file_name'],
+            'nama_asli'     => $orig_name,
             'file_path'     => $filepath,
             'ukuran_kb'     => (int)$up['file_size'],
             'keterangan'    => $this->input->post('keterangan', TRUE),
@@ -251,6 +267,20 @@ class Verif_kab extends Auth_Controller
         if (!$tahapan) { show_404(); return; }
         $pekerjaan = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
         if (!$pekerjaan) { show_404(); return; }
+
+        // Guard kabkota — SKPKD hanya bisa memutuskan verifikasi kabkota sendiri
+        if ($this->role_kode === 'skpkd_kabkota'
+            && $pekerjaan->kabkota_id != $this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('verifikasi/kab'); return;
+        }
+
+        // Guard transisi status — hanya bisa diputuskan saat tahapan sedang diverifikasi
+        if ($tahapan->status !== 'skpkd_kab_verif') {
+            $this->session->set_flashdata('error',
+                'Tahapan ini tidak dalam status menunggu keputusan verifikasi.');
+            redirect('verifikasi/kab/form/' . $verif->tahapan_id); return;
+        }
 
         $hasil        = $this->input->post('hasil_verifikasi', TRUE);
         $catatan      = $this->input->post('catatan', TRUE);
@@ -430,15 +460,25 @@ class Verif_kab extends Auth_Controller
         $dir = FCPATH . 'uploads/permohonan/' . $pekerjaan->id . '/';
         if (!is_dir($dir)) mkdir($dir, 0755, TRUE);
 
-        $this->load->library('upload', [
-            'upload_path'   => $dir,
-            'allowed_types' => 'pdf|jpg|jpeg|png',
-            'max_size'      => 10240,
-            'file_name'     => 'bukti_transfer_' . $tahapan_id . '_' . time(),
-        ]);
-
         $file_path = NULL; $nama_file = NULL;
         if (!empty($_FILES['file_bukti']['name'])) {
+            $mime_ok = ['application/pdf','image/jpeg','image/png'];
+            if (!$this->_mime_valid($_FILES['file_bukti']['tmp_name'], $mime_ok)) {
+                $this->session->set_flashdata('error',
+                    'Jenis file tidak diizinkan. Gunakan PDF, JPG, atau PNG.');
+                redirect('verifikasi/kab/form/' . $tahapan_id); return;
+            }
+            $nama_file = basename($_FILES['file_bukti']['name']); // simpan nama asli
+            $ext       = strtolower(pathinfo($nama_file, PATHINFO_EXTENSION));
+            $rand_name = $this->_random_filename($ext);
+
+            $this->load->library('upload', [
+                'upload_path'   => $dir,
+                'allowed_types' => 'pdf|jpg|jpeg|png',
+                'max_size'      => 10240,
+                'file_name'     => $rand_name,
+            ]);
+
             if (!$this->upload->do_upload('file_bukti')) {
                 $this->session->set_flashdata('error',
                     'Upload bukti gagal: ' . $this->upload->display_errors('', ''));
@@ -446,7 +486,6 @@ class Verif_kab extends Auth_Controller
             }
             $up        = $this->upload->data();
             $file_path = 'uploads/permohonan/' . $pekerjaan->id . '/' . $up['file_name'];
-            $nama_file = $up['file_name'];
         }
 
         if (!$file_path) {

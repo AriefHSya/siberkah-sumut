@@ -204,7 +204,7 @@ $has_kanan = (!empty($pejabat['sekda']->foto_path)          && file_exists(FCPAT
 
   <div class="landing-footer">
     &copy; <?= date('Y') ?> BKAD Provinsi Sumatera Utara
-    &nbsp;&middot;&nbsp; SIBERKAH SUMUT v2.0.0
+    &nbsp;&middot;&nbsp; SIBERKAH SUMUT v<?= htmlspecialchars($app_version) ?>
     <!-- &nbsp;&middot;&nbsp; SE Gubernur No. 900.1.1.3689 / 8 Mei 2026 -->
   </div>
 

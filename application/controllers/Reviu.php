@@ -240,15 +240,27 @@ class Reviu extends Auth_Controller
         $dir = FCPATH . 'uploads/lhr/' . $pekerjaan->id . '/';
         if (!is_dir($dir)) mkdir($dir, 0755, TRUE);
 
-        $this->load->library('upload', [
-            'upload_path'   => $dir,
-            'allowed_types' => 'pdf|doc|docx',
-            'max_size'      => 10240,
-            'file_name'     => 'lhr_' . $reviu->tahapan_id . '_' . time(),
-        ]);
-
         $file_path = NULL;
+        $orig_lhr  = NULL;
         if (!empty($_FILES['file_lhr']['name'])) {
+            $mime_ok = ['application/pdf','application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+            if (!$this->_mime_valid($_FILES['file_lhr']['tmp_name'], $mime_ok)) {
+                $this->session->set_flashdata('error',
+                    'Jenis file tidak diizinkan. LHR harus berformat PDF, DOC, atau DOCX.');
+                redirect('reviu/form/' . $reviu->tahapan_id); return;
+            }
+            $orig_lhr  = basename($_FILES['file_lhr']['name']);
+            $ext       = strtolower(pathinfo($orig_lhr, PATHINFO_EXTENSION));
+            $rand_name = $this->_random_filename($ext);
+
+            $this->load->library('upload', [
+                'upload_path'   => $dir,
+                'allowed_types' => 'pdf|doc|docx',
+                'max_size'      => 10240,
+                'file_name'     => $rand_name,
+            ]);
+
             if (!$this->upload->do_upload('file_lhr')) {
                 $this->session->set_flashdata('error',
                     'Upload LHR gagal: ' . $this->upload->display_errors('', ''));
@@ -267,7 +279,8 @@ class Reviu extends Auth_Controller
             $no_lhr,
             $tgl_lhr ?: NULL,
             $file_path ?? $reviu->file_lhr_path,
-            $ref_inspektur_id
+            $ref_inspektur_id,
+            $orig_lhr
         );
 
         // Juga simpan sebagai dokumen tahapan agar terlihat di tab dokumen
@@ -276,6 +289,7 @@ class Reviu extends Auth_Controller
                 'tahapan_id'    => $reviu->tahapan_id,
                 'jenis_dokumen' => 'laporan_reviu_inspektorat',
                 'nama_file'     => basename($file_path),
+                'nama_asli'     => $orig_lhr,
                 'file_path'     => $file_path,
                 'ukuran_kb'     => 0,
                 'keterangan'    => 'LHR No. ' . $no_lhr,
@@ -298,6 +312,20 @@ class Reviu extends Auth_Controller
 
         $tahapan   = $this->Pekerjaan_model->get_tahapan_by_id($reviu->tahapan_id);
         $pekerjaan = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
+
+        // Guard kabkota — inspektorat hanya bisa memutuskan reviu kabkota sendiri
+        if ($this->role_kode === 'inspektorat'
+            && $pekerjaan->kabkota_id != $this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('reviu'); return;
+        }
+
+        // Guard transisi status — hanya bisa diputuskan saat tahapan sedang direviu
+        if ($tahapan->status !== 'inspektorat_reviu') {
+            $this->session->set_flashdata('error',
+                'Tahapan ini tidak dalam status menunggu keputusan reviu.');
+            redirect('reviu/form/' . $reviu->tahapan_id); return;
+        }
 
         $hasil  = $this->input->post('hasil_reviu', TRUE);
         $catatan = $this->input->post('catatan', TRUE);

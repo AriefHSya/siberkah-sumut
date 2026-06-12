@@ -95,7 +95,8 @@ class Capaian_model extends CI_Model
                       t.id as tahapan_id, t.status as status_tahapan, t.persen_nilai,
                       pd.no_sp2d, pd.tgl_sp2d, pd.nilai_transfer,
                       c.id as capaian_id, c.persen_fisik, c.tgl_realisasi,
-                      c.no_ba_kemajuan, c.tgl_ba_kemajuan, c.keterangan, c.foto_path')
+                      c.no_ba_kemajuan, c.tgl_ba_kemajuan, c.keterangan, c.foto_path,
+                      c.nama_foto_asli')
             ->from('trx_pekerjaan p')
             ->join('ref_bkp b',                'b.id = p.bkp_id')
             ->join('ref_kabkota k',            'k.id = b.kabkota_id')
