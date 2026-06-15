@@ -236,6 +236,27 @@ SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.kode = 'skpkd_kabkota'
   AND p.kode IN ('penyaluran_kab.view','penyaluran_kab.konfirmasi');
 
+-- ─────────────────────────────────────────────────────────────
+-- 9. Lockout login 5x gagal + permission buka akun terkunci
+--    Jika error "Duplicate column name '...'" -> SKIP per baris
+-- ─────────────────────────────────────────────────────────────
+ALTER TABLE users
+  ADD COLUMN failed_login_attempts TINYINT UNSIGNED NOT NULL DEFAULT 0
+    COMMENT 'Jumlah percobaan login gagal berturut-turut'
+    AFTER password;
+ALTER TABLE users
+  ADD COLUMN locked_at DATETIME NULL
+    COMMENT 'Waktu akun dikunci otomatis (5x gagal login). NULL = tidak terkunci'
+    AFTER failed_login_attempts;
+
+INSERT IGNORE INTO permissions (kode, nama, modul, jenis) VALUES
+('admin.user.unlock', 'Buka Akun Terkunci', 'admin', 'aksi');
+
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r, permissions p
+WHERE r.kode IN ('superadmin','admin_provinsi','skpkd_kabkota')
+  AND p.kode = 'admin.user.unlock';
+
 -- ============================================================
 -- SELESAI — verifikasi cepat
 -- ============================================================

@@ -10,7 +10,6 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  *   trx_verifikasi_skpkd_kab — record verifikasi per tahapan (UNIQUE)
  *   trx_dokumen_persyaratan  — dokumen permohonan yang diupload SKPKD Kab
  *   trx_penyaluran_dana      — data SP2D (dibaca saja dari model ini)
- *   trx_bukti_transfer       — bukti penerimaan RKUD dari kab
  *
  * POLA UPSERT:
  *   buat_atau_ambil($tahapan_id) — sama dengan Reviu_model,
@@ -153,10 +152,8 @@ class Verifikasi_kab_model extends CI_Model
     public function get_penyaluran($tahapan_id)
     {
         return $this->db
-            ->select('pd.*, bt.id as bukti_id, bt.file_path as bukti_path,
-                      bt.nama_file as bukti_nama, bt.keterangan as bukti_ket')
+            ->select('pd.*')
             ->from('trx_penyaluran_dana pd')
-            ->join('trx_bukti_transfer bt', 'bt.penyaluran_id = pd.id', 'left')
             ->where('pd.tahapan_id', $tahapan_id)
             ->get()->row();
     }

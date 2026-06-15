@@ -298,11 +298,6 @@
               $st = $st_map[$penyaluran->status_transfer] ?? ['abu',$penyaluran->status_transfer];
               echo '<span class="badge badge-'.$st[0].'">'.$st[1].'</span>';
             ?></td></tr>
-        <?php if ($penyaluran->bukti_path && $penyaluran->bukti_id): ?>
-        <tr><td class="text-muted text-sm">Bukti Transfer RKUD</td>
-            <td><a href="<?= site_url('berkas/unduh/bukti/'.$penyaluran->bukti_id) ?>" target="_blank"
-                   class="btn btn-outline btn-xs"><i class="ti ti-download"></i> Download Bukti</a></td></tr>
-        <?php endif; ?>
       </table>
 
       <!-- Status konfirmasi penerimaan (dikonfirmasi via menu Penyaluran SKPKD Kab/Kota) -->
@@ -316,12 +311,6 @@
       <div style="margin-top:10px;padding:10px;background:var(--hijau-light);border-radius:var(--radius)">
         <i class="ti ti-circle-check" style="color:var(--hijau-mid)"></i>
         <strong style="color:var(--hijau-mid)"> Dana telah dikonfirmasi diterima.</strong>
-        <?php if ($penyaluran->bukti_path && $penyaluran->bukti_id): ?>
-        <a href="<?= site_url('berkas/unduh/bukti/'.$penyaluran->bukti_id) ?>" target="_blank"
-           class="btn btn-outline btn-xs" style="margin-left:8px">
-          <i class="ti ti-download"></i> Bukti RKUD
-        </a>
-        <?php endif; ?>
       </div>
       <?php endif; ?>
     </div>

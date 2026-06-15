@@ -69,6 +69,7 @@ $route['admin/users/update/(:num)']           = 'admin_users/update/$1';
 $route['admin/users/toggle/(:num)']           = 'admin_users/toggle/$1';
 $route['admin/users/hapus/(:num)']            = 'admin_users/hapus/$1';
 $route['admin/users/reset-pw/(:num)']         = 'admin_users/reset_pw/$1';
+$route['admin/users/unlock/(:num)']           = 'admin_users/unlock/$1';
 $route['admin/roles']                         = 'admin_roles/index';
 $route['admin/roles/tambah']                  = 'admin_roles/tambah';
 $route['admin/roles/simpan']                  = 'admin_roles/simpan';

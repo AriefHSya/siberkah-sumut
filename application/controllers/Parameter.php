@@ -902,7 +902,7 @@ class Parameter extends Auth_Controller
         $this->load->library('upload');
         $this->upload->initialize([
             'upload_path'   => $dir,
-            'allowed_types' => 'jpg|jpeg|png|svg|webp',
+            'allowed_types' => 'jpg|jpeg|png|webp',
             'max_size'      => 2048,
             'file_name'     => 'logo_provinsi_' . time(),
         ]);

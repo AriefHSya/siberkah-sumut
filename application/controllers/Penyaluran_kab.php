@@ -98,6 +98,20 @@ class Penyaluran_kab extends Auth_Controller
             redirect('penyaluran-kab'); return;
         }
 
+        // Semua kegiatan dalam bundel harus sudah berstatus 'disalurkan' sebelum
+        // permohonan boleh ditandai selesai — cegah item bundel yang masih
+        // tertahan di tahap verifikasi provinsi (misal: perlu_perbaikan/ditolak)
+        // ikut "terkonfirmasi" atau menjadi orphan karena terlewat.
+        $items = $this->Penyaluran_kab_model->get_items($pm_id);
+        foreach ($items as $item) {
+            if ($item->tahapan_status !== 'disalurkan') {
+                $this->session->set_flashdata('error',
+                    'Belum semua kegiatan dalam permohonan ini berstatus "Disalurkan". '.
+                    'Konfirmasi RKUD belum dapat dilakukan.');
+                redirect('penyaluran-kab'); return;
+            }
+        }
+
         // Validasi input
         $kode_transaksi = trim($this->input->post('kode_transaksi_rkud', TRUE));
         $tgl_rkud       = $this->input->post('tgl_rkud', TRUE);
@@ -120,11 +134,8 @@ class Penyaluran_kab extends Auth_Controller
         ]);
 
         // Update status setiap tahapan → dikonfirmasi + pekerjaan sesuai jenis
-        $items = $this->Penyaluran_kab_model->get_items($pm_id);
+        // (semua item sudah dipastikan 'disalurkan' pada validasi di atas)
         foreach ($items as $item) {
-            // Hanya update jika tahapan masih di status disalurkan
-            if ($item->tahapan_status !== 'disalurkan') continue;
-
             $this->db->where('id', $item->tahapan_id)
                 ->update('trx_tahapan_penyaluran', [
                     'status'     => 'dikonfirmasi',

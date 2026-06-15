@@ -19,7 +19,6 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  *   GET /berkas/unduh/dok/{id}              → unduh('dok', id)      — trx_dokumen_persyaratan
  *   GET /berkas/unduh/lhr/{reviu_id}        → unduh('lhr', id)      — trx_reviu_inspektorat LHR
  *   GET /berkas/unduh/capaian/{pekerjaan_id}→ unduh('capaian', id)  — trx_capaian_output foto
- *   GET /berkas/unduh/bukti/{bukti_id}      → unduh('bukti', id)    — trx_bukti_transfer
  *   GET /berkas/unduh/draft/{pekerjaan_id}/{jenis} → unduh_sub()    — trx_pekerjaan SPK/SPMK/BAST
  *   GET /berkas/unduh/pm/{permohonan_id}/{jenis}   → unduh_sub()    — trx_permohonan surat
  */
@@ -40,7 +39,6 @@ class Berkas extends Auth_Controller
             case 'dok':     $this->_unduh_dok($id);     break;
             case 'lhr':     $this->_unduh_lhr($id);     break;
             case 'capaian': $this->_unduh_capaian($id); break;
-            case 'bukti':   $this->_unduh_bukti($id);   break;
             default: show_404();
         }
     }
@@ -128,37 +126,6 @@ class Berkas extends Auth_Controller
 
         $this->log_aktivitas('berkas.unduh', 'Unduh foto capaian pekerjaan_id=' . $pekerjaan_id);
         $this->_kirim_file($detail->foto_path, $nama);
-    }
-
-    // ─── UNDUH BUKTI TRANSFER RKUD (trx_bukti_transfer) ─────────
-
-    private function _unduh_bukti($bukti_id)
-    {
-        $this->requirePerm('verif_kab.view');
-
-        $bukti = $this->db->get_where('trx_bukti_transfer', ['id' => $bukti_id])->row();
-        if (!$bukti || empty($bukti->file_path)) { show_404(); return; }
-
-        if ($this->rbac->isKabkota()) {
-            $check = $this->db
-                ->select('k.id as kabkota_id')
-                ->from('trx_bukti_transfer bt')
-                ->join('trx_penyaluran_dana pd', 'pd.id = bt.penyaluran_id')
-                ->join('trx_tahapan_penyaluran t', 't.id = pd.tahapan_id')
-                ->join('trx_pekerjaan p', 'p.id = t.pekerjaan_id')
-                ->join('ref_bkp b', 'b.id = p.bkp_id')
-                ->join('ref_kabkota k', 'k.id = b.kabkota_id')
-                ->where('bt.id', $bukti_id)
-                ->get()->row();
-            if (!$check || (int)$check->kabkota_id !== (int)$this->kabkota_id) {
-                show_404(); return;
-            }
-        }
-
-        // nama_file sekarang menyimpan nama asli file (lihat Verif_kab::konfirmasi)
-        $nama = !empty($bukti->nama_file) ? $bukti->nama_file : basename($bukti->file_path);
-        $this->log_aktivitas('berkas.unduh', 'Unduh bukti transfer bukti_id=' . $bukti_id);
-        $this->_kirim_file($bukti->file_path, $nama);
     }
 
     // ─── UNDUH DOKUMEN DRAFT PEKERJAAN (trx_pekerjaan SPK/SPMK/BAST) ──

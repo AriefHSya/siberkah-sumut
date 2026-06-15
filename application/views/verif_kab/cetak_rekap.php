@@ -123,7 +123,6 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
     <tr><td>Nilai Transfer</td><td><strong><?= rupiah($penyaluran->nilai_transfer) ?></strong></td></tr>
     <tr><td>Rekening Tujuan (RKUD)</td><td><?= htmlspecialchars($penyaluran->rek_tujuan ?? '—') ?></td></tr>
     <tr><td>Status Transfer</td><td><strong><?= strtoupper($penyaluran->status_transfer) ?></strong></td></tr>
-    <?php if ($penyaluran->bukti_path): ?><tr><td>Bukti Transfer RKUD</td><td>Tersedia</td></tr><?php endif; ?>
   </tbody>
 </table>
 <?php endif; ?>

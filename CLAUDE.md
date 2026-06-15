@@ -872,6 +872,22 @@ WHERE r.kode IN ('superadmin','admin_provinsi')
   AND p.kode = 'admin.logs.view';
 ```
 
+### File migration lain di luar `railway_migration_2026-06.sql`
+
+Tiga file berikut **TIDAK** termasuk dalam konsolidasi
+`database/railway_migration_2026-06.sql` karena merupakan migrasi *upgrade-only*
+untuk database lama yang dibuat sebelum kolom/permission terkait masuk ke
+`schema.sql`/`seed_data.sql`. Untuk instalasi baru (fresh install dari
+`schema.sql` + `seed_data.sql`) file-file ini **tidak perlu dijalankan** —
+kolom dan permission terkait sudah ada di sana. Untuk database existing yang
+dibuat sebelum kolom/permission ini ditambahkan, jalankan sekali:
+
+| File | Isi | Sudah ada di `schema.sql`/`seed_data.sql`? |
+|---|---|---|
+| `database/permissions_migration.sql` | Permission `capaian.view`, `capaian.input`, `parameter.landing.view`, `parameter.landing.manage` + assignment role | ✅ Ya (idempotent via `INSERT IGNORE`) |
+| `database/reviu_checklist_lock_migration.sql` | Kolom `trx_reviu_inspektorat.checklist_confirmed_at` | ✅ Ya |
+| `database/reviu_reviewer_migration.sql` | Kolom `trx_reviu_inspektorat.reviewer_nama`, `reviewer_nip`, `reviewer_jabatan` | ✅ Ya |
+
 ---
 
 ## ROADMAP PENGEMBANGAN
