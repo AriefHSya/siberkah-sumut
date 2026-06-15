@@ -24,7 +24,6 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  *   update($id, $data)               — update hasil verifikasi
  *   get_dokumen($tahapan_id)         — daftar dokumen yang diupload
  *   get_penyaluran($tahapan_id)      — data SP2D terkait (jika sudah ada)
- *   simpan_bukti_transfer()          — simpan bukti RKUD + update status
  *   count_by_status()                — untuk statistik dashboard
  *   rekap_nilai()                    — total nilai yang sudah diverifikasi kab
  */
@@ -160,26 +159,6 @@ class Verifikasi_kab_model extends CI_Model
             ->join('trx_bukti_transfer bt', 'bt.penyaluran_id = pd.id', 'left')
             ->where('pd.tahapan_id', $tahapan_id)
             ->get()->row();
-    }
-
-    public function simpan_bukti_transfer($penyaluran_id, $file_path, $nama_file, $keterangan, $user_id)
-    {
-        // Hapus bukti lama jika ada
-        $lama = $this->db->get_where('trx_bukti_transfer', ['penyaluran_id' => $penyaluran_id])->row();
-        if ($lama && $lama->file_path && file_exists(FCPATH . $lama->file_path)) {
-            unlink(FCPATH . $lama->file_path);
-        }
-        $this->db->delete('trx_bukti_transfer', ['penyaluran_id' => $penyaluran_id]);
-
-        $this->db->insert('trx_bukti_transfer', [
-            'penyaluran_id' => $penyaluran_id,
-            'file_path'     => $file_path,
-            'nama_file'     => $nama_file,
-            'keterangan'    => $keterangan,
-            'user_upload'   => $user_id,
-            'created_at'    => date('Y-m-d H:i:s'),
-        ]);
-        return $this->db->insert_id();
     }
 
     // ─── STATISTIK ────────────────────────────────────────────

@@ -117,7 +117,6 @@ $route['verifikasi/kab/form/(:num)']          = 'verif_kab/form/$1';
 $route['verifikasi/kab/upload-dok/(:num)']    = 'verif_kab/upload_dok/$1';
 $route['verifikasi/kab/hapus-dok/(:num)']     = 'verif_kab/hapus_dok/$1';
 $route['verifikasi/kab/putuskan/(:num)']      = 'verif_kab/putuskan/$1';
-$route['verifikasi/kab/konfirmasi/(:num)']    = 'verif_kab/konfirmasi/$1';
 $route['verifikasi/kab/cetak-rekap/(:num)']   = 'verif_kab/cetak_rekap/$1';
 
 // ─── VERIFIKASI & PENYALURAN PROVINSI ────────────────────────

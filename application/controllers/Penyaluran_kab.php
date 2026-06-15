@@ -110,11 +110,13 @@ class Penyaluran_kab extends Auth_Controller
             redirect('penyaluran-kab'); return;
         }
 
-        // Simpan data konfirmasi RKUD ke trx_permohonan
+        // Simpan data konfirmasi RKUD ke trx_permohonan + tandai permohonan selesai
+        // (efek: SKPKD Kab/Kota tidak lagi dapat membatalkan permohonan ini)
         $this->Penyaluran_kab_model->simpan_konfirmasi($pm_id, [
             'kode_transaksi_rkud' => $kode_transaksi,
             'nilai_rkud'          => $nilai_rkud,
             'tgl_rkud'            => $tgl_rkud,
+            'status'              => 'selesai',
         ]);
 
         // Update status setiap tahapan → dikonfirmasi + pekerjaan sesuai jenis

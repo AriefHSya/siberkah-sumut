@@ -131,6 +131,13 @@ $dok_types = [
       <strong style="color:var(--kuning-mid)"> Permohonan masih berstatus Draft.</strong>
       <div class="text-xs text-muted mt-1">Lengkapi dokumen di bawah, lalu klik "Ajukan ke Provinsi".</div>
     </div>
+    <?php elseif ($pm->status === 'selesai'): ?>
+    <div style="padding:12px 14px;background:var(--hijau-light);border-radius:var(--radius);
+                border:1px solid var(--hijau-mid);font-size:13px">
+      <i class="ti ti-circle-check" style="color:var(--hijau-mid)"></i>
+      <strong style="color:var(--hijau-mid)"> Permohonan selesai — dana telah dikonfirmasi diterima di RKUD.</strong>
+      <div class="text-xs text-muted mt-1">Permohonan ini tidak dapat dibatalkan lagi.</div>
+    </div>
     <?php elseif ($pm->status === 'batal'): ?>
     <div style="padding:12px 14px;background:var(--abu-light);border-radius:var(--radius);
                 border:1px solid var(--abu);font-size:13px">

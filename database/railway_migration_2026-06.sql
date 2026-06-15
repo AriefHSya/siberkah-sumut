@@ -182,6 +182,28 @@ ALTER TABLE trx_permohonan
     COMMENT 'Nama asli rekap_kegiatan sebelum direname'
     AFTER file_rekap_kegiatan_path;
 
+-- 6.1 Kolom konfirmasi RKUD oleh SKPKD Kab/Kota (Penyaluran_kab)
+-- Jika error "Duplicate column name '...'" -> SKIP per baris
+ALTER TABLE trx_permohonan
+  ADD COLUMN kode_transaksi_rkud VARCHAR(100) NULL;
+ALTER TABLE trx_permohonan
+  ADD COLUMN nilai_rkud BIGINT UNSIGNED NULL;
+ALTER TABLE trx_permohonan
+  ADD COLUMN tgl_rkud DATE NULL;
+ALTER TABLE trx_permohonan
+  ADD COLUMN tgl_konfirmasi_rkud DATETIME NULL;
+
+-- 6.2 Status 'selesai' untuk permohonan yang sudah dikonfirmasi RKUD
+-- (set otomatis oleh Penyaluran_kab::konfirmasi()). MODIFY aman diulang.
+ALTER TABLE trx_permohonan
+  MODIFY COLUMN status enum('draft','diajukan','batal','ditolak','selesai') NOT NULL DEFAULT 'draft';
+
+-- Backfill: permohonan yang sudah dikonfirmasi RKUD sebelum kolom status
+-- 'selesai' ditambahkan -> tandai selesai (sekali jalan, aman diulang)
+UPDATE trx_permohonan
+  SET status = 'selesai'
+  WHERE kode_transaksi_rkud IS NOT NULL AND status = 'diajukan';
+
 -- ─────────────────────────────────────────────────────────────
 -- 7. UNIQUE KEY defensif untuk tabel upsert 1:1 per tahapan
 --    (upsert_unique_migration.sql)
@@ -201,6 +223,18 @@ ALTER TABLE trx_penyaluran_dana
 
 ALTER TABLE trx_capaian_output
   ADD UNIQUE KEY uq_capaian_tahapan (tahapan_id);
+
+-- ─────────────────────────────────────────────────────────────
+-- 8. Permission modul Penyaluran Kab/Kota (konfirmasi RKUD)
+-- ─────────────────────────────────────────────────────────────
+INSERT IGNORE INTO permissions (kode, nama, modul, jenis) VALUES
+('penyaluran_kab.view',       'Lihat Penyaluran Kab', 'penyaluran_kab', 'menu'),
+('penyaluran_kab.konfirmasi', 'Konfirmasi RKUD',      'penyaluran_kab', 'aksi');
+
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r, permissions p
+WHERE r.kode = 'skpkd_kabkota'
+  AND p.kode IN ('penyaluran_kab.view','penyaluran_kab.konfirmasi');
 
 -- ============================================================
 -- SELESAI — verifikasi cepat

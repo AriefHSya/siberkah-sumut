@@ -35,7 +35,7 @@ class Penyaluran_kab_model extends CI_Model
             ->join('ref_kabkota k', 'k.id = pm.kabkota_id')
             ->where('pm.kabkota_id', $kabkota_id)
             ->where('pm.tahun', $tahun)
-            ->where('pm.status', 'diajukan');
+            ->where_in('pm.status', ['diajukan', 'selesai']);
 
         if (!empty($filters['q'])) {
             $this->db->group_start()
@@ -65,7 +65,7 @@ class Penyaluran_kab_model extends CI_Model
             ->join('ref_kabkota k', 'k.id = pm.kabkota_id')
             ->where('pm.kabkota_id', $kabkota_id)
             ->where('pm.tahun', $tahun)
-            ->where('pm.status', 'diajukan');
+            ->where_in('pm.status', ['diajukan', 'selesai']);
 
         if (!empty($filters['q'])) {
             $this->db->group_start()
@@ -127,7 +127,7 @@ class Penyaluran_kab_model extends CI_Model
                 COUNT(CASE WHEN kode_transaksi_rkud IS NOT NULL THEN 1 END) as dikonfirmasi,
                 COALESCE(SUM(CASE WHEN kode_transaksi_rkud IS NOT NULL THEN nilai_rkud ELSE 0 END),0) as total_rkud
             FROM trx_permohonan
-            WHERE kabkota_id = ? AND tahun = ? AND status = 'diajukan'
+            WHERE kabkota_id = ? AND tahun = ? AND status IN ('diajukan','selesai')
         ", [$kabkota_id, $tahun])->row();
     }
 }
