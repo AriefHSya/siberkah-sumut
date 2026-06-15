@@ -665,7 +665,7 @@ class Parameter extends Auth_Controller
 
         // Ambil sekuens terakhir dari DB + cache batch ini
         if (!isset($seq_cache[$cache_key])) {
-            $pattern  = 'BKP-' . $tahun . '-' . $abbrev . '-%';
+            $pattern  = 'BKP-' . $tahun . '-' . $abbrev . '-';
             $last_row = $this->db
                 ->select_max('kode_bkp')
                 ->like('kode_bkp', $pattern, 'after')
