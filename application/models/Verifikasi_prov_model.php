@@ -286,6 +286,20 @@ class Verifikasi_prov_model extends CI_Model
         ", [$tahun])->row();
     }
 
+    /** Rincian kegiatan (BKP) dalam satu permohonan — untuk cetak rekap SP2D */
+    public function get_items_ringkas($permohonan_id)
+    {
+        return $this->db
+            ->select('b.kode_bkp, b.uraian_bkp, t.nilai_diajukan, p.nilai_belanja_pendukung')
+            ->from('trx_permohonan_item pi')
+            ->join('trx_tahapan_penyaluran t', 't.id = pi.tahapan_id')
+            ->join('trx_pekerjaan p',          'p.id = t.pekerjaan_id')
+            ->join('ref_bkp b',                'b.id = p.bkp_id')
+            ->where('pi.permohonan_id', $permohonan_id)
+            ->order_by('b.kode_bkp', 'ASC')
+            ->get()->result();
+    }
+
     /** Daftar SP2D per tahun untuk laporan (per permohonan) */
     public function get_daftar_sp2d($tahun, $kabkota_id = NULL)
     {

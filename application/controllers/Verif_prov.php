@@ -674,6 +674,9 @@ class Verif_prov extends Auth_Controller
         $kabkota_id = $this->input->get('kabkota_id');
 
         $daftar_sp2d = $this->Verifikasi_prov_model->get_daftar_sp2d($tahun, $kabkota_id);
+        foreach ($daftar_sp2d as $row) {
+            $row->items = $this->Verifikasi_prov_model->get_items_ringkas($row->id);
+        }
         $rekap       = $this->Verifikasi_prov_model->rekap_penyaluran($tahun);
         $kabkota     = $kabkota_id
             ? $this->db->get_where('ref_kabkota', ['id'=>$kabkota_id])->row() : NULL;
