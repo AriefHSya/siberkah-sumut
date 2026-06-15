@@ -76,6 +76,8 @@ function badge_status($status) {
         'disalurkan_tahap2'     => ['teal',   'Disalurkan Tahap II'],
         'selesai'               => ['hijau',  'Selesai'],
         'ditolak'               => ['merah',  'Ditolak'],
+        'diajukan'              => ['biru',   'Diajukan'],
+        'batal'                 => ['abu',    'Dibatalkan'],
     ];
     $s = $map[$status] ?? ['abu', $status];
     return '<span class="badge badge-'.$s[0].'">'.$s[1].'</span>';

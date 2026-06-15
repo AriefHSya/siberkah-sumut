@@ -43,11 +43,51 @@ $sp2d_ada = !empty($pm->no_sp2d);
     </div>
   </div>
   <div class="aksi-row">
+    <?php if ($this->rbac->can('verif_prov.approve') && $verified_items === 0): ?>
+    <button type="button" class="btn btn-danger btn-sm" onclick="openTolakPermohonan()">
+      <i class="ti ti-x"></i> Tolak Permohonan
+    </button>
+    <?php endif; ?>
     <a href="<?= site_url('verifikasi/prov') ?>" class="btn btn-outline btn-sm">
       <i class="ti ti-arrow-left"></i> Kembali
     </a>
   </div>
 </div>
+
+<?php if ($this->rbac->can('verif_prov.approve') && $verified_items === 0): ?>
+<div id="modal-tolak-pm" class="modal-overlay"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:24px;width:440px;max-width:95vw">
+    <div class="card-title"><i class="ti ti-x"></i> Tolak Permohonan</div>
+    <?= form_open(site_url('verifikasi/prov/permohonan/tolak/'.$pm->id)) ?>
+    <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
+    <div class="form-group mb-2">
+      <label>Catatan Alasan Penolakan <span class="req">*</span></label>
+      <textarea name="catatan_tolak" class="form-control" rows="4" required
+                placeholder="Jelaskan alasan penolakan permohonan ini..."></textarea>
+      <div class="form-hint">Seluruh kegiatan dalam permohonan ini akan dapat diajukan kembali melalui permohonan baru oleh SKPKD Kab/Kota.</div>
+    </div>
+    <div class="form-actions">
+      <button type="button" onclick="closeTolakPermohonan()" class="btn btn-outline">Batal</button>
+      <button type="submit" class="btn btn-danger"
+        onclick="return confirm('Tolak permohonan ini? Aksi ini tidak dapat dibatalkan.')">
+        <i class="ti ti-x"></i> Tolak Permohonan
+      </button>
+    </div>
+    <?= form_close() ?>
+  </div>
+</div>
+<script>
+function openTolakPermohonan() {
+    var m = document.getElementById('modal-tolak-pm');
+    if (m) { m.style.display = 'flex'; }
+}
+function closeTolakPermohonan() {
+    var m = document.getElementById('modal-tolak-pm');
+    if (m) { m.style.display = 'none'; }
+}
+</script>
+<?php endif; ?>
 
 <div class="g2 mb-2">
 
@@ -256,7 +296,7 @@ $sp2d_ada = !empty($pm->no_sp2d);
     <div class="form-group">
       <label>Tanggal SP2D <span class="req">*</span></label>
       <input type="date" name="tgl_sp2d" class="form-control"
-             value="<?= $pm->tgl_sp2d ?? date('Y-m-d') ?>" required>
+             value="<?= htmlspecialchars($pm->tgl_sp2d ?? date('Y-m-d')) ?>" required>
     </div>
     <div class="form-group">
       <label>Nilai Transfer (Rp) <span class="req">*</span></label>

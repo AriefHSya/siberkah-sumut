@@ -88,9 +88,15 @@ class Capaian extends Auth_Controller
             redirect('capaian'); return;
         }
 
+        $tahap2 = NULL;
+        if ($detail->jenis_penyaluran === 'bertahap') {
+            $tahap2 = $this->Capaian_model->get_tahap2($pekerjaan_id);
+        }
+
         $this->render('capaian/form', array_merge($this->data, [
             'title'  => 'Input Capaian Output — ' . $detail->kode_bkp,
             'detail' => $detail,
+            'tahap2' => $tahap2,
         ]));
     }
 
@@ -204,5 +210,92 @@ class Capaian extends Auth_Controller
         $this->session->set_flashdata('success',
             'Capaian output berhasil disimpan. Persentase fisik: <strong>' . $persen . '%</strong>');
         redirect('capaian/form/' . $pekerjaan_id);
+    }
+
+    // ─── AJUKAN TAHAP II KE INSPEKTORAT ───────────────────────
+
+    public function ajukan_tahap2($pekerjaan_id)
+    {
+        $this->requirePerm('capaian.input');
+
+        $detail = $this->Capaian_model->get_detail($pekerjaan_id);
+        if (!$detail) { show_404(); return; }
+
+        if ($this->role_kode === 'opd_teknis' && $detail->kabkota_id != $this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('capaian'); return;
+        }
+
+        if ($detail->jenis_penyaluran !== 'bertahap') {
+            $this->session->set_flashdata('error', 'Pengajuan Tahap II hanya berlaku untuk jenis penyaluran Bertahap.');
+            redirect('capaian/form/' . $pekerjaan_id); return;
+        }
+
+        if ($detail->status !== 'opd_capaian_tahap1') {
+            $this->session->set_flashdata('error',
+                'Capaian output Tahap I belum diisi, atau Tahap II sudah diajukan sebelumnya.');
+            redirect('capaian/form/' . $pekerjaan_id); return;
+        }
+
+        $tahap2 = $this->Capaian_model->get_tahap2($pekerjaan_id);
+        if (!$tahap2 || $tahap2->status !== 'belum') {
+            $this->session->set_flashdata('error', 'Tahapan II tidak dalam status yang dapat diajukan.');
+            redirect('capaian/form/' . $pekerjaan_id); return;
+        }
+
+        // Syarat % fisik minimal sebelum Tahap II dapat diajukan
+        $syarat = (float)($tahap2->persen_fisik_syarat ?? 0);
+        if ((float)($detail->persen_fisik ?? 0) < $syarat) {
+            $this->session->set_flashdata('error',
+                'Capaian fisik Tahap I belum mencapai syarat minimal ' . $syarat . '% untuk mengajukan Tahap II.');
+            redirect('capaian/form/' . $pekerjaan_id); return;
+        }
+
+        // Validasi batas waktu pengajuan Tahap II
+        $cek = $this->Parameter_model->cek_deadline($detail->tahun, $detail->jenis_penyaluran, 'tahap_2');
+        if (!$cek['ok']) {
+            $this->session->set_flashdata('error_deadline', $cek['pesan']);
+            redirect('capaian/form/' . $pekerjaan_id); return;
+        }
+
+        // Set tahapan II → opd_input, tandai tgl_pengajuan
+        $this->db->where('id', $tahap2->id)->update('trx_tahapan_penyaluran', [
+            'status'        => 'opd_input',
+            'tgl_pengajuan' => date('Y-m-d'),
+            'updated_at'    => date('Y-m-d H:i:s'),
+        ]);
+
+        // Set status pekerjaan → opd_submitted (Tahap II)
+        $this->Pekerjaan_model->set_status(
+            $pekerjaan_id,
+            'opd_submitted',
+            $this->user_id,
+            'Tahap II diajukan ke Inspektorat untuk reviu. Capaian fisik Tahap I: ' . $detail->persen_fisik . '%'
+        );
+
+        // Notifikasi ke Inspektorat (semua user inspektorat kab/kota ini)
+        $inspektorat_users = $this->db
+            ->select('u.id')
+            ->from('users u')
+            ->join('roles r', 'r.id = u.role_id')
+            ->where('r.kode', 'inspektorat')
+            ->where('u.kabkota_id', $detail->kabkota_id)
+            ->where('u.is_active', 1)
+            ->get()->result();
+        foreach ($inspektorat_users as $iu) {
+            $this->Notifikasi_model->kirim(
+                $iu->id,
+                'Pengajuan Tahap II Masuk',
+                'BKP ' . $detail->kode_bkp . ' — ' . $detail->nama_kegiatan_dok . ' telah diajukan untuk reviu Tahap II.',
+                'info',
+                site_url('pekerjaan/detail/' . $pekerjaan_id),
+                $pekerjaan_id
+            );
+        }
+
+        $this->log_aktivitas('capaian.ajukan_tahap2', 'Ajukan Tahap II pekerjaan_id=' . $pekerjaan_id);
+        $this->session->set_flashdata('success',
+            'Tahap II berhasil diajukan ke Inspektorat untuk dilakukan reviu.');
+        redirect('pekerjaan/detail/' . $pekerjaan_id);
     }
 }

@@ -66,10 +66,21 @@ $v_rupiah = function($field) use ($p) {
 
   <div class="form-grid">
     <div class="form-group">
+      <label>4. Jenis Pekerjaan</label>
+      <select name="jenis_pekerjaan" id="jenis_pekerjaan" class="form-control" onchange="onJenisPekerjaanChange()">
+        <option value="">-- Pilih --</option>
+        <option value="pengadaan_barang" <?= ($val('jenis_pekerjaan')==='pengadaan_barang')?'selected':'' ?>>Pengadaan Barang</option>
+        <option value="konstruksi"       <?= ($val('jenis_pekerjaan')==='konstruksi')?'selected':'' ?>>Konstruksi</option>
+        <option value="jasa"             <?= ($val('jenis_pekerjaan')==='jasa')?'selected':'' ?>>Jasa</option>
+        <option value="lainnya"          <?= ($val('jenis_pekerjaan')==='lainnya')?'selected':'' ?>>Kegiatan Lainnya</option>
+      </select>
+    </div>
+
+    <div class="form-group">
       <label>Jenis Penyaluran <span class="req">*</span></label>
       <select name="jenis_penyaluran" id="jenis_penyaluran" class="form-control" required onchange="onJenisChange(this.value)">
         <option value="">-- Pilih --</option>
-        <option value="bertahap"        <?= ($val('jenis_penyaluran')==='bertahap')?'selected':'' ?>>Bertahap (nilai kontrak > Rp 200 jt)</option>
+        <option value="bertahap"        <?= ($val('jenis_penyaluran')==='bertahap')?'selected':'' ?>>Bertahap (nilai kontrak > Rp 400 jt)</option>
         <option value="sekaligus"       <?= ($val('jenis_penyaluran')==='sekaligus')?'selected':'' ?>>Sekaligus (100%)</option>
         <option value="khusus_mendesak" <?= ($val('jenis_penyaluran')==='khusus_mendesak')?'selected':'' ?>>Kondisi Mendesak (100%)</option>
         <option value="khusus_bencana"  <?= ($val('jenis_penyaluran')==='khusus_bencana')?'selected':'' ?>>Darurat Bencana (100%)</option>
@@ -81,6 +92,11 @@ $v_rupiah = function($field) use ($p) {
       <div style="font-weight:600;margin-bottom:4px"><i class="ti ti-calendar-time"></i> Batas Waktu TA <?= $tahun ?></div>
       <div id="bwContent" class="text-muted">Pilih jenis penyaluran untuk melihat batas waktu.</div>
     </div>
+  </div>
+
+  <div id="warnSekaligusBlokir" class="alert alert-warning mt-2" style="display:none">
+    <i class="ti ti-alert-triangle"></i>
+    Kegiatan <strong>Konstruksi</strong> dengan nilai BKP &gt; Rp 400.000.000 wajib menggunakan jenis penyaluran <strong>Bertahap</strong> — opsi Sekaligus tidak tersedia.
   </div>
 </div>
 
@@ -109,12 +125,6 @@ $v_rupiah = function($field) use ($p) {
       <input type="text" name="metode_pelaksanaan" class="form-control"
         value="<?= $val('metode_pelaksanaan') ?>"
         placeholder="Swakelola / Kontraktual">
-    </div>
-    <div class="form-group">
-      <label>4. Jenis Pekerjaan</label>
-      <input type="text" name="jenis_pekerjaan" class="form-control"
-        value="<?= $val('jenis_pekerjaan') ?>"
-        placeholder="Konstruksi / Pengadaan / Jasa">
     </div>
     <div class="form-group">
       <label>5. Jangka Waktu Pelaksanaan (hari)</label>
@@ -191,7 +201,7 @@ $v_rupiah = function($field) use ($p) {
         class="form-control rupiah-input"
         value="<?= $v_rupiah('nilai_kontrak') ?>"
         placeholder="0" required>
-      <div class="form-hint" id="hint_nilai_kontrak">Untuk jenis Bertahap, minimal Rp 200.000.001</div>
+      <div class="form-hint" id="hint_nilai_kontrak">Untuk jenis Bertahap, minimal Rp 400.000.001</div>
     </div>
     <div class="form-group">
       <label>15. Nilai Belanja Pendukung (Rp)</label>
@@ -421,14 +431,41 @@ var nilaiBkpAktif = <?= ($edit && $p) ? (int)($p->nilai_bkp ?? 0) : 0 ?>;
 // ─── Info BKP dinamis (mode tambah) ─────────────────────────
 function onBkpChange(sel) {
     const opt = sel.options[sel.selectedIndex];
-    if (!opt.value) { document.getElementById('infoBkp').style.display='none'; nilaiBkpAktif = 0; return; }
-    nilaiBkpAktif = parseInt(opt.dataset.nilai) || 0;
-    document.getElementById('infoBkpKode').textContent   = opt.dataset.kode;
-    document.getElementById('infoBkpUraian').textContent = opt.dataset.uraian;
-    document.getElementById('infoBkpNilai').textContent  = 'Rp ' + nilaiBkpAktif.toLocaleString('id-ID');
-    document.getElementById('infoBkpBidang').textContent = opt.dataset.bidang;
-    document.getElementById('infoBkp').style.display = 'block';
+    if (!opt.value) { document.getElementById('infoBkp').style.display='none'; nilaiBkpAktif = 0; }
+    else {
+        nilaiBkpAktif = parseInt(opt.dataset.nilai) || 0;
+        document.getElementById('infoBkpKode').textContent   = opt.dataset.kode;
+        document.getElementById('infoBkpUraian').textContent = opt.dataset.uraian;
+        document.getElementById('infoBkpNilai').textContent  = 'Rp ' + nilaiBkpAktif.toLocaleString('id-ID');
+        document.getElementById('infoBkpBidang').textContent = opt.dataset.bidang;
+        document.getElementById('infoBkp').style.display = 'block';
+    }
     hitungSummaryPendukung(); // recalc jika modal sudah diisi
+    updateJenisPenyaluranOptions();
+}
+
+// ─── Blokir opsi "Sekaligus" untuk kegiatan Konstruksi BKP > Rp 400 jt ─
+function onJenisPekerjaanChange() {
+    updateJenisPenyaluranOptions();
+}
+
+function updateJenisPenyaluranOptions() {
+    var jenisPekerjaanEl = document.getElementById('jenis_pekerjaan');
+    var jenisPenyaluranEl = document.getElementById('jenis_penyaluran');
+    var sekaligusOpt = jenisPenyaluranEl ? jenisPenyaluranEl.querySelector('option[value="sekaligus"]') : null;
+    var warnEl = document.getElementById('warnSekaligusBlokir');
+    if (!jenisPekerjaanEl || !jenisPenyaluranEl || !sekaligusOpt) return;
+
+    var blokir = (nilaiBkpAktif > 400000000) && (jenisPekerjaanEl.value === 'konstruksi');
+
+    sekaligusOpt.disabled = blokir;
+    sekaligusOpt.hidden   = blokir;
+    if (warnEl) warnEl.style.display = blokir ? 'block' : 'none';
+
+    if (blokir && jenisPenyaluranEl.value === 'sekaligus') {
+        jenisPenyaluranEl.value = '';
+        onJenisChange('');
+    }
 }
 
 // ─── Info batas waktu + tampil/sembunyikan field BAST ────────
@@ -626,6 +663,7 @@ onJenisChange('<?= $p->jenis_penyaluran ?>');
     if (sel && sel.value) onJenisChange(sel.value);
 })();
 <?php endif; ?>
+updateJenisPenyaluranOptions();
 
 // ─── Client-side Validation ───────────────────────────────────
 function showFieldError(fieldName, msg) {
@@ -674,9 +712,9 @@ document.getElementById('formPekerjaan').addEventListener('submit', function(e) 
     if (nilaiKontrak <= 0) {
         errors.push('nilai_kontrak');
         showFieldError('nilai_kontrak', 'Nilai kontrak wajib diisi dan harus lebih dari 0.');
-    } else if (jenisSel && jenisSel.value === 'bertahap' && nilaiKontrak <= 200000000) {
+    } else if (jenisSel && jenisSel.value === 'bertahap' && nilaiKontrak <= 400000000) {
         errors.push('nilai_kontrak');
-        showFieldError('nilai_kontrak', 'Jenis Bertahap: nilai kontrak harus lebih dari Rp 200.000.000.');
+        showFieldError('nilai_kontrak', 'Jenis Bertahap: nilai kontrak harus lebih dari Rp 400.000.000.');
     } else if (nilaiBkpAktif > 0) {
         var nilaiPendukung = parseInt(document.getElementById('nilai_belanja_pendukung').value.replace(/\./g,'').replace(/,/g,'').replace(/[^0-9]/g,'')) || 0;
         if ((nilaiKontrak + nilaiPendukung) > nilaiBkpAktif) {

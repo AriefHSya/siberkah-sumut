@@ -30,11 +30,7 @@ $dok_types = [
     <div class="page-title"><i class="ti ti-send"></i> <?= htmlspecialchars($pm->no_permohonan ?: 'Permohonan #'.$pm->id) ?></div>
     <div style="margin-top:4px;display:flex;align-items:center;gap:8px">
       <span class="badge badge-biru"><?= label_kelompok_det($pm->jenis_penyaluran, $pm->kode_tahap) ?></span>
-      <?php if ($pm->status === 'diajukan'): ?>
-      <span class="badge badge-hijau">Diajukan</span>
-      <?php else: ?>
-      <span class="badge badge-abu">Draft</span>
-      <?php endif; ?>
+      <?= badge_status($pm->status) ?>
       <span class="text-xs text-muted"><?= htmlspecialchars($pm->nama_kabkota) ?> · TA <?= $pm->tahun ?></span>
     </div>
   </div>
@@ -44,7 +40,7 @@ $dok_types = [
       <?= form_open(site_url('permohonan/batal/'.$pm->id)) ?>
       <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
       <button type="submit" class="btn btn-danger btn-sm"
-        onclick="return confirm('Batalkan pengajuan permohonan ini? Status akan kembali ke Draft.')">
+        onclick="return confirm('Batalkan pengajuan permohonan ini? Permohonan akan ditandai Dibatalkan dan kegiatan di dalamnya dapat diajukan kembali melalui permohonan baru.')">
         <i class="ti ti-x"></i> Batalkan Pengajuan
       </button>
       <?= form_close() ?>
@@ -113,6 +109,10 @@ $dok_types = [
         <tr><td class="text-muted text-sm">Catatan</td>
             <td class="text-sm"><?= htmlspecialchars($pm->catatan) ?></td></tr>
         <?php endif; ?>
+        <?php if (!empty($pm->catatan_tolak)): ?>
+        <tr><td class="text-muted text-sm">Catatan Penolakan</td>
+            <td class="text-sm text-merah"><?= htmlspecialchars($pm->catatan_tolak) ?></td></tr>
+        <?php endif; ?>
       </table>
     </div>
 
@@ -130,6 +130,20 @@ $dok_types = [
       <i class="ti ti-info-circle" style="color:var(--kuning-mid)"></i>
       <strong style="color:var(--kuning-mid)"> Permohonan masih berstatus Draft.</strong>
       <div class="text-xs text-muted mt-1">Lengkapi dokumen di bawah, lalu klik "Ajukan ke Provinsi".</div>
+    </div>
+    <?php elseif ($pm->status === 'batal'): ?>
+    <div style="padding:12px 14px;background:var(--abu-light);border-radius:var(--radius);
+                border:1px solid var(--abu);font-size:13px">
+      <i class="ti ti-x" style="color:var(--abu)"></i>
+      <strong style="color:var(--abu)"> Permohonan ini telah dibatalkan.</strong>
+      <div class="text-xs text-muted mt-1">Kegiatan di dalamnya dapat diajukan kembali melalui permohonan baru.</div>
+    </div>
+    <?php elseif ($pm->status === 'ditolak'): ?>
+    <div style="padding:12px 14px;background:var(--merah-light);border-radius:var(--radius);
+                border:1px solid var(--merah-mid);font-size:13px">
+      <i class="ti ti-circle-x" style="color:var(--merah-mid)"></i>
+      <strong style="color:var(--merah-mid)"> Permohonan ini ditolak oleh BKAD Provinsi.</strong>
+      <div class="text-xs text-muted mt-1">Kegiatan di dalamnya dapat diajukan kembali melalui permohonan baru.</div>
     </div>
     <?php endif; ?>
   </div>

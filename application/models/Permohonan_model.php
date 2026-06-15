@@ -84,6 +84,19 @@ class Permohonan_model extends CI_Model
      * Kelompok (jenis+kode_tahap) yang punya pekerjaan siap diajukan
      * (status skpkd_kab_approved, belum masuk permohonan manapun)
      */
+    /**
+     * Subquery tahapan_id yang masih terikat ke permohonan AKTIF
+     * (draft/diajukan). Tahapan dari permohonan yang batal/ditolak
+     * tidak dikecualikan, sehingga bisa dipilih kembali ke
+     * permohonan baru.
+     */
+    private function _subquery_tahapan_terikat()
+    {
+        return 'SELECT pi.tahapan_id FROM trx_permohonan_item pi '
+            . 'JOIN trx_permohonan pm ON pm.id = pi.permohonan_id '
+            . "WHERE pm.status IN ('draft','diajukan')";
+    }
+
     public function get_kelompok_tersedia($kabkota_id, $tahun)
     {
         return $this->db
@@ -96,7 +109,7 @@ class Permohonan_model extends CI_Model
             ->where('t.status', 'skpkd_kab_approved')
             ->where('b.kabkota_id', $kabkota_id)
             ->where('b.tahun', $tahun)
-            ->where('t.id NOT IN (SELECT tahapan_id FROM trx_permohonan_item)', NULL, FALSE)
+            ->where('t.id NOT IN (' . $this->_subquery_tahapan_terikat() . ')', NULL, FALSE)
             ->group_by(['p.jenis_penyaluran', 't.kode_tahap'])
             ->order_by('p.jenis_penyaluran', 'ASC')
             ->get()->result();
@@ -118,7 +131,7 @@ class Permohonan_model extends CI_Model
             ->where('b.tahun', $tahun)
             ->where('p.jenis_penyaluran', $jenis)
             ->where('t.kode_tahap', $kode_tahap)
-            ->where('t.id NOT IN (SELECT tahapan_id FROM trx_permohonan_item)', NULL, FALSE)
+            ->where('t.id NOT IN (' . $this->_subquery_tahapan_terikat() . ')', NULL, FALSE)
             ->order_by('b.kode_bkp', 'ASC')
             ->get()->result();
     }
@@ -127,6 +140,8 @@ class Permohonan_model extends CI_Model
 
     public function create($data, $tahapan_ids)
     {
+        $this->db->trans_start();
+
         $this->db->insert('trx_permohonan', $data);
         $permohonan_id = $this->db->insert_id();
 
@@ -138,6 +153,8 @@ class Permohonan_model extends CI_Model
             ]);
         }
 
-        return $permohonan_id;
+        $this->db->trans_complete();
+
+        return $this->db->trans_status() ? $permohonan_id : FALSE;
     }
 }

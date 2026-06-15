@@ -20,8 +20,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ----------------------------
 -- Table structure for trx_permohonan_item
 -- ----------------------------
-DROP TABLE IF EXISTS `trx_permohonan_item`;
-CREATE TABLE `trx_permohonan_item` (
+CREATE TABLE IF NOT EXISTS `trx_permohonan_item` (
   `id` int NOT NULL AUTO_INCREMENT,
   `permohonan_id` int NOT NULL,
   `tahapan_id` int NOT NULL,
@@ -29,6 +28,6 @@ CREATE TABLE `trx_permohonan_item` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_item` (`permohonan_id`,`tahapan_id`),
   KEY `idx_tahapan` (`tahapan_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

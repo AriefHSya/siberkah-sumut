@@ -20,8 +20,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ----------------------------
 -- Table structure for trx_permohonan
 -- ----------------------------
-DROP TABLE IF EXISTS `trx_permohonan`;
-CREATE TABLE `trx_permohonan` (
+CREATE TABLE IF NOT EXISTS `trx_permohonan` (
   `id` int NOT NULL AUTO_INCREMENT,
   `kabkota_id` int NOT NULL,
   `tahun` varchar(4) NOT NULL,
@@ -29,8 +28,9 @@ CREATE TABLE `trx_permohonan` (
   `kode_tahap` varchar(20) NOT NULL,
   `no_permohonan` varchar(100) DEFAULT NULL,
   `tgl_permohonan` date DEFAULT NULL,
-  `status` enum('draft','diajukan') NOT NULL DEFAULT 'draft',
+  `status` enum('draft','diajukan','batal','ditolak') NOT NULL DEFAULT 'draft',
   `catatan` text,
+  `catatan_tolak` text,
   `file_surat_permohonan_path` varchar(255) DEFAULT NULL,
   `file_surat_pernyataan_path` varchar(255) DEFAULT NULL,
   `file_rekap_kegiatan_path` varchar(255) DEFAULT NULL,
@@ -51,6 +51,6 @@ CREATE TABLE `trx_permohonan` (
   PRIMARY KEY (`id`),
   KEY `idx_kabkota_tahun` (`kabkota_id`,`tahun`),
   KEY `idx_status` (`status`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

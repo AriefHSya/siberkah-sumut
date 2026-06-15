@@ -149,14 +149,22 @@ class Pekerjaan extends Auth_Controller
         $nilai_pendukung = (int) str_replace(['.','Rp',' ',','], '', $this->input->post('nilai_belanja_pendukung'));
         $jenis = $this->input->post('jenis_penyaluran', TRUE);
 
-        // Validasi: bertahap wajib nilai_kontrak > 200jt
-        if ($jenis === 'bertahap' && $nilai_kontrak <= 200000000) {
-            $this->session->set_flashdata('error', 'Jenis Bertahap memerlukan nilai kontrak > Rp 200.000.000.');
+        // Validasi: bertahap wajib nilai_kontrak > 400jt
+        if ($jenis === 'bertahap' && $nilai_kontrak <= 400000000) {
+            $this->session->set_flashdata('error', 'Jenis Bertahap memerlukan nilai kontrak > Rp 400.000.000.');
             redirect('pekerjaan/input'); return;
         }
 
         // Ambil data BKP untuk validasi nilai
         $bkp = $this->db->get_where('ref_bkp', ['id'=>$bkp_id])->row();
+
+        // Validasi: kegiatan Konstruksi dengan nilai BKP > 400jt wajib Bertahap (tidak boleh Sekaligus)
+        $jenis_pekerjaan = $this->input->post('jenis_pekerjaan', TRUE);
+        if ($jenis === 'sekaligus' && $jenis_pekerjaan === 'konstruksi' && $bkp && $bkp->nilai > 400000000) {
+            $this->session->set_flashdata('error',
+                'Kegiatan Konstruksi dengan nilai BKP > Rp 400.000.000 wajib menggunakan jenis penyaluran Bertahap, tidak dapat Sekaligus.');
+            redirect('pekerjaan/input'); return;
+        }
 
         // Validasi: nilai kontrak + pendukung tidak boleh melebihi nilai BKP
         if ($bkp && ($nilai_kontrak + $nilai_pendukung) > $bkp->nilai) {
@@ -291,14 +299,22 @@ class Pekerjaan extends Auth_Controller
         $nilai_pendukung = (int) str_replace(['.','Rp',' ',','], '', $this->input->post('nilai_belanja_pendukung'));
         $jenis_edit      = $this->input->post('jenis_penyaluran', TRUE);
 
-        // Validasi: bertahap wajib nilai_kontrak > 200jt
-        if ($jenis_edit === 'bertahap' && $nilai_kontrak <= 200000000) {
-            $this->session->set_flashdata('error', 'Jenis Bertahap memerlukan nilai kontrak > Rp 200.000.000.');
+        // Validasi: bertahap wajib nilai_kontrak > 400jt
+        if ($jenis_edit === 'bertahap' && $nilai_kontrak <= 400000000) {
+            $this->session->set_flashdata('error', 'Jenis Bertahap memerlukan nilai kontrak > Rp 400.000.000.');
+            redirect('pekerjaan/edit/'.$id); return;
+        }
+
+        // Validasi: kegiatan Konstruksi dengan nilai BKP > 400jt wajib Bertahap (tidak boleh Sekaligus)
+        $bkp_edit = $this->db->get_where('ref_bkp', ['id'=>$pekerjaan->bkp_id])->row();
+        $jenis_pekerjaan_edit = $this->input->post('jenis_pekerjaan', TRUE);
+        if ($jenis_edit === 'sekaligus' && $jenis_pekerjaan_edit === 'konstruksi' && $bkp_edit && $bkp_edit->nilai > 400000000) {
+            $this->session->set_flashdata('error',
+                'Kegiatan Konstruksi dengan nilai BKP > Rp 400.000.000 wajib menggunakan jenis penyaluran Bertahap, tidak dapat Sekaligus.');
             redirect('pekerjaan/edit/'.$id); return;
         }
 
         // Validasi: nilai kontrak + pendukung tidak boleh melebihi nilai BKP
-        $bkp_edit = $this->db->get_where('ref_bkp', ['id'=>$pekerjaan->bkp_id])->row();
         if ($bkp_edit && ($nilai_kontrak + $nilai_pendukung) > $bkp_edit->nilai) {
             $this->session->set_flashdata('error',
                 'Total Nilai Kontrak + Belanja Pendukung (' . rupiah($nilai_kontrak + $nilai_pendukung) .

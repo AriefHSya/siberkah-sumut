@@ -430,9 +430,9 @@ if (!$cek['ok']) {
 }
 ```
 
-### 2. Nilai Kontrak — Bertahap wajib > 200 juta
+### 2. Nilai Kontrak — Bertahap wajib > 400 juta
 ```php
-if ($jenis === 'bertahap' && $nilai_kontrak <= 200000000) {
+if ($jenis === 'bertahap' && $nilai_kontrak <= 400000000) {
     // Tolak dengan error
 }
 ```

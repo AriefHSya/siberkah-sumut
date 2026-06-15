@@ -115,6 +115,17 @@ class Capaian_model extends CI_Model
             ['tahapan_id' => $tahapan_id])->row();
     }
 
+    /**
+     * Ambil data tahapan Tahap II (untuk cek syarat % fisik & status pengajuan)
+     */
+    public function get_tahap2($pekerjaan_id)
+    {
+        return $this->db->get_where('trx_tahapan_penyaluran', [
+            'pekerjaan_id' => $pekerjaan_id,
+            'kode_tahap'   => 'tahap_2',
+        ])->row();
+    }
+
     // ─── WRITE ────────────────────────────────────────────────
 
     public function simpan($tahapan_id, $data, $user_id)

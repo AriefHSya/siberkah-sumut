@@ -103,6 +103,77 @@ class Verif_prov extends Auth_Controller
         ]));
     }
 
+    // ─── TOLAK PERMOHONAN (seluruh bundel) ────────────────────
+
+    public function tolak_permohonan($pm_id)
+    {
+        $this->requirePerm('verif_prov.approve');
+
+        $pm = $this->Verifikasi_prov_model->get_permohonan_by_id($pm_id);
+        if (!$pm) { show_404(); return; }
+
+        if ($pm->status !== 'diajukan') {
+            $this->session->set_flashdata('error',
+                'Hanya permohonan dengan status Diajukan yang dapat ditolak.');
+            redirect('verifikasi/prov/permohonan/'.$pm_id); return;
+        }
+
+        $catatan = $this->input->post('catatan_tolak', TRUE);
+        if (empty($catatan)) {
+            $this->session->set_flashdata('error', 'Catatan alasan penolakan wajib diisi.');
+            redirect('verifikasi/prov/permohonan/'.$pm_id); return;
+        }
+
+        // Tidak bisa ditolak jika verifikasi per-kegiatan sudah berjalan
+        $items = $this->Verifikasi_prov_model->get_permohonan_items_for_prov($pm_id);
+        foreach ($items as $it) {
+            if ($it->tahapan_status !== 'skpkd_kab_approved') {
+                $this->session->set_flashdata('error',
+                    'Permohonan tidak dapat ditolak karena verifikasi sudah berjalan untuk salah satu kegiatan di dalamnya. Proses kegiatan tersebut secara individual.');
+                redirect('verifikasi/prov/permohonan/'.$pm_id); return;
+            }
+        }
+
+        // Status diubah ke 'ditolak' (riwayat & item tetap tersimpan sebagai log).
+        // Kegiatan di dalamnya menjadi eligible kembali untuk permohonan baru.
+        $this->db->where('id', $pm_id)->update('trx_permohonan', [
+            'status'        => 'ditolak',
+            'catatan_tolak' => $catatan,
+            'updated_at'    => date('Y-m-d H:i:s'),
+        ]);
+
+        // Notifikasi + Telegram ke SKPKD Kab/Kota
+        $skpkd_users = $this->db->select('u.id')->from('users u')
+            ->join('roles r','r.id=u.role_id')
+            ->where('r.kode','skpkd_kabkota')
+            ->where('u.kabkota_id', $pm->kabkota_id)
+            ->where('u.is_active',1)->get()->result();
+
+        foreach ($skpkd_users as $su) {
+            $this->Notifikasi_model->kirim(
+                $su->id,
+                'Permohonan Pencairan Ditolak',
+                'Permohonan ' . ($pm->no_permohonan ?: '#'.$pm->id) . ' ditolak BKAD Provinsi. Catatan: ' . $catatan,
+                'error',
+                site_url('permohonan/detail/'.$pm->id),
+                NULL
+            );
+        }
+
+        telegram_notif_kabkota(
+            $pm->kabkota_id,
+            "\xE2\x9D\x8C <b>Permohonan Pencairan Ditolak</b>\n\n" .
+            "No. Permohonan: <b>" . htmlspecialchars($pm->no_permohonan ?: '#'.$pm->id) . "</b>\n" .
+            "Catatan: " . htmlspecialchars($catatan) . "\n\n" .
+            "Buat permohonan baru untuk mengajukan kembali kegiatan yang dibutuhkan."
+        );
+
+        $this->log_aktivitas('verif_prov.tolak_permohonan',
+            'Tolak permohonan id='.$pm_id.' no='.$pm->no_permohonan);
+        $this->session->set_flashdata('success', 'Permohonan berhasil ditolak.');
+        redirect('verifikasi/prov');
+    }
+
     // ─── FORM VERIFIKASI + SP2D ───────────────────────────────
 
     public function form($tahapan_id)
@@ -559,6 +630,11 @@ class Verif_prov extends Auth_Controller
         $items = $this->Verifikasi_prov_model->get_permohonan_items_for_prov($pm_id);
         $status_transfer = ($status_sp2d === 'selesai') ? 'selesai' : 'proses';
         foreach ($items as $item) {
+            // Cek status_transfer SEBELUM diupdate — cegah _set_disalurkan() terpanggil
+            // ulang (notifikasi/Telegram dobel) untuk tahapan yang sudah disalurkan
+            $penyaluran_lama = $this->Verifikasi_prov_model->get_penyaluran($item->tahapan_id);
+            $sudah_disalurkan = $penyaluran_lama && $penyaluran_lama->status_transfer === 'selesai';
+
             $nilai_item = ($item->nilai_diajukan ?? 0) + ($item->nilai_belanja_pendukung ?? 0);
             $this->Verifikasi_prov_model->simpan_sp2d($item->tahapan_id, [
                 'no_sp2d'          => $no_sp2d,
@@ -570,11 +646,9 @@ class Verif_prov extends Auth_Controller
                 'nama_bank_tujuan' => $bank_tujuan,
                 'status_transfer'  => $status_transfer,
             ], $this->user_id);
-        }
 
-        // Jika SP2D selesai → update semua tahapan ke 'disalurkan'
-        if ($status_sp2d === 'selesai') {
-            foreach ($items as $item) {
+            // Jika SP2D selesai → update tahapan ke 'disalurkan' (sekali saja per tahapan)
+            if ($status_sp2d === 'selesai' && !$sudah_disalurkan) {
                 $tahapan   = $this->Pekerjaan_model->get_tahapan_by_id($item->tahapan_id);
                 $pekerjaan = $this->Pekerjaan_model->get_by_id($item->pekerjaan_id);
                 if ($tahapan && $pekerjaan) {

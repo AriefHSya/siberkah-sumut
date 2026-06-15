@@ -127,6 +127,7 @@ $route['verifikasi/prov/permohonan/nota-kabid/(:num)']       = 'verif_prov/cetak
 $route['verifikasi/prov/permohonan/nota-kabadan/(:num)']     = 'verif_prov/cetak_nota_kabadan/$1';
 $route['verifikasi/prov/permohonan/ringkasan/(:num)']        = 'verif_prov/cetak_ringkasan/$1';
 $route['verifikasi/prov/permohonan/sp2d/(:num)']             = 'verif_prov/simpan_sp2d_permohonan/$1';
+$route['verifikasi/prov/permohonan/tolak/(:num)']            = 'verif_prov/tolak_permohonan/$1';
 $route['verifikasi/prov/form/(:num)']                        = 'verif_prov/form/$1';
 $route['verifikasi/prov/putuskan/(:num)']            = 'verif_prov/putuskan/$1';
 $route['verifikasi/prov/simpan-sp2d/(:num)']         = 'verif_prov/simpan_sp2d/$1';
@@ -152,6 +153,7 @@ $route['penyaluran-kab/konfirmasi/(:num)']  = 'penyaluran_kab/konfirmasi/$1';
 $route['capaian']                    = 'capaian/index';
 $route['capaian/form/(:num)']        = 'capaian/form/$1';
 $route['capaian/simpan/(:num)']      = 'capaian/simpan/$1';
+$route['capaian/ajukan-tahap2/(:num)'] = 'capaian/ajukan_tahap2/$1';
 
 // ─── BERKAS (unduhan file privat via controller) ─────────────
 $route['berkas/unduh/(:any)/(:num)/(:any)'] = 'berkas/unduh_sub/$1/$2/$3';

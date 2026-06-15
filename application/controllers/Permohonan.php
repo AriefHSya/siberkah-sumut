@@ -153,6 +153,11 @@ class Permohonan extends Auth_Controller
             'created_at'       => date('Y-m-d H:i:s'),
         ], array_values($valid_ids));
 
+        if (!$permohonan_id) {
+            $this->session->set_flashdata('error', 'Gagal menyimpan permohonan. Silakan coba lagi.');
+            redirect($redirect_back); return;
+        }
+
         $this->log_aktivitas('permohonan.buat',
             'Permohonan id='.$permohonan_id.' jenis='.$jenis.' kode_tahap='.$kode_tahap
             .' items='.count($valid_ids));
@@ -320,14 +325,28 @@ class Permohonan extends Auth_Controller
             redirect('permohonan/detail/' . $id); return;
         }
 
+        // Tidak bisa dibatalkan jika verifikasi Provinsi sudah berjalan
+        // untuk salah satu kegiatan di dalamnya
+        $items = $this->Permohonan_model->get_items($id);
+        foreach ($items as $it) {
+            if ($it->tahapan_status !== 'skpkd_kab_approved') {
+                $this->session->set_flashdata('error',
+                    'Permohonan tidak dapat dibatalkan karena verifikasi Provinsi sudah berjalan untuk salah satu kegiatan di dalamnya.');
+                redirect('permohonan/detail/' . $id); return;
+            }
+        }
+
+        // Status diubah ke 'batal' (riwayat & item tetap tersimpan sebagai log).
+        // Kegiatan di dalamnya menjadi eligible kembali untuk permohonan baru.
         $this->db->where('id', $id)->update('trx_permohonan', [
-            'status'     => 'draft',
+            'status'     => 'batal',
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
         $this->log_aktivitas('permohonan.batal',
             'Pembatalan pengajuan permohonan id='.$id.' no='.$permohonan->no_permohonan);
-        $this->session->set_flashdata('success', 'Pengajuan permohonan berhasil dibatalkan.');
+        $this->session->set_flashdata('success',
+            'Pengajuan permohonan berhasil dibatalkan. Buat permohonan baru untuk mengajukan kembali kegiatan yang dibutuhkan.');
         redirect('permohonan/detail/' . $id);
     }
 

@@ -512,7 +512,7 @@ class Verif_kab extends Auth_Controller
         $semua_selesai = TRUE;
         foreach ($semua_tahapan as $t) {
             if ($t->id == $tahapan_id) continue; // sudah dikonfirmasi
-            if (!in_array($t->status, ['dikonfirmasi','ditolak','belum'])) {
+            if (!in_array($t->status, ['dikonfirmasi','ditolak'])) {
                 $semua_selesai = FALSE; break;
             }
         }

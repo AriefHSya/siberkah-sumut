@@ -19,7 +19,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  *   Method get_all() dan count_filtered() share filter yang sama.
  *
  * JENIS PENYALURAN:
- *   bertahap         — 2 tahap (wajib nilai_kontrak > 200jt)
+ *   bertahap         — 2 tahap (wajib nilai_kontrak > 400jt)
  *   sekaligus        — 1 tahap
  *   khusus_mendesak  — 1 tahap, tanpa checklist lengkap
  *   khusus_bencana   — 1 tahap, tanpa checklist lengkap

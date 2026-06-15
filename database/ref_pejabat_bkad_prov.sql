@@ -20,8 +20,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ----------------------------
 -- Table structure for ref_pejabat_bkad_prov
 -- ----------------------------
-DROP TABLE IF EXISTS `ref_pejabat_bkad_prov`;
-CREATE TABLE `ref_pejabat_bkad_prov` (
+CREATE TABLE IF NOT EXISTS `ref_pejabat_bkad_prov` (
   `id` int NOT NULL AUTO_INCREMENT,
   `tahun` year NOT NULL,
   `jenis` enum('kepala_badan','kabid_anggaran','bendahara_pengeluaran') NOT NULL,
@@ -32,6 +31,6 @@ CREATE TABLE `ref_pejabat_bkad_prov` (
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_pejabat_bkad` (`tahun`,`jenis`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

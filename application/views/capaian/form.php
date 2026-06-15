@@ -181,6 +181,48 @@
 <?php endif; ?>
 <?php endif; ?>
 
+<!-- Pengajuan Tahap II -->
+<?php if ($detail->jenis_penyaluran === 'bertahap' && $tahap2): ?>
+<div class="card">
+  <div class="card-title"><i class="ti ti-arrow-right-circle"></i> Pengajuan Tahap II</div>
+
+  <?php if ($tahap2->status !== 'belum'): ?>
+  <div class="alert alert-info">
+    Tahap II sudah diajukan ke Inspektorat. Status saat ini: <?= badge_status($tahap2->status) ?>
+  </div>
+
+  <?php elseif ($detail->status !== 'opd_capaian_tahap1'): ?>
+  <div class="alert alert-warning">
+    Isi dan simpan capaian output fisik Tahap I terlebih dahulu sebelum dapat mengajukan Tahap II.
+  </div>
+
+  <?php else: ?>
+    <?php $syarat = (float)($tahap2->persen_fisik_syarat ?? 0); ?>
+    <?php if ((float)($detail->persen_fisik ?? 0) < $syarat): ?>
+    <div class="alert alert-warning">
+      Capaian fisik Tahap I saat ini <strong><?= (float)$detail->persen_fisik ?>%</strong>, belum mencapai syarat minimal
+      <strong><?= $syarat ?>%</strong> untuk mengajukan Tahap II.
+    </div>
+    <?php else: ?>
+    <p class="text-sm text-muted">
+      Capaian fisik Tahap I sudah mencapai <strong><?= (float)$detail->persen_fisik ?>%</strong>
+      (syarat minimal <?= $syarat ?>%). Tahap II senilai <strong><?= rupiah($tahap2->nilai_diajukan ?? 0) ?></strong>
+      dapat diajukan ke Inspektorat untuk direviu.
+    </p>
+    <?php if ($this->rbac->can('capaian.input')): ?>
+    <?= form_open(site_url('capaian/ajukan-tahap2/'.$detail->pekerjaan_id)) ?>
+    <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
+    <button type="submit" class="btn btn-primary"
+            onclick="return confirm('Ajukan Tahap II ke Inspektorat untuk direviu?\n\nPastikan data capaian sudah benar.')">
+      <i class="ti ti-send"></i> Ajukan Tahap II ke Inspektorat
+    </button>
+    <?= form_close() ?>
+    <?php endif; ?>
+    <?php endif; ?>
+  <?php endif; ?>
+</div>
+<?php endif; ?>
+
 <script>
 function updateBar(v) {
   document.getElementById('preview-bar').style.width = Math.min(100, Math.max(0, v)) + '%';
