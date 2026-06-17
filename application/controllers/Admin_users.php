@@ -14,6 +14,7 @@
  *   POST /admin/users/toggle/{id}    → toggle()     — aktifkan/nonaktifkan user
  *   POST /admin/users/hapus/{id}     → hapus()      — hapus user (soft-delete atau hard)
  *   POST /admin/users/reset/{id}     → reset_pw()   — reset password ke default
+ *   GET  /admin/users/unlock/{id}    → unlock()     — buka akun yang terkunci (5x gagal login)
  *
  * KEAMANAN:
  *   - Guard role-level: admin hanya bisa manage user yang role-level > role-level-nya
@@ -179,6 +180,32 @@ class Admin_users extends Auth_Controller
         }
         $this->User_model->toggle($id);
         $this->session->set_flashdata('success','Status user berhasil diubah.');
+        redirect('admin/users');
+    }
+
+    public function unlock($id) {
+        $this->requirePerm('admin.user.unlock');
+        $user = $this->User_model->get_by_id($id);
+        if (!$user) { show_404(); return; }
+
+        // Guard: SKPKD Kab/Kota hanya bisa membuka akun user di kab/kota miliknya
+        if ($this->role_kode === 'skpkd_kabkota'
+            && (int)$user->kabkota_id !== (int)$this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.'); redirect('admin/users'); return;
+        }
+        if (!$this->rbac->canManageUser($user->role_level)) {
+            $this->session->set_flashdata('error', 'Anda tidak berwenang membuka akun user ini.');
+            redirect('admin/users'); return;
+        }
+
+        if (empty($user->locked_at) && (int)$user->failed_login_attempts === 0) {
+            $this->session->set_flashdata('warning', 'Akun user ini tidak terkunci.');
+            redirect('admin/users'); return;
+        }
+
+        $this->User_model->unlock($id);
+        $this->log_aktivitas('admin.user.unlock', 'Buka kembali akun terkunci user='.$user->username);
+        $this->session->set_flashdata('success', 'Akun user '.$user->username.' berhasil dibuka kembali.');
         redirect('admin/users');
     }
 

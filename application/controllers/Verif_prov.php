@@ -629,6 +629,7 @@ class Verif_prov extends Auth_Controller
         // Sync ke trx_penyaluran_dana per-tahapan (agar dashboard & laporan tetap akurat)
         $items = $this->Verifikasi_prov_model->get_permohonan_items_for_prov($pm_id);
         $status_transfer = ($status_sp2d === 'selesai') ? 'selesai' : 'proses';
+        $dilewati = [];
         foreach ($items as $item) {
             // Cek status_transfer SEBELUM diupdate — cegah _set_disalurkan() terpanggil
             // ulang (notifikasi/Telegram dobel) untuk tahapan yang sudah disalurkan
@@ -647,8 +648,18 @@ class Verif_prov extends Auth_Controller
                 'status_transfer'  => $status_transfer,
             ], $this->user_id);
 
-            // Jika SP2D selesai → update tahapan ke 'disalurkan' (sekali saja per tahapan)
             if ($status_sp2d === 'selesai' && !$sudah_disalurkan) {
+                // Hanya item yang sudah disetujui verifikasi provinsi (status tahapan
+                // 'skpkd_prov_verif' dan hasil_verifikasi='disetujui') boleh dilanjutkan
+                // ke 'disalurkan'. Item yang masih perlu_perbaikan/ditolak/belum
+                // diputuskan dilewati agar tidak melompati alur verifikasi.
+                $item_disetujui = ($item->tahapan_status === 'skpkd_prov_verif'
+                                    && $item->hasil_verif_prov === 'disetujui');
+                if (!$item_disetujui) {
+                    $dilewati[] = $item->kode_bkp;
+                    continue;
+                }
+
                 $tahapan   = $this->Pekerjaan_model->get_tahapan_by_id($item->tahapan_id);
                 $pekerjaan = $this->Pekerjaan_model->get_by_id($item->pekerjaan_id);
                 if ($tahapan && $pekerjaan) {
@@ -659,9 +670,17 @@ class Verif_prov extends Auth_Controller
 
         $this->log_aktivitas('penyaluran.sp2d_permohonan',
             'SP2D '.$no_sp2d.' permohonan='.$pm_id.' status='.$status_sp2d);
-        $this->session->set_flashdata('success',
-            'SP2D berhasil disimpan.' .
-            ($status_sp2d === 'selesai' ? ' Seluruh pekerjaan dalam permohonan ini telah disalurkan.' : ''));
+
+        $pesan = 'SP2D berhasil disimpan.';
+        if ($status_sp2d === 'selesai') {
+            if (empty($dilewati)) {
+                $pesan .= ' Seluruh pekerjaan dalam permohonan ini telah disalurkan.';
+            } else {
+                $pesan .= ' Sebagian pekerjaan belum disalurkan karena belum disetujui '.
+                    'verifikasi provinsi: ' . implode(', ', $dilewati) . '.';
+            }
+        }
+        $this->session->set_flashdata(empty($dilewati) ? 'success' : 'warning', $pesan);
         redirect('verifikasi/prov/permohonan/'.$pm_id);
     }
 
@@ -674,6 +693,9 @@ class Verif_prov extends Auth_Controller
         $kabkota_id = $this->input->get('kabkota_id');
 
         $daftar_sp2d = $this->Verifikasi_prov_model->get_daftar_sp2d($tahun, $kabkota_id);
+        foreach ($daftar_sp2d as $row) {
+            $row->items = $this->Verifikasi_prov_model->get_items_ringkas($row->id);
+        }
         $rekap       = $this->Verifikasi_prov_model->rekap_penyaluran($tahun);
         $kabkota     = $kabkota_id
             ? $this->db->get_where('ref_kabkota', ['id'=>$kabkota_id])->row() : NULL;

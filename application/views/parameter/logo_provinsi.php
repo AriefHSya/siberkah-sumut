@@ -37,8 +37,8 @@
   <div class="form-group mb-3">
     <label>Pilih File Logo <span class="req">*</span></label>
     <input type="file" name="file_logo" class="form-control"
-           accept=".jpg,.jpeg,.png,.svg,.webp" required>
-    <div class="form-hint">Format: JPG, PNG, SVG, WebP &nbsp;·&nbsp; Maks. 2 MB &nbsp;·&nbsp; Rekomendasi: transparan background (PNG/SVG)</div>
+           accept=".jpg,.jpeg,.png,.webp" required>
+    <div class="form-hint">Format: JPG, PNG, WebP &nbsp;·&nbsp; Maks. 2 MB &nbsp;·&nbsp; Rekomendasi: transparan background (PNG)</div>
   </div>
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">

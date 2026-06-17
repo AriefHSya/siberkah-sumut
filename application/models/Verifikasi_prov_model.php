@@ -9,7 +9,6 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * TABEL UTAMA:
  *   trx_verifikasi_skpkd_prov — record verifikasi provinsi per tahapan (UNIQUE)
  *   trx_penyaluran_dana        — data SP2D + tanggal + nominal per tahapan
- *   trx_bukti_transfer         — bukti transfer dari kab (dibaca saja)
  *
  * ALUR DATA:
  *   SKPKD Kab approve → verifikasi provinsi bisa dibuat
@@ -214,12 +213,9 @@ class Verifikasi_prov_model extends CI_Model
     public function get_penyaluran($tahapan_id)
     {
         return $this->db
-            ->select('pd.*, u.nama as nama_input,
-                      bt.file_path as bukti_path, bt.keterangan as bukti_ket,
-                      bt.created_at as tgl_bukti')
+            ->select('pd.*, u.nama as nama_input')
             ->from('trx_penyaluran_dana pd')
-            ->join('users u',              'u.id = pd.user_input', 'left')
-            ->join('trx_bukti_transfer bt','bt.penyaluran_id = pd.id', 'left')
+            ->join('users u', 'u.id = pd.user_input', 'left')
             ->where('pd.tahapan_id', $tahapan_id)
             ->get()->row();
     }
@@ -284,6 +280,20 @@ class Verifikasi_prov_model extends CI_Model
             FROM trx_permohonan pm
             WHERE pm.tahun = ?
         ", [$tahun])->row();
+    }
+
+    /** Rincian kegiatan (BKP) dalam satu permohonan — untuk cetak rekap SP2D */
+    public function get_items_ringkas($permohonan_id)
+    {
+        return $this->db
+            ->select('b.kode_bkp, b.uraian_bkp, t.nilai_diajukan, p.nilai_belanja_pendukung')
+            ->from('trx_permohonan_item pi')
+            ->join('trx_tahapan_penyaluran t', 't.id = pi.tahapan_id')
+            ->join('trx_pekerjaan p',          'p.id = t.pekerjaan_id')
+            ->join('ref_bkp b',                'b.id = p.bkp_id')
+            ->where('pi.permohonan_id', $permohonan_id)
+            ->order_by('b.kode_bkp', 'ASC')
+            ->get()->result();
     }
 
     /** Daftar SP2D per tahun untuk laporan (per permohonan) */

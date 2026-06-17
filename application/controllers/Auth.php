@@ -14,6 +14,10 @@
  *   - Password diverifikasi dengan password_verify() (bcrypt)
  *   - CSRF token wajib di form (dihandle CI3 secara otomatis)
  *   - Login/logout dicatat di user_logs
+ *   - Lockout: akun terkunci otomatis setelah 5x percobaan login gagal berturut-turut
+ *     (kolom users.failed_login_attempts, users.locked_at). Hanya Admin Provinsi/
+ *     Superadmin atau SKPKD Kab/Kota (untuk user di kab/kotanya) yang dapat membuka
+ *     kembali via menu Manajemen User — Admin_users::unlock()
  */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
@@ -42,12 +46,44 @@ class Auth extends Guest_Controller
             redirect('login'); return;
         }
 
-        $user = $this->User_model->get_by_username($username);
+        $user = $this->User_model->get_for_login($username);
 
-        if (!$user || !password_verify($password, $user->password)) {
+        if (!$user) {
             $this->session->set_flashdata('error', 'Username atau password salah.');
             redirect('login'); return;
         }
+
+        // Akun terkunci karena 5x percobaan login gagal — hanya Admin Provinsi atau
+        // SKPKD Kab/Kota (menu Manajemen User) yang dapat membuka kembali.
+        if (!empty($user->locked_at)) {
+            $this->session->set_flashdata('error',
+                'Akun ini terkunci karena terlalu banyak percobaan login gagal. '.
+                'Hubungi Admin Provinsi atau SKPKD Kab/Kota untuk membuka kembali akun Anda.');
+            redirect('login'); return;
+        }
+
+        if (!$user->is_active || !password_verify($password, $user->password)) {
+            if ($user->is_active) {
+                $attempts = (int)$user->failed_login_attempts + 1;
+                $this->User_model->catat_login_gagal($user->id, $attempts);
+                if ($attempts >= User_model::MAX_LOGIN_ATTEMPTS) {
+                    $this->session->set_flashdata('error',
+                        'Username atau password salah. Akun Anda telah dikunci karena 5x '.
+                        'percobaan login gagal. Hubungi Admin Provinsi atau SKPKD Kab/Kota '.
+                        'untuk membuka kembali akun Anda.');
+                } else {
+                    $sisa = User_model::MAX_LOGIN_ATTEMPTS - $attempts;
+                    $this->session->set_flashdata('error',
+                        'Username atau password salah. Sisa percobaan: '.$sisa.'.');
+                }
+            } else {
+                $this->session->set_flashdata('error', 'Username atau password salah.');
+            }
+            redirect('login'); return;
+        }
+
+        // Login berhasil — reset penghitung percobaan gagal
+        $this->User_model->reset_login_gagal($user->id);
 
         // Set session
         $tahun_aktif = $this->Parameter_model->get_tahun_aktif();

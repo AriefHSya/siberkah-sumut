@@ -188,7 +188,7 @@ class Dashboard extends Auth_Controller
                 ->join('ref_bkp b','b.id=p.bkp_id')
                 ->where(['b.tahun'=>$tahun,'b.kabkota_id'=>$kabkota_id,'t.status'=>'disalurkan'])
                 ->count_all_results();
-            if ($n2) $aksi[] = ['icon'=>'cash','label'=>$n2.' dana disalurkan — konfirmasi penerimaan RKUD','url'=>'verifikasi/kab?status=disalurkan','warna'=>'hijau'];
+            if ($n2) $aksi[] = ['icon'=>'cash','label'=>$n2.' dana disalurkan — konfirmasi penerimaan RKUD','url'=>'penyaluran-kab','warna'=>'hijau'];
         }
 
         if (in_array($role, ['superadmin','admin_provinsi'])) {

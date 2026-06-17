@@ -298,51 +298,19 @@
               $st = $st_map[$penyaluran->status_transfer] ?? ['abu',$penyaluran->status_transfer];
               echo '<span class="badge badge-'.$st[0].'">'.$st[1].'</span>';
             ?></td></tr>
-        <?php if ($penyaluran->bukti_path && $penyaluran->bukti_id): ?>
-        <tr><td class="text-muted text-sm">Bukti Transfer RKUD</td>
-            <td><a href="<?= site_url('berkas/unduh/bukti/'.$penyaluran->bukti_id) ?>" target="_blank"
-                   class="btn btn-outline btn-xs"><i class="ti ti-download"></i> Download Bukti</a></td></tr>
-        <?php endif; ?>
       </table>
 
-      <!-- Form konfirmasi penerimaan -->
-      <?php if ($tahapan->status === 'disalurkan' && $this->rbac->can('verif_kab.konfirmasi')): ?>
-      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-        <div class="fw-500 mb-1" style="color:var(--hijau-mid)">
-          <i class="ti ti-circle-check"></i> Konfirmasi Penerimaan Dana
-        </div>
-        <p class="text-sm text-muted mb-2">
-          Upload bukti transfer RKUD sebagai konfirmasi bahwa dana telah diterima.
-        </p>
-        <?= form_open_multipart(site_url('verifikasi/kab/konfirmasi/'.$tahapan->id)) ?>
-        <?= form_hidden($this->security->get_csrf_token_name(),$this->security->get_csrf_hash()) ?>
-        <div class="form-group mb-2">
-          <label>File Bukti Transfer RKUD <span class="req">*</span></label>
-          <input type="file" name="file_bukti" class="form-control"
-                 accept=".pdf,.jpg,.jpeg,.png" required>
-          <div class="form-hint">Format: PDF, JPG, PNG. Maks. 10 MB.</div>
-        </div>
-        <div class="form-group mb-2">
-          <label>Keterangan</label>
-          <input type="text" name="keterangan" class="form-control"
-                 placeholder="Contoh: Transfer masuk RKUD <?= date('d/m/Y') ?>">
-        </div>
-        <button type="submit" class="btn btn-success"
-          onclick="return confirm('Konfirmasi penerimaan dana ini? Pastikan bukti transfer sudah benar.')">
-          <i class="ti ti-circle-check"></i> Konfirmasi Dana Diterima
-        </button>
-        <?= form_close() ?>
+      <!-- Status konfirmasi penerimaan (dikonfirmasi via menu Penyaluran SKPKD Kab/Kota) -->
+      <?php if ($tahapan->status === 'disalurkan'): ?>
+      <div style="margin-top:10px;padding:10px;background:var(--abu-light);border-radius:var(--radius)">
+        <i class="ti ti-info-circle"></i>
+        Konfirmasi penerimaan dana (RKUD) dilakukan melalui menu
+        <strong>Penyaluran</strong>.
       </div>
       <?php elseif ($tahapan->status === 'dikonfirmasi'): ?>
       <div style="margin-top:10px;padding:10px;background:var(--hijau-light);border-radius:var(--radius)">
         <i class="ti ti-circle-check" style="color:var(--hijau-mid)"></i>
         <strong style="color:var(--hijau-mid)"> Dana telah dikonfirmasi diterima.</strong>
-        <?php if ($penyaluran->bukti_path && $penyaluran->bukti_id): ?>
-        <a href="<?= site_url('berkas/unduh/bukti/'.$penyaluran->bukti_id) ?>" target="_blank"
-           class="btn btn-outline btn-xs" style="margin-left:8px">
-          <i class="ti ti-download"></i> Bukti RKUD
-        </a>
-        <?php endif; ?>
       </div>
       <?php endif; ?>
     </div>

@@ -69,6 +69,7 @@ $route['admin/users/update/(:num)']           = 'admin_users/update/$1';
 $route['admin/users/toggle/(:num)']           = 'admin_users/toggle/$1';
 $route['admin/users/hapus/(:num)']            = 'admin_users/hapus/$1';
 $route['admin/users/reset-pw/(:num)']         = 'admin_users/reset_pw/$1';
+$route['admin/users/unlock/(:num)']           = 'admin_users/unlock/$1';
 $route['admin/roles']                         = 'admin_roles/index';
 $route['admin/roles/tambah']                  = 'admin_roles/tambah';
 $route['admin/roles/simpan']                  = 'admin_roles/simpan';
@@ -117,7 +118,6 @@ $route['verifikasi/kab/form/(:num)']          = 'verif_kab/form/$1';
 $route['verifikasi/kab/upload-dok/(:num)']    = 'verif_kab/upload_dok/$1';
 $route['verifikasi/kab/hapus-dok/(:num)']     = 'verif_kab/hapus_dok/$1';
 $route['verifikasi/kab/putuskan/(:num)']      = 'verif_kab/putuskan/$1';
-$route['verifikasi/kab/konfirmasi/(:num)']    = 'verif_kab/konfirmasi/$1';
 $route['verifikasi/kab/cetak-rekap/(:num)']   = 'verif_kab/cetak_rekap/$1';
 
 // ─── VERIFIKASI & PENYALURAN PROVINSI ────────────────────────

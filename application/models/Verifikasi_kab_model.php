@@ -10,7 +10,6 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  *   trx_verifikasi_skpkd_kab — record verifikasi per tahapan (UNIQUE)
  *   trx_dokumen_persyaratan  — dokumen permohonan yang diupload SKPKD Kab
  *   trx_penyaluran_dana      — data SP2D (dibaca saja dari model ini)
- *   trx_bukti_transfer       — bukti penerimaan RKUD dari kab
  *
  * POLA UPSERT:
  *   buat_atau_ambil($tahapan_id) — sama dengan Reviu_model,
@@ -24,7 +23,6 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  *   update($id, $data)               — update hasil verifikasi
  *   get_dokumen($tahapan_id)         — daftar dokumen yang diupload
  *   get_penyaluran($tahapan_id)      — data SP2D terkait (jika sudah ada)
- *   simpan_bukti_transfer()          — simpan bukti RKUD + update status
  *   count_by_status()                — untuk statistik dashboard
  *   rekap_nilai()                    — total nilai yang sudah diverifikasi kab
  */
@@ -154,32 +152,10 @@ class Verifikasi_kab_model extends CI_Model
     public function get_penyaluran($tahapan_id)
     {
         return $this->db
-            ->select('pd.*, bt.id as bukti_id, bt.file_path as bukti_path,
-                      bt.nama_file as bukti_nama, bt.keterangan as bukti_ket')
+            ->select('pd.*')
             ->from('trx_penyaluran_dana pd')
-            ->join('trx_bukti_transfer bt', 'bt.penyaluran_id = pd.id', 'left')
             ->where('pd.tahapan_id', $tahapan_id)
             ->get()->row();
-    }
-
-    public function simpan_bukti_transfer($penyaluran_id, $file_path, $nama_file, $keterangan, $user_id)
-    {
-        // Hapus bukti lama jika ada
-        $lama = $this->db->get_where('trx_bukti_transfer', ['penyaluran_id' => $penyaluran_id])->row();
-        if ($lama && $lama->file_path && file_exists(FCPATH . $lama->file_path)) {
-            unlink(FCPATH . $lama->file_path);
-        }
-        $this->db->delete('trx_bukti_transfer', ['penyaluran_id' => $penyaluran_id]);
-
-        $this->db->insert('trx_bukti_transfer', [
-            'penyaluran_id' => $penyaluran_id,
-            'file_path'     => $file_path,
-            'nama_file'     => $nama_file,
-            'keterangan'    => $keterangan,
-            'user_upload'   => $user_id,
-            'created_at'    => date('Y-m-d H:i:s'),
-        ]);
-        return $this->db->insert_id();
     }
 
     // ─── STATISTIK ────────────────────────────────────────────

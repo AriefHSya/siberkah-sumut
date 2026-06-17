@@ -26,12 +26,16 @@ $config['log_date_format']     = 'Y-m-d H:i:s';
 $config['cache_path']          = '';
 $config['cache_query_string']  = FALSE;
 
+$_is_prod = (getenv('APP_ENV') === 'production');
+
 // Encryption key — WAJIB di-set via env var ENCRYPTION_KEY di production.
 // Generate: php -r "echo bin2hex(random_bytes(32));"
 // Fallback dev-only — JANGAN pakai nilai ini di production.
+if ($_is_prod && !getenv('ENCRYPTION_KEY')) {
+    header('HTTP/1.1 500 Internal Server Error', TRUE, 500);
+    exit('Konfigurasi tidak lengkap: ENCRYPTION_KEY wajib di-set di environment production.');
+}
 $config['encryption_key'] = getenv('ENCRYPTION_KEY') ?: 'siberkah_dev_only_key_not4prod!!';
-
-$_is_prod = (getenv('APP_ENV') === 'production');
 
 // Session: database di production (lebih aman & scalable), files di development.
 // Tabel ci_sessions harus dibuat dulu — lihat database/ci_sessions.sql

@@ -652,8 +652,10 @@ class Pekerjaan extends Auth_Controller
         if (empty($pekerjaan->no_spmk))            $errors[] = 'Nomor SPMK belum diisi';
 
         // Validasi dokumen wajib pre-submit
-        if (empty($pekerjaan->dok_spk_path))  $errors[] = 'File SPK belum diupload';
-        if (empty($pekerjaan->dok_spmk_path)) $errors[] = 'File SPMK belum diupload';
+        // SPK & SPMK tidak wajib untuk jenis penyaluran darurat/mendesak
+        $darurat = in_array($pekerjaan->jenis_penyaluran, ['khusus_mendesak', 'khusus_bencana']);
+        if (!$darurat && empty($pekerjaan->dok_spk_path))  $errors[] = 'File SPK belum diupload';
+        if (!$darurat && empty($pekerjaan->dok_spmk_path)) $errors[] = 'File SPMK belum diupload';
         if ($pekerjaan->jenis_penyaluran === 'sekaligus' && empty($pekerjaan->dok_bast_path))
             $errors[] = 'File BAST belum diupload (wajib untuk penyaluran Sekaligus)';
 

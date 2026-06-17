@@ -18,6 +18,13 @@
  *   hapus($id)               — hapus user (cek dulu tidak ada data terkait)
  *   update_last_login($id)   — update kolom last_login_at saat login berhasil
  *   count_per_role()         — statistik jumlah user per role (untuk dashboard admin)
+ *
+ * LOCKOUT LOGIN:
+ *   get_for_login($username)     — ambil user untuk proses login (termasuk user nonaktif,
+ *                                   agar Auth::proses() bisa cek lockout/status secara konsisten)
+ *   catat_login_gagal($id, $n)   — set failed_login_attempts ke $n, dan locked_at jika $n >= 5
+ *   reset_login_gagal($id)       — reset failed_login_attempts=0 & locked_at=NULL (login sukses)
+ *   unlock($id)                  — buka kembali akun terkunci (oleh Admin Provinsi/SKPKD Kab/Kota)
  */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
@@ -67,6 +74,43 @@ class User_model extends CI_Model
             ->join('roles r', 'r.id = u.role_id')
             ->join('ref_kabkota k', 'k.id = u.kabkota_id', 'left')
             ->where('u.username', $username)->where('u.is_active', 1)->get()->row();
+    }
+
+    public function get_for_login($username)
+    {
+        return $this->db->select('u.*, r.kode as role_kode, r.nama as role_nama, r.level as role_level, k.nama as kabkota_nama')
+            ->from('users u')
+            ->join('roles r', 'r.id = u.role_id')
+            ->join('ref_kabkota k', 'k.id = u.kabkota_id', 'left')
+            ->where('u.username', $username)->get()->row();
+    }
+
+    const MAX_LOGIN_ATTEMPTS = 5;
+
+    public function catat_login_gagal($id, $jumlah)
+    {
+        $data = ['failed_login_attempts' => $jumlah];
+        if ($jumlah >= self::MAX_LOGIN_ATTEMPTS) {
+            $data['locked_at'] = date('Y-m-d H:i:s');
+        }
+        return $this->db->where('id', $id)->update('users', $data);
+    }
+
+    public function reset_login_gagal($id)
+    {
+        return $this->db->where('id', $id)->update('users', [
+            'failed_login_attempts' => 0,
+            'locked_at'             => NULL,
+        ]);
+    }
+
+    public function unlock($id)
+    {
+        return $this->db->where('id', $id)->update('users', [
+            'failed_login_attempts' => 0,
+            'locked_at'             => NULL,
+            'updated_at'            => date('Y-m-d H:i:s'),
+        ]);
     }
 
     public function username_exists($username, $exclude_id = NULL)

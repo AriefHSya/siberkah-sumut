@@ -689,6 +689,8 @@ CREATE TABLE `users` (
   `id` int NOT NULL AUTO_INCREMENT,
   `username` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `failed_login_attempts` tinyint unsigned NOT NULL DEFAULT '0' COMMENT 'Jumlah percobaan login gagal berturut-turut',
+  `locked_at` datetime DEFAULT NULL COMMENT 'Waktu akun dikunci otomatis (5x gagal login)',
   `nama` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
   `nip` varchar(18) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'NIP 18 digit — wajib unik',
   `email` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,

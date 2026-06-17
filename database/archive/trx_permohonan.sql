@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS `trx_permohonan` (
   `kode_tahap` varchar(20) NOT NULL,
   `no_permohonan` varchar(100) DEFAULT NULL,
   `tgl_permohonan` date DEFAULT NULL,
-  `status` enum('draft','diajukan','batal','ditolak') NOT NULL DEFAULT 'draft',
+  `status` enum('draft','diajukan','batal','ditolak','selesai') NOT NULL DEFAULT 'draft',
   `catatan` text,
   `catatan_tolak` text,
   `file_surat_permohonan_path` varchar(255) DEFAULT NULL,

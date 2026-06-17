@@ -15,7 +15,7 @@
 -- ============================================================
 
 ALTER TABLE trx_permohonan
-  MODIFY COLUMN status enum('draft','diajukan','batal','ditolak') NOT NULL DEFAULT 'draft';
+  MODIFY COLUMN status enum('draft','diajukan','batal','ditolak','selesai') NOT NULL DEFAULT 'draft';
 
 ALTER TABLE trx_permohonan
   ADD COLUMN catatan_tolak text AFTER catatan;

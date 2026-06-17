@@ -32,11 +32,35 @@ class MY_Controller extends CI_Controller
     public function __construct()
     {
         parent::__construct();
+        $this->_security_headers();
         $this->data['app_name']    = $this->config->item('app_name');
         $this->data['app_tagline'] = $this->config->item('app_tagline');
         $this->data['app_version'] = $this->config->item('app_version');
         $this->data['app_owner']   = $this->config->item('app_owner');
         $this->data['base_url']    = base_url();
+    }
+
+    /**
+     * Set HTTP security headers untuk semua response.
+     * CSP mengizinkan CDN yang dipakai aplikasi (jsdelivr, unpkg untuk
+     * Tabler Icons/Leaflet, serta tile server OpenStreetMap/CartoDB untuk peta).
+     */
+    private function _security_headers()
+    {
+        header('X-Content-Type-Options: nosniff');
+        header('X-Frame-Options: SAMEORIGIN');
+        header('Referrer-Policy: strict-origin-when-cross-origin');
+        header('Permissions-Policy: geolocation=(self), camera=(), microphone=()');
+        header("Content-Security-Policy: default-src 'self'; "
+            ."script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; "
+            ."style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; "
+            ."font-src 'self' https://cdn.jsdelivr.net https://unpkg.com data:; "
+            ."img-src 'self' data: blob: https://unpkg.com https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com; "
+            ."frame-src https://*.google.com https://maps.googleapis.com; "
+            ."connect-src 'self'; "
+            ."object-src 'none'; "
+            ."base-uri 'self'; "
+            ."frame-ancestors 'self'");
     }
 
     /**

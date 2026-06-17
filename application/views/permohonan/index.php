@@ -49,6 +49,7 @@ function label_kelompok_pm($jenis, $kode_tahap) {
         <option value="">Semua</option>
         <option value="diajukan" <?= ($filters['status']==='diajukan')?'selected':'' ?>>Diajukan</option>
         <option value="draft"    <?= ($filters['status']==='draft')?'selected':'' ?>>Draft</option>
+        <option value="selesai"  <?= ($filters['status']==='selesai')?'selected':'' ?>>Selesai</option>
         <option value="batal"    <?= ($filters['status']==='batal')?'selected':'' ?>>Dibatalkan</option>
         <option value="ditolak"  <?= ($filters['status']==='ditolak')?'selected':'' ?>>Ditolak</option>
       </select>
