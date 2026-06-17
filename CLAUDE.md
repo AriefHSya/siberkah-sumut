@@ -21,7 +21,7 @@ SIBERKAH adalah platform kolaborasi multi-role untuk mengelola penyaluran dana B
 ```
 OPD Teknis → input form 17 field + pin lokasi + upload dokumen
     ↓ (cek batas waktu dari ref_batas_waktu)
-Inspektorat → reviu 21-item checklist otomatis + upload LHR
+Inspektorat → reviu 22-item checklist otomatis + upload LHR
     ↓
 SKPKD Kab/Kota → verifikasi kegiatan individual (menu: Verifikasi)
     ↓
@@ -136,7 +136,7 @@ uploads/                    # file upload user — jangan commit ke git
 | `ref_bidang` | 12 bidang kegiatan |
 | `ref_bkp` | Data BKP per tahun per kab/kota |
 | `ref_batas_waktu` | **Kunci**: batas pengajuan per jenis per tahun — mengontrol submit OPD |
-| `ref_checklist_item` | 21 item checklist statis (CK-01 s/d CK-21) |
+| `ref_checklist_item` | 22 item checklist statis (CK-01 s/d CK-22); CK-22 khusus Tahap II bertahap |
 | `ref_pemda_pejabat` | KDH, Kepala BKAD, Inspektur per kab per tahun |
 | `ref_pemda_dokumen` | Perda/Pergub/Perkada per kab per tahun |
 | `ref_pejabat_bkad_prov` | Kepala Badan, Kabid Anggaran, Bendahara BKAD Provinsi (untuk TTD nota) |
@@ -510,7 +510,33 @@ Setiap method yang mengambil keputusan atas suatu tahapan (`Reviu::putuskan`,
    `status_transfer`/`status_sp2d` sudah `'selesai'`, agar notifikasi/Telegram
    dan `set_status()` tidak terkirim/terpanggil ganda.
 
-### 8. Race Condition Upsert 1:1 per Tahapan
+### 8. Formula Nilai Pengajuan Tahap II — Tidak Dikurangi Pendukung
+
+```php
+// Tahap II (bertahap): nilai_diajukan sudah = persen_nilai/100 × nilai_kontrak
+// Pendukung (belanja operasional) HANYA masuk di Tahap I total, TIDAK di Tahap II
+// Tahap I total = nilai_diajukan + nilai_belanja_pendukung  (misal 50%NK + pendukung)
+// Tahap II total = nilai_diajukan saja               (misal 50%NK, tanpa pendukung)
+
+// Pola wajib di semua view dan model yang menghitung total permohonan:
+$is_t2 = ($pm->jenis_penyaluran === 'bertahap' && $pm->kode_tahap === 'tahap_2');
+$nilai = $is_t2
+    ? ($item->nilai_diajukan ?? 0)
+    : ($item->nilai_diajukan ?? 0) + ($item->nilai_belanja_pendukung ?? 0);
+
+// Di SQL subquery (model):
+// CASE WHEN pm.jenis_penyaluran = 'bertahap' AND pm.kode_tahap = 'tahap_2'
+//      THEN tp.nilai_diajukan
+//      ELSE tp.nilai_diajukan + IFNULL(pk.nilai_belanja_pendukung, 0)
+// END
+```
+
+Berlaku di: `Permohonan_model::get_all()`, `get_kelompok_tersedia()`, `Verifikasi_prov_model::get_permohonan_list()`,
+view `permohonan/detail.php`, `permohonan/cetak_rekap.php`, `verif_prov/detail_permohonan.php`,
+`verif_prov/cetak_nota_kabid.php`, `verif_prov/cetak_ringkasan.php`, `laporan/rekap_tahap2.php`,
+`laporan/cetak_rekap_tahap2.php`.
+
+### 9. Race Condition Upsert 1:1 per Tahapan
 
 Pola `buat_atau_ambil($tahapan_id)` (cek-lalu-insert tanpa transaksi) di
 `Reviu_model`, `Verifikasi_kab_model`, `Verifikasi_prov_model` mengandalkan
@@ -547,6 +573,12 @@ Fitur-fitur ini ada dalam blueprint tapi belum diimplementasi — **prioritas un
 - ✅ **Tampilan Landing Page** — slideshow + foto pejabat Provinsi via `parameter/landing`
 - ✅ **Import Excel BKP** — `parameter/bkp/import` (2 langkah: upload → preview+validasi → konfirmasi). Parser native via `XlsxReader.php` (xlsx) atau CSV. Validasi: kabkota tidak dikenal, bidang tidak dikenal (fuzzy+alias), nilai bukan angka, duplikat (tahun+kabkota+uraian) dengan opsi update/skip per baris. Template unduhan: XLSX (`bkp/import/template-xlsx`, via `XlsxWriter`) dan CSV (`bkp/import/template`)
 - ✅ **Peta Cluster Leaflet (Dashboard)** — `dashboard/index.php` + `Dashboard::peta_data()` (endpoint `dashboard/peta-data`). Marker cluster (Leaflet.markercluster via CDN), warna marker per status, popup ringkas (kode BKP, uraian, kab/kota, nilai kontrak, badge status, link detail). Hanya tampil untuk role provinsi (`superadmin`/`admin_provinsi`) dan `pengawas`
+- ✅ **Dashboard Chart Per Bidang** — card "Distribusi Pekerjaan Per Bidang" menggunakan Chart.js 4.4.0 (CDN). Setiap bidang mendapat warna unik dari palette 12 warna (PHP → JSON). Legenda warna digenerate di bawah chart. `generateLabels` override agar tooltip generic (bukan per-bidang).
+- ✅ **Rekap Pengajuan Tahap II** — `Laporan.php::rekap_tahap2()` + `cetak_rekap_tahap2()`. Daftar kegiatan bertahap yang sudah memasuki Tahap II, dengan nilai salur T1 dan pengajuan T2 (50%NK masing-masing). Route: `laporan/rekap-tahap2`, `laporan/cetak-rekap-tahap2`.
+- ✅ **Checklist Reviu Tahap II** — CK-21 (cek capaian output) dan CK-22 (cek BA Kemajuan) ditambahkan ke `ref_checklist_items` khusus untuk `jenis_penyaluran='bertahap'` + `kode_tahap='tahap_2'`. Form reviu Tahap II otomatis menampilkan data capaian OPD untuk cross-check.
+- ✅ **Capaian Upload BA** — form `capaian/form.php` mendukung upload Berita Acara Kemajuan Pekerjaan (file PDF/JPG) di samping foto dokumentasi fisik. Unduhan via `berkas/unduh/capaian-ba/{pekerjaan_id}`.
+- ✅ **Nota Kabid: status selesai & label jenis** — `Verif_prov::_get_pm_for_cetak()` mengizinkan `status='selesai'` (sebelumnya hanya `diajukan`), sehingga nota dapat dicetak ulang setelah RKUD dikonfirmasi. Field "Hal" menyertakan label jenis penyaluran dalam kurung, mis. `"Pencairan Bantuan Keuangan untuk Kab. X (Tahap I)"`.
+- ✅ **Verif Prov: tampilkan permohonan selesai** — `Verifikasi_prov_model::_build_pm_query()` menggunakan `WHERE pm.status IN ('diajukan','selesai')`. Permohonan selesai tampil dengan badge hijau "Selesai" dan tombol "Lihat" (view-only), permohonan diajukan tetap "Proses".
 
 ---
 
@@ -893,18 +925,16 @@ dibuat sebelum kolom/permission ini ditambahkan, jalankan sekali:
 ## ROADMAP PENGEMBANGAN
 
 ### Prioritas Menengah
-2. **Peta cluster Leaflet** — visualisasi lokasi semua pekerjaan di satu peta provinsi
-3. **Notifikasi email** — SMTP untuk notif penting (batas waktu mendekati, dll)
+1. **Notifikasi email** — SMTP untuk notif penting (batas waktu mendekati, SP2D diterbitkan)
+2. **Reset Password via Email** — link reset ke email user (sekarang hanya generate password baru via flashdata)
 
 ### Prioritas Rendah
-4. **Dashboard chart interaktif** — Chart.js/ApexCharts untuk grafik realisasi
-5. **API JSON endpoint** — untuk integrasi dengan sistem e-budgeting daerah
-6. **Audit log UI** — tampilkan `user_logs` lengkap dengan filter di menu admin
-12. **Multi-bahasa** — saat ini hanya Bahasa Indonesia
-13. **Dark mode** — CSS variables sudah siap, tinggal tambah theme toggle
+3. **API JSON endpoint** — untuk integrasi dengan sistem e-budgeting daerah
+4. **Multi-bahasa** — saat ini hanya Bahasa Indonesia
+5. **Dark mode** — CSS variables sudah siap, tinggal tambah theme toggle
 
 ---
 
 *File ini adalah konteks utama untuk Claude Code.*
 *Update file ini setiap kali ada perubahan arsitektur, konvensi, atau fitur baru.*
-*Terakhir diupdate: Juni 2026 — Sprint 7 selesai (Railway Volume, logo provinsi, sidebar RBAC fix)*
+*Terakhir diupdate: Juni 2026 — Sprint 8 selesai (formula Tahap II, checklist CK-22, chart per bidang, rekap Tahap II, nota kabid fix, verif prov tampilkan selesai)*

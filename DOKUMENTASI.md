@@ -36,10 +36,12 @@ CI_Controller
     │   ├── Parameter
     │   ├── Admin_users
     │   ├── Admin_roles
-    │   └── Admin_telegram
+    │   ├── Admin_logs       → log aktivitas (user_logs) + riwayat status (read-only)
+    │   └── Akun             → ganti password sendiri
     └── Guest_Controller   → redirect ke dashboard jika sudah login
         ├── Auth
-        └── Welcome
+        ├── Welcome
+        └── Berkas           → unduhan file privat (RBAC + scope check)
 ```
 
 **Pola request flow:**
@@ -251,6 +253,10 @@ Untuk halaman yang tidak butuh login (login page, landing). Otomatis redirect ke
 - Guard `penyaluran.input_sp2d` di method `simpan_sp2d_permohonan()` (bukan di constructor)
 - Ketiga nota cetak harus dibuka sebelum SP2D dapat diinput (timestamp `nota_*_at` dicatat di DB)
 - Auto-create record verif prov saat pertama akses `form()` per tahapan
+- `_get_pm_for_cetak()` mengizinkan `status IN ('diajukan','selesai')` — permohonan yang sudah dikonfirmasi RKUD tetap dapat dicetak notanya
+- `index()` menampilkan permohonan berstatus `diajukan` (tombol "Proses") dan `selesai` (tombol "Lihat", view-only)
+- Field "Hal" pada Nota Kabid menyertakan label jenis penyaluran dalam kurung: `(Tahap I)`, `(Tahap II)`, `(Sekaligus)`, `(Mendesak)`, `(Bencana)`
+- Nilai Tahap II di semua nota/rekap = `nilai_diajukan` saja (tidak ditambah/dikurangi pendukung)
 
 ---
 
@@ -272,6 +278,8 @@ Untuk halaman yang tidak butuh login (login page, landing). Otomatis redirect ke
 | `export_penyaluran_xlsx()` | GET | `laporan.export` | Download XLSX daftar SP2D (via XlsxWriter) |
 | `laporan_akhir_kab()` | GET | `laporan.view` | View laporan akhir komprehensif per Kab/Kota |
 | `cetak_laporan_akhir_kab()` | GET | `laporan.view` | Cetak laporan akhir (tanpa layout, ber-KOP) |
+| `rekap_tahap2()` | GET | `laporan.cetak_rekap_penyaluran` | Daftar kegiatan bertahap yang sudah memasuki Tahap II; nilai salur T1 + pengajuan T2 |
+| `cetak_rekap_tahap2()` | GET | `laporan.cetak_rekap_penyaluran` | Cetak rekap Tahap II (tanpa layout) |
 
 ---
 
@@ -364,10 +372,57 @@ Untuk halaman yang tidak butuh login (login page, landing). Otomatis redirect ke
 | `update($id)` | POST | `admin.user.edit` | Update data user; hash password jika diisi |
 | `toggle($id)` | GET | `admin.user.toggle` | Toggle `is_active` (tidak bisa self-toggle) |
 | `hapus($id)` | GET | `admin.user.delete` | Hapus user (tidak bisa hapus diri sendiri) |
-| `reset_pw($id)` | GET | `admin.user.reset_pw` | Reset password ke `password123` (stub) |
+| `reset_pw($id)` | GET | `admin.user.reset_pw` | Reset password ke string acak 12 karakter; set `must_change_password=1`; tampil sekali via flashdata |
 
 **Guard bisnis:**  
 Tidak dapat membuat/mengelola user dengan `role_level` lebih rendah atau sama dengan level user saat ini (`canManageUser()`).
+
+---
+
+### `Akun.php` — Ganti Password Sendiri
+
+**Class:** `Akun extends Auth_Controller`  
+**Routes:** `ganti-password`, `ganti-password/proses`
+
+| Method | HTTP | Permission | Fungsi |
+|--------|------|-----------|--------|
+| `index()` | GET | (logged in) | Form ganti password; bypass must_change_password redirect |
+| `update_password()` | POST | (logged in) | Validasi old password, hash + simpan new password, reset `must_change_password=0` |
+
+> Satu-satunya controller yang dikecualikan dari redirect paksa `must_change_password`.
+
+---
+
+### `Berkas.php` — Unduhan File Privat
+
+**Class:** `Berkas extends Auth_Controller`  
+**Guard:** RBAC + scope kabkota per jenis berkas
+
+| Method | HTTP | Fungsi |
+|--------|------|--------|
+| `unduh_dok($id)` | GET | Unduh dokumen persyaratan (`trx_dokumen_persyaratan`) |
+| `unduh_lhr($reviu_id)` | GET | Unduh LHR inspektorat (`trx_reviu_inspektorat`) |
+| `unduh_capaian($pekerjaan_id)` | GET | Unduh foto capaian output |
+| `unduh_capaian_ba($pekerjaan_id)` | GET | Unduh Berita Acara Kemajuan Pekerjaan |
+| `unduh_draft($id, $jenis)` | GET | Unduh draft dokumen pekerjaan (spk/spmk/bast) |
+| `unduh_pm($pm_id, $jenis)` | GET | Unduh surat permohonan bundel |
+
+Setiap unduhan: cek RBAC → cek scope kabkota → stream file → log aktivitas.
+
+---
+
+### `Admin_logs.php` — Log Aktivitas & Riwayat Status
+
+**Class:** `Admin_logs extends Auth_Controller`  
+**Guard constructor:** `admin.logs.view`  
+**Models:** `Admin_logs_model`
+
+| Method | HTTP | Permission | Fungsi |
+|--------|------|-----------|--------|
+| `index()` | GET | `admin.logs.view` | Daftar log aktivitas user (`user_logs`); filter user/aksi/tanggal |
+| `status_history()` | GET | `admin.logs.view` | Riwayat perubahan status pekerjaan (`trx_status_history`) |
+
+> Read-only. Tidak ada method write/delete.
 
 ---
 
@@ -524,8 +579,12 @@ Model utama untuk transaksi pekerjaan.
 | `get_count_tahapan` | `get_count_tahapan($pekerjaan_id)` | int | Count tahapan |
 
 **Logika `buat_tahapan()`:**
-- `bertahap` → 2 tahapan (Tahap I: 70%, Tahap II: 30%)
-- `sekaligus` / `khusus_mendesak` / `khusus_bencana` → 1 tahapan (100%)
+- `bertahap` → 2 tahapan (Tahap I: 50% NK + belanja pendukung, Tahap II: 50% NK)
+- `sekaligus` / `khusus_mendesak` / `khusus_bencana` → 1 tahapan (100%, `kode_tahap='khusus'`)
+
+**Formula nilai pengajuan per tahapan:**
+- Tahap I total = `nilai_diajukan` + `nilai_belanja_pendukung`
+- Tahap II total = `nilai_diajukan` saja (pendukung sudah dibayar di Tahap I, tidak dikurangi lagi)
 
 #### Dokumen Persyaratan
 
@@ -556,7 +615,7 @@ Model utama untuk transaksi pekerjaan.
 | `get_by_id` | `get_by_id($id)` | object | Get by ID |
 | `buat_atau_ambil` | `buat_atau_ambil($tahapan_id, $user_id)` | int | Insert jika belum ada; return `reviu_id` |
 | `update` | `update($id, $data)` | bool | Update + `updated_at` |
-| `get_checklist_items` | `get_checklist_items($jenis_penyaluran, $kode_tahap)` | array | Item checklist (CK-01 s/d CK-21) per jenis/tahap |
+| `get_checklist_items` | `get_checklist_items($jenis_penyaluran, $kode_tahap)` | array | Item checklist (CK-01 s/d CK-22) per jenis/tahap; CK-21 & CK-22 hanya untuk Tahap II bertahap |
 | `get_isian` | `get_isian($reviu_id)` | array | Isian checklist per reviu, keyed by `item_id` |
 | `simpan_checklist` | `simpan_checklist($reviu_id, $isian)` | void | Upsert isian checklist |
 | `hitung_checklist` | `hitung_checklist($reviu_id)` | object | `total`, `terisi`, `percentage` |
@@ -723,16 +782,23 @@ application/views/
 │   ├── rekap_bkp.php
 │   ├── rekap_penyaluran.php
 │   ├── cetak_rekap_bkp.php
+│   ├── rekap_tahap2.php      ← kegiatan bertahap yang memasuki Tahap II
+│   ├── cetak_rekap_tahap2.php
 │   └── laporan_akhir_kab.php ← laporan akhir komprehensif per kab
+├── akun/
+│   └── ganti_password.php    ← form ganti password sendiri
 └── admin/
     ├── users/
     │   ├── index.php
     │   └── form.php
-    └── roles/
-        ├── index.php
-        ├── form.php
-        ├── permissions.php   ← matrix permission per modul
-        └── logs.php
+    ├── roles/
+    │   ├── index.php
+    │   ├── form.php
+    │   ├── permissions.php   ← matrix permission per modul
+    │   └── logs.php
+    └── logs/
+        ├── index.php         ← log aktivitas user (user_logs) + filter
+        └── status_history.php ← riwayat perubahan status pekerjaan
 ```
 
 ### Catatan Views
@@ -942,7 +1008,7 @@ draft → opd_submitted → inspektorat_reviu → inspektorat_revisi
 | `trx_bukti_transfer` | `id`, `penyaluran_id`, `file_path`, `keterangan` | Bukti RKUD dari kab |
 | `trx_status_history` | `id`, `pekerjaan_id`, `status_lama`, `status_baru`, `user_id`, `catatan` | Audit trail status |
 | `trx_notifikasi` | `id`, `user_id`, `judul`, `pesan`, `jenis`, `url`, `is_read` | In-app notification |
-| `trx_capaian_output` | `id`, `tahapan_id`, `persen_fisik`, `tgl_realisasi`, `no_ba_kemajuan`, `keterangan`, `foto_path` | Capaian output fisik setelah Tahap I dikonfirmasi |
+| `trx_capaian_output` | `id`, `tahapan_id`, `persen_fisik`, `tgl_realisasi`, `no_ba_kemajuan`, `keterangan`, `foto_path`, `foto_nama_asli`, `ba_path`, `ba_nama_asli` | Capaian output fisik + foto dokumentasi + Berita Acara Kemajuan Pekerjaan |
 
 ### Tabel Log (`_log`)
 
@@ -985,11 +1051,12 @@ draft → opd_submitted → inspektorat_reviu → inspektorat_revisi
 | Laporan | `laporan.view`, `laporan.cetak_rekap_bkp`, `laporan.cetak_rekap_penyaluran`, `laporan.export` |
 | Admin User | `admin.view`, `admin.user.view`, `admin.user.create`, `admin.user.edit`, `admin.user.delete`, `admin.user.toggle`, `admin.user.reset_pw` |
 | Admin Role | `admin.role.view`, `admin.role.create`, `admin.role.edit`, `admin.role.delete`, `admin.role.permission` |
+| Admin Logs | `admin.logs.view` |
 
 ---
 
 ---
 
-*Dokumen ini mencakup 13 controller, 10 model, 2 library (Rbac, XlsxWriter), 1 helper (siberkah_helper), dan 1 base controller (MY_Controller).*  
-*Terakhir diperbarui: Juni 2026 — Sprint 7 (Railway Volume, sidebar RBAC fix, laporan akhir kab)*
+*Dokumen ini mencakup 16 controller, 10 model, 2 library (Rbac, XlsxWriter), 1 helper (siberkah_helper), dan 1 base controller (MY_Controller).*  
+*Terakhir diperbarui: Juni 2026 — Sprint 8 (formula Tahap II, CK-22, Admin_logs, Akun, Berkas, rekap Tahap II, nota kabid fix)*  
 *Update dokumen ini setiap kali ada penambahan controller, model, atau perubahan API method yang signifikan.*

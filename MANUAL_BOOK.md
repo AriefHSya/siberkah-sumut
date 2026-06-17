@@ -60,9 +60,12 @@ OPD Teknis         → Input Capaian Output Fisik (menu: Capaian, khusus Tahap I
 
 ### E. Input Capaian Output Fisik *(khusus Tahap I bertahap)*
 - Setelah dana Tahap I dikonfirmasi diterima → menu **Capaian** aktif
-- Isi: persentase fisik (slider 0–100%), tanggal realisasi, nomor BA Kemajuan, keterangan, foto
+- Isi: persentase fisik (slider 0–100%), tanggal realisasi, nomor BA Kemajuan, keterangan
+- Upload **foto dokumentasi fisik** (JPG/PNG, maks 10 MB)
+- Upload **Berita Acara Kemajuan Pekerjaan** (PDF/JPG, maks 10 MB) — dokumen resmi kemajuan fisik
 - Klik **Simpan Capaian** → status berubah ke **Capaian Tahap I**
-- Setelah ini, Tahap II dapat disubmit
+- Setelah ini, Tahap II dapat disubmit oleh OPD
+- Berkas BA dapat diunduh kembali via menu Capaian → ikon unduh
 
 ---
 
@@ -76,9 +79,11 @@ OPD Teknis         → Input Capaian Output Fisik (menu: Capaian, khusus Tahap I
 
 ### B. Melakukan Reviu
 1. Klik **Reviu** pada baris pekerjaan
-2. Isi **21 item checklist** (CK-01 s/d CK-21): pilih Sesuai / Tidak Sesuai / Tidak Berlaku
+2. Isi **checklist** (CK-01 s/d CK-20 untuk semua jenis; CK-21 & CK-22 tambahan khusus Tahap II bertahap): pilih Sesuai / Tidak Sesuai / Tidak Berlaku
 3. Tambahkan catatan per item jika diperlukan
 4. Upload **LHR** (Laporan Hasil Reviu): klik **Upload LHR** → pilih file PDF
+
+> **Reviu Tahap II**: form otomatis menampilkan data Capaian Output OPD (persentase fisik, foto, nomor BA) untuk cross-check sebelum memberikan keputusan.
 
 ### C. Memberikan Keputusan
 1. Setelah semua checklist diisi dan LHR diupload → klik **Putuskan**
@@ -148,8 +153,10 @@ OPD Teknis         → Input Capaian Output Fisik (menu: Capaian, khusus Tahap I
 **Siapa:** Staf BKAD Provinsi yang mengelola sistem dan melakukan verifikasi final.
 
 ### A. Verifikasi Final Permohonan (Bundel)
-1. Menu **Penyaluran** → lihat antrian permohonan masuk dari SKPKD Kab
-2. Klik **Detail Permohonan** → review semua kegiatan, dokumen, dan hasil reviu inspektorat
+1. Menu **Penyaluran** → lihat daftar permohonan masuk dari SKPKD Kab
+   - Permohonan **belum selesai** → tombol **Proses** (biru)
+   - Permohonan **sudah selesai** (RKUD dikonfirmasi) → tombol **Lihat** (view-only, badge hijau "Selesai")
+2. Klik **Proses** / **Lihat** → review semua kegiatan, dokumen, dan hasil reviu inspektorat
 3. Untuk setiap kegiatan dalam permohonan → klik **Verifikasi** → **Putuskan**:
    - **Disetujui** → kegiatan siap diproses SP2D
    - **Perlu Perbaikan** → dikembalikan ke Kab/Kota
@@ -162,6 +169,9 @@ OPD Teknis         → Input Capaian Output Fisik (menu: Capaian, khusus Tahap I
    - **Cetak Nota Kepala Badan** → Nota Dinas dari Kepala Badan ke Bendahara Pengeluaran
    - **Cetak Ringkasan** → Rekapitulasi kegiatan dalam permohonan (format lanskap A4)
 2. Semua 3 dokumen harus dicetak/dibuka sebelum SP2D dapat diinput
+3. Nota dapat dicetak ulang kapan saja, termasuk setelah permohonan berstatus **Selesai**
+
+> **Catatan Nota Kabid:** Field **Hal** menyertakan jenis penyaluran secara otomatis, contoh: *"Pencairan Bantuan Keuangan untuk Kab. Labuhanbatu Utara (Tahap I)"*
 
 ### C. Input SP2D (Surat Perintah Pencairan Dana)
 1. Setelah semua nota dicetak → scroll ke bagian **Input SP2D** di Detail Permohonan
@@ -197,7 +207,8 @@ OPD Teknis         → Input Capaian Output Fisik (menu: Capaian, khusus Tahap I
 ### E. Kelola Laporan
 - **Laporan** → **Rekap BKP**: ringkasan semua BKP dan status per Kab/Kota
 - **Laporan** → **Rekap Penyaluran**: daftar SP2D yang sudah diterbitkan
-- Tombol **Export CSV** tersedia di setiap laporan
+- **Laporan** → **Rekap Pengajuan Tahap II**: daftar kegiatan bertahap yang sudah memasuki Tahap II, lengkap dengan nilai salur Tahap I dan nilai pengajuan Tahap II
+- Tombol **Export CSV / Export XLSX** tersedia di setiap laporan
 
 ---
 
@@ -210,9 +221,10 @@ OPD Teknis         → Input Capaian Output Fisik (menu: Capaian, khusus Tahap I
 ### A. Manajemen User
 1. Menu **Pengaturan** → **Manajemen User**
 2. **Tambah User**: klik **Tambah User** → isi username, nama, email, role, Kab/Kota (untuk role kabkota)
+   - User baru **wajib ganti password** saat login pertama kali
 3. **Edit User**: klik ikon pensil → ubah data → simpan
 4. **Nonaktifkan User**: klik ikon ✕ → user tidak bisa login (data tetap aman)
-5. **Reset Password**: klik ikon kunci → password direset ke default → informasikan ke user
+5. **Reset Password**: klik ikon kunci → sistem generate password acak 12 karakter (ditampilkan sekali di layar) → user **wajib ganti password** saat login berikutnya
 
 ### B. Manajemen Role & Hak Akses
 1. Menu **Pengaturan** → **Role & Hak Akses**
@@ -251,6 +263,16 @@ OPD Teknis         → Input Capaian Output Fisik (menu: Capaian, khusus Tahap I
 ### Funnel Progress
 Menampilkan jumlah pekerjaan di setiap tahap alur bisnis.
 
+### Distribusi Pekerjaan Per Bidang *(hanya Provinsi & Pengawas)*
+- Grafik batang ganda (jumlah kegiatan + nilai) dengan warna berbeda per bidang
+- Legenda warna ditampilkan di bawah chart — setiap bidang kegiatan punya warna unik
+- Tooltip interaktif menampilkan jumlah dan nilai per bidang saat di-hover
+
+### Peta Lokasi Pekerjaan *(hanya Provinsi & Pengawas)*
+- Peta interaktif (Leaflet.js + OpenStreetMap) menampilkan marker semua pekerjaan
+- Marker ter-cluster otomatis; klik cluster untuk zoom ke area
+- Warna marker berbeda per status pekerjaan; klik marker untuk popup ringkasan
+
 ### Realisasi per Kab/Kota *(hanya Provinsi & Pengawas)*
 - Tabel 33 Kab/Kota dengan nilai BKP, nilai disalurkan, progress bar
 - Navigasi halaman: gunakan tombol **‹ ›** di bawah tabel (15 baris per halaman)
@@ -281,6 +303,10 @@ Menampilkan jumlah pekerjaan di setiap tahap alur bisnis.
 | Rekap Penyaluran | Menu Penyaluran → **Cetak Rekap** | Admin Prov |
 | Laporan Akhir Kab/Kota | Laporan → Laporan Akhir → **Cetak** | SKPKD, Admin Prov |
 | Rekap BKP | Laporan → Rekap BKP → **Cetak** | Semua |
+| Rekap Pengajuan Tahap II | Laporan → Rekap Tahap II → **Cetak** | Admin Prov, Pengawas |
+| Nota Kabid | Penyaluran → Detail Permohonan → **Cetak Nota Kabid** | Admin Prov |
+| Nota Kepala Badan | Penyaluran → Detail Permohonan → **Cetak Nota Kepala Badan** | Admin Prov |
+| Ringkasan Permohonan | Penyaluran → Detail Permohonan → **Cetak Ringkasan** | Admin Prov |
 
 > Semua dokumen cetak sudah ber-KOP dan menyertakan tanda tangan (dari data Pemda yang diinput Admin Provinsi).
 
@@ -300,7 +326,21 @@ Menampilkan jumlah pekerjaan di setiap tahap alur bisnis.
 | Menu Penyaluran tidak muncul (SKPKD Kab) | Permission `penyaluran_kab.view` belum di-assign | Superadmin → Pengaturan → Role → Hak Akses → centang Penyaluran Kab |
 | Konfirmasi RKUD tidak bisa dilakukan | SP2D belum diinput oleh Admin Provinsi | Tunggu Admin Provinsi menginput SP2D di menu Penyaluran |
 | Export XLSX tidak berfungsi | Browser memblokir download | Cek popup blocker; coba klik kanan → Save As |
+| Permohonan selesai tidak muncul di menu Penyaluran Prov | — | Permohonan selesai tetap muncul dengan badge hijau "Selesai" dan tombol **Lihat** |
+| Nota Kabid error 404 saat diklik | — | Diperbaiki: nota dapat dicetak ulang meski permohonan sudah selesai |
+| Menu Capaian tidak aktif setelah Tahap I dikonfirmasi | Permission `capaian.view`/`capaian.input` belum di-assign ke role OPD | Superadmin → Pengaturan → Role → Hak Akses |
+| Wajib ganti password muncul terus setelah login | `must_change_password = 1` di akun user | Masuk ke halaman Ganti Password dan ganti password; flag otomatis direset |
 
 ---
 
-*Manual Book SIBERKAH SUMUT v4.1.0 — BKAD Provinsi Sumatera Utara — Juni 2026*
+## LOG AKTIVITAS *(Superadmin & Admin Provinsi)*
+
+Menu **Pengaturan** → **Log Aktivitas**:
+- **Tab Log User**: semua aksi yang dilakukan user (login, submit, upload, putuskan, dll) + IP + waktu
+- **Tab Riwayat Status**: semua perubahan status pekerjaan dengan catatan alasan
+
+> Read-only. Tidak dapat diubah atau dihapus.
+
+---
+
+*Manual Book SIBERKAH SUMUT v4.1.0 — BKAD Provinsi Sumatera Utara — Juni 2026 (Sprint 8)*
