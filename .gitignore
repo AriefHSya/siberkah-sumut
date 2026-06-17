@@ -30,3 +30,6 @@ php.ini
 # Docker files — hanya ada di branch railway-deploy
 Dockerfile
 docker-entrypoint.sh
+
+# Panduan instalasi — berisi detail konfigurasi server internal
+Installasi.md
