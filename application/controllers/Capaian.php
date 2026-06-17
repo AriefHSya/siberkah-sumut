@@ -121,7 +121,7 @@ class Capaian extends Auth_Controller
             redirect('capaian'); return;
         }
 
-        if (!in_array($detail->status, ['dikonfirmasi_tahap1', 'opd_capaian_tahap1'])) {
+        if (!in_array($detail->status, ['dikonfirmasi_tahap1', 'opd_capaian_tahap1', 'inspektorat_revisi'])) {
             $this->session->set_flashdata('error', 'Status pekerjaan tidak memungkinkan input capaian.');
             redirect('capaian'); return;
         }

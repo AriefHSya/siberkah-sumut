@@ -65,7 +65,16 @@
 </div>
 
 <!-- Form Capaian -->
-<?php if ($this->rbac->can('capaian.input')): ?>
+<?php
+$status_boleh_edit = in_array($detail->status, ['dikonfirmasi_tahap1', 'opd_capaian_tahap1', 'inspektorat_revisi']);
+?>
+<?php if ($this->rbac->can('capaian.input') && $status_boleh_edit): ?>
+<?php if ($detail->status === 'inspektorat_revisi'): ?>
+<div class="alert alert-warning" style="margin-bottom:8px">
+  <i class="ti ti-alert-triangle"></i>
+  <strong>Perbaikan Diminta Inspektorat</strong> — Perbarui data capaian sesuai catatan reviu, lalu simpan.
+</div>
+<?php endif; ?>
 <div class="card">
   <div class="card-title"><i class="ti ti-chart-line"></i> <?= $detail->capaian_id ? 'Perbarui' : 'Input' ?> Capaian Output</div>
 

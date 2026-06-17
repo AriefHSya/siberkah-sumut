@@ -101,11 +101,22 @@
     <td>
       <?php if ($row->status === 'dikonfirmasi_tahap1'): ?>
         <span class="badge badge-kuning">Perlu Input</span>
+      <?php elseif ($row->status === 'opd_capaian_tahap1'): ?>
+        <span class="badge badge-biru">Menunggu Ajukan Tahap II</span>
+      <?php elseif ($row->status === 'inspektorat_revisi'): ?>
+        <span class="badge badge-merah">Perlu Perbaikan</span>
       <?php else: ?>
-        <span class="badge badge-hijau">Selesai</span>
+        <span class="badge badge-hijau">Sudah Diproses</span>
       <?php endif; ?>
     </td>
     <td>
+      <?php
+      // Edit hanya boleh saat: belum input (dikonfirmasi), belum submit Tahap II (opd_capaian),
+      // atau ada permintaan perbaikan dari Inspektorat (inspektorat_revisi)
+      $status_boleh_edit = in_array($row->status, [
+          'dikonfirmasi_tahap1', 'opd_capaian_tahap1', 'inspektorat_revisi'
+      ]);
+      ?>
       <div class="aksi-row">
         <?php if ($row->capaian_id): ?>
         <a href="<?= site_url('capaian/form/'.$row->pekerjaan_id) ?>"
@@ -113,7 +124,7 @@
           <i class="ti ti-eye"></i> Lihat
         </a>
         <?php endif; ?>
-        <?php if ($this->rbac->can('capaian.input')): ?>
+        <?php if ($this->rbac->can('capaian.input') && $status_boleh_edit): ?>
         <a href="<?= site_url('capaian/form/'.$row->pekerjaan_id) ?>"
            class="btn btn-sm <?= $row->capaian_id ? 'btn-outline' : 'btn-primary' ?>"
            title="<?= $row->capaian_id ? 'Edit Capaian' : 'Input Capaian' ?>">
