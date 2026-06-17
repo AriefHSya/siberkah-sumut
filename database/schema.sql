@@ -379,11 +379,15 @@ CREATE TABLE `trx_capaian_output` (
   `tgl_ba_kemajuan` date DEFAULT NULL,
   `keterangan` text COLLATE utf8mb4_unicode_ci,
   `foto_path` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ba_path` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `nama_ba_asli` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `nama_foto_asli` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `user_input` int NOT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `tahapan_id` (`tahapan_id`),
   KEY `user_input` (`user_input`),
+  UNIQUE KEY `uq_capaian_tahapan` (`tahapan_id`),
   CONSTRAINT `trx_capaian_output_ibfk_1` FOREIGN KEY (`tahapan_id`) REFERENCES `trx_tahapan_penyaluran` (`id`) ON DELETE CASCADE,
   CONSTRAINT `trx_capaian_output_ibfk_2` FOREIGN KEY (`user_input`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

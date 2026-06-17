@@ -125,37 +125,54 @@ class Capaian extends Auth_Controller
             redirect('capaian/form/' . $pekerjaan_id); return;
         }
 
+        $dir = FCPATH . 'uploads/capaian/' . $pekerjaan_id . '/';
+        if (!is_dir($dir)) mkdir($dir, 0755, TRUE);
+        $mime_ok    = ['image/jpeg','image/png','application/pdf'];
+        $upload_cfg = ['upload_path'=>$dir,'allowed_types'=>'jpg|jpeg|png|pdf','max_size'=>5120];
+
         // Handle upload foto dokumentasi
         $foto_path      = $detail->foto_path ?? NULL;
         $nama_foto_asli = NULL;
         if (!empty($_FILES['foto_dokumentasi']['name'])) {
-            $dir = FCPATH . 'uploads/capaian/' . $pekerjaan_id . '/';
-            if (!is_dir($dir)) mkdir($dir, 0755, TRUE);
-
-            $mime_ok = ['image/jpeg','image/png','application/pdf'];
             if (!$this->_mime_valid($_FILES['foto_dokumentasi']['tmp_name'], $mime_ok)) {
                 $this->session->set_flashdata('error',
-                    'Jenis file tidak diizinkan. Gunakan JPG, PNG, atau PDF.');
+                    'Jenis file foto tidak diizinkan. Gunakan JPG, PNG, atau PDF.');
                 redirect('capaian/form/' . $pekerjaan_id); return;
             }
             $nama_foto_asli = basename($_FILES['foto_dokumentasi']['name']);
             $ext            = strtolower(pathinfo($nama_foto_asli, PATHINFO_EXTENSION));
-            $rand_name      = $this->_random_filename($ext);
-
-            $this->load->library('upload', [
-                'upload_path'   => $dir,
-                'allowed_types' => 'jpg|jpeg|png|pdf',
-                'max_size'      => 5120,
-                'file_name'     => $rand_name,
-            ]);
+            $this->load->library('upload', array_merge($upload_cfg,
+                ['file_name' => $this->_random_filename($ext)]));
 
             if (!$this->upload->do_upload('foto_dokumentasi')) {
                 $this->session->set_flashdata('error',
                     'Upload foto gagal: ' . $this->upload->display_errors('', ''));
                 redirect('capaian/form/' . $pekerjaan_id); return;
             }
-            $up        = $this->upload->data();
-            $foto_path = 'uploads/capaian/' . $pekerjaan_id . '/' . $up['file_name'];
+            $foto_path = 'uploads/capaian/' . $pekerjaan_id . '/' . $this->upload->data('file_name');
+        }
+
+        // Handle upload Berita Acara Kemajuan Pekerjaan
+        $ba_path      = $detail->ba_path ?? NULL;
+        $nama_ba_asli = NULL;
+        if (!empty($_FILES['file_ba']['name'])) {
+            if (!$this->_mime_valid($_FILES['file_ba']['tmp_name'], $mime_ok)) {
+                $this->session->set_flashdata('error',
+                    'Jenis file BA tidak diizinkan. Gunakan JPG, PNG, atau PDF.');
+                redirect('capaian/form/' . $pekerjaan_id); return;
+            }
+            $nama_ba_asli = basename($_FILES['file_ba']['name']);
+            $ext_ba       = strtolower(pathinfo($nama_ba_asli, PATHINFO_EXTENSION));
+            $this->load->library('upload');
+            $this->upload->initialize(array_merge($upload_cfg,
+                ['file_name' => $this->_random_filename($ext_ba)]));
+
+            if (!$this->upload->do_upload('file_ba')) {
+                $this->session->set_flashdata('error',
+                    'Upload BA gagal: ' . $this->upload->display_errors('', ''));
+                redirect('capaian/form/' . $pekerjaan_id); return;
+            }
+            $ba_path = 'uploads/capaian/' . $pekerjaan_id . '/' . $this->upload->data('file_name');
         }
 
         $data_capaian = [
@@ -166,6 +183,8 @@ class Capaian extends Auth_Controller
             'keterangan'        => $this->input->post('keterangan', TRUE),
             'foto_path'         => $foto_path,
             'nama_foto_asli'    => $nama_foto_asli !== NULL ? $nama_foto_asli : ($detail->nama_foto_asli ?? NULL),
+            'ba_path'           => $ba_path,
+            'nama_ba_asli'      => $nama_ba_asli !== NULL ? $nama_ba_asli : ($detail->nama_ba_asli ?? NULL),
         ];
 
         $this->Capaian_model->simpan($detail->tahapan_id, $data_capaian, $this->user_id);

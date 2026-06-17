@@ -89,14 +89,14 @@ class Capaian_model extends CI_Model
     public function get_detail($pekerjaan_id)
     {
         return $this->db
-            ->select('p.*, b.kode_bkp, b.uraian_bkp, b.nilai as nilai_bkp, b.tahun,
+            ->select('p.*, p.id as pekerjaan_id, b.kode_bkp, b.uraian_bkp, b.nilai as nilai_bkp, b.tahun,
                       k.nama as nama_kabkota, k.id as kabkota_id,
                       bid.nama as nama_bidang,
                       t.id as tahapan_id, t.status as status_tahapan, t.persen_nilai,
                       pd.no_sp2d, pd.tgl_sp2d, pd.nilai_transfer,
                       c.id as capaian_id, c.persen_fisik, c.tgl_realisasi,
                       c.no_ba_kemajuan, c.tgl_ba_kemajuan, c.keterangan, c.foto_path,
-                      c.nama_foto_asli')
+                      c.nama_foto_asli, c.ba_path, c.nama_ba_asli')
             ->from('trx_pekerjaan p')
             ->join('ref_bkp b',                'b.id = p.bkp_id')
             ->join('ref_kabkota k',            'k.id = b.kabkota_id')

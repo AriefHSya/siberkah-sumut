@@ -268,6 +268,20 @@ SET t.kode_tahap = 'khusus'
 WHERE (t.kode_tahap = '' OR t.kode_tahap IS NULL)
   AND p.jenis_penyaluran IN ('khusus_mendesak','khusus_bencana');
 
+-- ─────────────────────────────────────────────────────────────
+-- 11. Berita Acara Kemajuan Pekerjaan — kolom ba_path & nama_ba_asli
+--     di trx_capaian_output (upload opsional dari form capaian OPD)
+--     Jika error "Duplicate column name '...'" -> SKIP
+-- ─────────────────────────────────────────────────────────────
+ALTER TABLE trx_capaian_output
+  ADD COLUMN ba_path VARCHAR(255) NULL
+    COMMENT 'Path file Berita Acara Kemajuan Pekerjaan'
+    AFTER foto_path;
+ALTER TABLE trx_capaian_output
+  ADD COLUMN nama_ba_asli VARCHAR(255) NULL
+    COMMENT 'Nama file BA asli sebelum direname ke nama acak'
+    AFTER ba_path;
+
 -- ============================================================
 -- SELESAI — verifikasi cepat
 -- ============================================================

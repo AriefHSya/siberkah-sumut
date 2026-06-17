@@ -16,11 +16,12 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  *   5. Log aktivitas unduhan
  *
  * ROUTES:
- *   GET /berkas/unduh/dok/{id}              → unduh('dok', id)      — trx_dokumen_persyaratan
- *   GET /berkas/unduh/lhr/{reviu_id}        → unduh('lhr', id)      — trx_reviu_inspektorat LHR
- *   GET /berkas/unduh/capaian/{pekerjaan_id}→ unduh('capaian', id)  — trx_capaian_output foto
- *   GET /berkas/unduh/draft/{pekerjaan_id}/{jenis} → unduh_sub()    — trx_pekerjaan SPK/SPMK/BAST
- *   GET /berkas/unduh/pm/{permohonan_id}/{jenis}   → unduh_sub()    — trx_permohonan surat
+ *   GET /berkas/unduh/dok/{id}                 → unduh('dok', id)         — trx_dokumen_persyaratan
+ *   GET /berkas/unduh/lhr/{reviu_id}           → unduh('lhr', id)         — trx_reviu_inspektorat LHR
+ *   GET /berkas/unduh/capaian/{pekerjaan_id}   → unduh('capaian', id)     — trx_capaian_output foto
+ *   GET /berkas/unduh/capaian-ba/{pekerjaan_id}→ unduh('capaian-ba', id)  — trx_capaian_output BA
+ *   GET /berkas/unduh/draft/{pekerjaan_id}/{jenis} → unduh_sub()          — trx_pekerjaan SPK/SPMK/BAST
+ *   GET /berkas/unduh/pm/{permohonan_id}/{jenis}   → unduh_sub()          — trx_permohonan surat
  */
 class Berkas extends Auth_Controller
 {
@@ -36,9 +37,10 @@ class Berkas extends Auth_Controller
     public function unduh($jenis, $id)
     {
         switch ($jenis) {
-            case 'dok':     $this->_unduh_dok($id);     break;
-            case 'lhr':     $this->_unduh_lhr($id);     break;
-            case 'capaian': $this->_unduh_capaian($id); break;
+            case 'dok':        $this->_unduh_dok($id);        break;
+            case 'lhr':        $this->_unduh_lhr($id);        break;
+            case 'capaian':    $this->_unduh_capaian($id);    break;
+            case 'capaian-ba': $this->_unduh_capaian_ba($id); break;
             default: show_404();
         }
     }
@@ -126,6 +128,25 @@ class Berkas extends Auth_Controller
 
         $this->log_aktivitas('berkas.unduh', 'Unduh foto capaian pekerjaan_id=' . $pekerjaan_id);
         $this->_kirim_file($detail->foto_path, $nama);
+    }
+
+    // ─── UNDUH BERITA ACARA KEMAJUAN (trx_capaian_output) ───────────
+
+    private function _unduh_capaian_ba($pekerjaan_id)
+    {
+        $this->requirePerm('capaian.view');
+        $this->load->model(['Capaian_model', 'Pekerjaan_model']);
+
+        $detail = $this->Capaian_model->get_detail($pekerjaan_id);
+        if (!$detail || empty($detail->ba_path)) { show_404(); return; }
+
+        if ($this->rbac->isKabkota() && (int)$detail->kabkota_id !== (int)$this->kabkota_id) {
+            show_404(); return;
+        }
+
+        $nama = !empty($detail->nama_ba_asli) ? $detail->nama_ba_asli : basename($detail->ba_path);
+        $this->log_aktivitas('berkas.unduh', 'Unduh BA capaian pekerjaan_id=' . $pekerjaan_id);
+        $this->_kirim_file($detail->ba_path, $nama);
     }
 
     // ─── UNDUH DOKUMEN DRAFT PEKERJAAN (trx_pekerjaan SPK/SPMK/BAST) ──

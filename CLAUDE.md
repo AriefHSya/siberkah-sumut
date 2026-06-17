@@ -741,10 +741,10 @@ DB_NAME=siberkah_sumut
 
 **Pola unduhan file privat (wajib gunakan controller Berkas):**
 ```
-berkas/unduh/dok/{id}               → trx_dokumen_persyaratan by ID
-berkas/unduh/lhr/{reviu_id}         → trx_reviu_inspektorat LHR
-berkas/unduh/capaian/{pekerjaan_id} → trx_capaian_output foto
-berkas/unduh/bukti/{bukti_id}       → trx_bukti_transfer
+berkas/unduh/dok/{id}                  → trx_dokumen_persyaratan by ID
+berkas/unduh/lhr/{reviu_id}            → trx_reviu_inspektorat LHR
+berkas/unduh/capaian/{pekerjaan_id}    → trx_capaian_output foto dokumentasi
+berkas/unduh/capaian-ba/{pekerjaan_id} → trx_capaian_output file Berita Acara Kemajuan
 berkas/unduh/draft/{pekerjaan_id}/{spk|spmk|bast}  → trx_pekerjaan draft docs
 berkas/unduh/pm/{permohonan_id}/{jenis}             → trx_permohonan surat
 ```
