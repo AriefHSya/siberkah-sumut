@@ -50,7 +50,11 @@ class Capaian_model extends CI_Model
                    't.pekerjaan_id = p.id AND t.kode_tahap = \'' . self::KODE_TAHAP1 . '\'')
             ->join('trx_penyaluran_dana pd',   'pd.tahapan_id = t.id', 'left')
             ->join('trx_capaian_output c',     'c.tahapan_id = t.id', 'left')
-            ->where_in('p.status', ['dikonfirmasi_tahap1', 'opd_capaian_tahap1']);
+            // Tampilkan: belum/sedang input capaian ATAU sudah ada capaian (Tahap II lanjut)
+            ->group_start()
+                ->where_in('p.status', ['dikonfirmasi_tahap1', 'opd_capaian_tahap1'])
+                ->or_where('c.id IS NOT NULL', NULL, FALSE)
+            ->group_end();
 
         if (!empty($filters['tahun']))
             $this->db->where('b.tahun', $filters['tahun']);
@@ -77,7 +81,11 @@ class Capaian_model extends CI_Model
             ->join('ref_kabkota k',            'k.id = b.kabkota_id')
             ->join('trx_tahapan_penyaluran t',
                    't.pekerjaan_id = p.id AND t.kode_tahap = \'' . self::KODE_TAHAP1 . '\'')
-            ->where_in('p.status', ['dikonfirmasi_tahap1', 'opd_capaian_tahap1']);
+            ->join('trx_capaian_output c',     'c.tahapan_id = t.id', 'left')
+            ->group_start()
+                ->where_in('p.status', ['dikonfirmasi_tahap1', 'opd_capaian_tahap1'])
+                ->or_where('c.id IS NOT NULL', NULL, FALSE)
+            ->group_end();
         if (!empty($filters['tahun']))      $this->db->where('b.tahun', $filters['tahun']);
         if (!empty($filters['kabkota_id'])) $this->db->where('b.kabkota_id', $filters['kabkota_id']);
         if (!empty($filters['status']))     $this->db->where('p.status', $filters['status']);

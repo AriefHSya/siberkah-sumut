@@ -79,15 +79,18 @@ class Capaian extends Auth_Controller
             redirect('capaian'); return;
         }
 
-        // Guard status
-        if (!in_array($detail->status, ['dikonfirmasi_tahap1', 'opd_capaian_tahap1'])) {
+        // Status yang diizinkan: sedang dalam proses input capaian, ATAU sudah ada capaian
+        // (pekerjaan lanjut ke Tahap II — tetap bisa dilihat data capaiannya)
+        $status_input  = in_array($detail->status, ['dikonfirmasi_tahap1', 'opd_capaian_tahap1']);
+        $ada_capaian   = !empty($detail->capaian_id);
+        if (!$status_input && !$ada_capaian) {
             $this->session->set_flashdata('error',
                 'Capaian output hanya dapat diinput setelah dana Tahap I dikonfirmasi diterima.');
             redirect('capaian'); return;
         }
 
         // User tanpa capaian.input hanya boleh lihat jika capaian sudah ada
-        if (!$this->rbac->can('capaian.input') && empty($detail->capaian_id)) {
+        if (!$this->rbac->can('capaian.input') && !$ada_capaian) {
             $this->session->set_flashdata('error', 'Belum ada data capaian yang dapat dilihat.');
             redirect('capaian'); return;
         }
@@ -319,6 +322,6 @@ class Capaian extends Auth_Controller
         $this->log_aktivitas('capaian.ajukan_tahap2', 'Ajukan Tahap II pekerjaan_id=' . $pekerjaan_id);
         $this->session->set_flashdata('success',
             'Tahap II berhasil diajukan ke Inspektorat untuk dilakukan reviu.');
-        redirect('pekerjaan/detail/' . $pekerjaan_id);
+        redirect('capaian');
     }
 }

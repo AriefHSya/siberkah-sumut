@@ -24,7 +24,8 @@
       <select name="status" class="form-control-sm">
         <option value="">Semua</option>
         <option value="dikonfirmasi_tahap1" <?= ($filters['status']==='dikonfirmasi_tahap1')?'selected':'' ?>>Belum Input Capaian</option>
-        <option value="opd_capaian_tahap1"  <?= ($filters['status']==='opd_capaian_tahap1') ?'selected':'' ?>>Sudah Input Capaian</option>
+        <option value="opd_capaian_tahap1"  <?= ($filters['status']==='opd_capaian_tahap1') ?'selected':'' ?>>Sudah Input — Belum Ajukan Tahap II</option>
+        <option value="opd_submitted"       <?= ($filters['status']==='opd_submitted')       ?'selected':'' ?>>Tahap II Sudah Diajukan</option>
       </select>
     </div>
     <div class="filter-group">
