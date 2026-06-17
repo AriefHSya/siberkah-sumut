@@ -498,7 +498,7 @@ class Verif_prov extends Auth_Controller
     private function _get_pm_for_cetak($pm_id)
     {
         $pm = $this->Verifikasi_prov_model->get_permohonan_by_id($pm_id);
-        if (!$pm || $pm->status !== 'diajukan') { show_404(); return NULL; }
+        if (!$pm || !in_array($pm->status, ['diajukan', 'selesai'])) { show_404(); return NULL; }
         return $pm;
     }
 
