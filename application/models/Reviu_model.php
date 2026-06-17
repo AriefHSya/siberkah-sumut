@@ -148,15 +148,22 @@ class Reviu_model extends CI_Model
      */
     public function get_checklist_items($jenis_penyaluran, $kode_tahap)
     {
+        // Tahap II hanya menggunakan item khusus bertahap_tahap2 (CK-17 s/d CK-22)
+        // CK-01..CK-16 tidak diulang karena sudah diverifikasi di Tahap I
+        if ($jenis_penyaluran === 'bertahap' && $kode_tahap === 'tahap_2') {
+            return $this->db
+                ->where('is_active', 1)
+                ->where('jenis_penyaluran', 'bertahap_tahap2')
+                ->order_by('urutan', 'ASC')
+                ->get('ref_checklist_item')->result();
+        }
+
         $this->db->where('is_active', 1);
 
         // Bangun filter jenis yang berlaku
         $valid_jenis = [NULL]; // selalu masuk
         if ($jenis_penyaluran === 'bertahap') {
             $valid_jenis[] = 'bertahap';
-            if ($kode_tahap === 'tahap_2') {
-                $valid_jenis[] = 'bertahap_tahap2';
-            }
         } elseif ($jenis_penyaluran === 'sekaligus') {
             $valid_jenis[] = 'sekaligus';
         }
