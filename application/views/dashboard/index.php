@@ -744,7 +744,6 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
             borderColor:     bidangHex,
             borderWidth: 1,
             borderRadius: 4,
-            borderDash: [4, 3],
             yAxisID: 'yNilai',
           }
         ]

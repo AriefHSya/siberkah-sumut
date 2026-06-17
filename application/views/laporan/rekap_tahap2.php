@@ -49,8 +49,7 @@ $q_str    = http_build_query($q_params);
 <?php
 $g_kontrak = 0; $g_tahap1 = 0; $g_tahap2 = 0;
 foreach ($list as $r) {
-    $v50   = (float)($r->persen_tahap1 / 100) * $r->nilai_kontrak;
-    $vpend = (float)$r->nilai_belanja_pendukung;
+    $v50 = (float)($r->persen_tahap1 / 100) * $r->nilai_kontrak;
     $g_kontrak += (float)$r->nilai_kontrak;
     $g_tahap1  += $v50;
     $g_tahap2  += $r->nilai_kontrak - $v50;
