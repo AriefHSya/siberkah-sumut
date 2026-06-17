@@ -198,6 +198,91 @@ $semua_sesuai    = $confirmed && !$ada_tidak_sesuai && $semua_terisi;
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
+     BLOK 1B: CAPAIAN OUTPUT FISIK (hanya Tahap II)
+     ══════════════════════════════════════════════════════════ -->
+<?php if ($tahapan->kode_tahap === 'tahap_2'): ?>
+<div class="card mb-2" style="border-left:4px solid var(--hijau-mid)">
+  <div class="card-title">
+    <i class="ti ti-chart-bar"></i> Capaian Output Fisik Tahap I — Input OPD Teknis
+    <?php if (!empty($capaian) && !empty($capaian->capaian_id)): ?>
+    <span class="badge badge-hijau" style="margin-left:auto"><?= (float)$capaian->persen_fisik ?>%</span>
+    <?php else: ?>
+    <span class="badge badge-merah" style="margin-left:auto">Belum Diisi</span>
+    <?php endif; ?>
+  </div>
+
+  <?php if (!empty($capaian) && !empty($capaian->capaian_id)): ?>
+
+  <!-- Progress bar -->
+  <div style="background:#e9ecef;border-radius:6px;height:10px;margin-bottom:14px;overflow:hidden">
+    <div style="height:100%;background:var(--hijau-mid);width:<?= min(100,(float)$capaian->persen_fisik) ?>%"></div>
+  </div>
+
+  <table class="tbl" style="margin-bottom:12px">
+    <tr>
+      <td class="text-muted text-sm" style="width:35%">Persentase Capaian Fisik</td>
+      <td><strong style="font-size:18px;color:var(--hijau-mid)"><?= (float)$capaian->persen_fisik ?>%</strong></td>
+    </tr>
+    <tr>
+      <td class="text-muted text-sm">No. Berita Acara Kemajuan</td>
+      <td class="mono text-sm"><?= htmlspecialchars($capaian->no_ba_kemajuan ?: '—') ?></td>
+    </tr>
+    <tr>
+      <td class="text-muted text-sm">Tanggal Berita Acara</td>
+      <td class="text-sm"><?= tgl_indo($capaian->tgl_ba_kemajuan) ?: '—' ?></td>
+    </tr>
+    <tr>
+      <td class="text-muted text-sm">Tanggal Realisasi</td>
+      <td class="text-sm"><?= tgl_indo($capaian->tgl_realisasi) ?: '—' ?></td>
+    </tr>
+    <?php if ($capaian->keterangan): ?>
+    <tr>
+      <td class="text-muted text-sm" style="vertical-align:top;padding-top:8px">Keterangan</td>
+      <td class="text-sm"><?= nl2br(htmlspecialchars($capaian->keterangan)) ?></td>
+    </tr>
+    <?php endif; ?>
+  </table>
+
+  <!-- Dokumen capaian -->
+  <?php if ($capaian->foto_path || !empty($capaian->ba_path)): ?>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid var(--border);padding-top:10px">
+    <div class="text-xs text-muted fw-600" style="width:100%;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">
+      <i class="ti ti-files"></i> Dokumen Capaian OPD
+    </div>
+    <?php if ($capaian->foto_path): ?>
+    <a href="<?= site_url('berkas/unduh/capaian/'.$capaian->pekerjaan_id) ?>" target="_blank"
+       style="display:flex;align-items:center;gap:6px;padding:7px 12px;
+              border:1px solid var(--hijau-mid);border-radius:var(--radius);
+              font-size:12px;text-decoration:none;color:var(--hijau-mid);background:var(--hijau-light)">
+      <i class="ti ti-photo" style="font-size:15px"></i>
+      <strong>Foto Dokumentasi</strong>
+      <span class="text-xs text-muted" style="margin-left:2px"><?= htmlspecialchars($capaian->nama_foto_asli ?? '') ?></span>
+    </a>
+    <?php endif; ?>
+    <?php if (!empty($capaian->ba_path)): ?>
+    <a href="<?= site_url('berkas/unduh/capaian-ba/'.$capaian->pekerjaan_id) ?>" target="_blank"
+       style="display:flex;align-items:center;gap:6px;padding:7px 12px;
+              border:1px solid var(--hijau-mid);border-radius:var(--radius);
+              font-size:12px;text-decoration:none;color:var(--hijau-mid);background:var(--hijau-light)">
+      <i class="ti ti-file-check" style="font-size:15px"></i>
+      <strong>Berita Acara Kemajuan</strong>
+      <span class="text-xs text-muted" style="margin-left:2px"><?= htmlspecialchars($capaian->nama_ba_asli ?? '') ?></span>
+    </a>
+    <?php endif; ?>
+  </div>
+  <?php endif; ?>
+
+  <?php else: ?>
+  <div class="alert alert-warning" style="font-size:13px">
+    <i class="ti ti-alert-triangle"></i>
+    <div>OPD Teknis belum mengisi data capaian output fisik Tahap I.
+    Data capaian diperlukan sebelum Tahap II dapat diproses.</div>
+  </div>
+  <?php endif; ?>
+</div>
+<?php endif; ?>
+
+<!-- ══════════════════════════════════════════════════════════
      BLOK 2: STATISTIK + PROGRESS CHECKLIST
      ══════════════════════════════════════════════════════════ -->
 <?php if ($r): ?>

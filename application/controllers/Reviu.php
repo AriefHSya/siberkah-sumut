@@ -136,6 +136,13 @@ class Reviu extends Auth_Controller
             'jenis'      => 'inspektur',
         ])->row();
 
+        // Untuk Tahap II: ambil data capaian output OPD Teknis
+        $capaian = NULL;
+        if ($tahapan->kode_tahap === 'tahap_2') {
+            $this->load->model('Capaian_model');
+            $capaian = $this->Capaian_model->get_detail($tahapan->pekerjaan_id);
+        }
+
         $this->render('reviu/form', array_merge($this->data, [
             'title'     => 'Reviu — ' . $pekerjaan->kode_bkp,
             'tahapan'   => $tahapan,
@@ -146,6 +153,7 @@ class Reviu extends Auth_Controller
             'stat'      => $stat,
             'dokumen'   => $dokumen,
             'pejabat'   => $pejabat,
+            'capaian'   => $capaian,
         ]));
     }
 
