@@ -447,13 +447,34 @@
     <div class="card">
       <div class="card-title"><i class="ti ti-timeline"></i> Riwayat Status</div>
       <?php if (!empty($history)): ?>
+      <?php
+      // Tentukan cut-off Tahap II (hanya untuk pekerjaan bertahap):
+      // Cari waktu paling awal saat status_baru masuk ke fase Tahap II.
+      // Semua entry sejak waktu itu ditandai sebagai proses Tahap II.
+      $tahap2_cutoff = NULL;
+      if ($p->jenis_penyaluran === 'bertahap') {
+          $statuses_tahap2 = ['dikonfirmasi_tahap1','opd_capaian_tahap1','disalurkan_tahap2'];
+          foreach (array_reverse((array)$history) as $_h) {
+              if (in_array($_h->status_baru, $statuses_tahap2)
+                  || in_array($_h->status_lama, $statuses_tahap2)) {
+                  $tahap2_cutoff = $_h->created_at;
+                  break;
+              }
+          }
+      }
+      ?>
       <div style="position:relative;padding-left:20px">
-        <?php foreach ($history as $h): ?>
-        <div style="position:relative;margin-bottom:14px;padding-left:14px;border-left:2px solid var(--border)">
-          <div style="position:absolute;left:-6px;top:3px;width:10px;height:10px;border-radius:50%;background:var(--biru)"></div>
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+        <?php foreach ($history as $h):
+          $is_tahap2 = $tahap2_cutoff !== NULL && $h->created_at >= $tahap2_cutoff;
+        ?>
+        <div style="position:relative;margin-bottom:14px;padding-left:14px;border-left:2px solid <?= $is_tahap2 ? 'var(--teal-mid)' : 'var(--border)' ?>">
+          <div style="position:absolute;left:-6px;top:3px;width:10px;height:10px;border-radius:50%;background:<?= $is_tahap2 ? 'var(--teal-mid)' : 'var(--biru)' ?>"></div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap">
             <?php if ($h->status_lama): ?><?= badge_status($h->status_lama) ?><i class="ti ti-arrow-right" style="font-size:11px;color:var(--text-muted)"></i><?php endif; ?>
             <?= badge_status($h->status_baru) ?>
+            <?php if ($is_tahap2): ?>
+            <span class="badge badge-teal" style="font-size:10px;padding:2px 6px;vertical-align:middle">Tahap II</span>
+            <?php endif; ?>
           </div>
           <div class="text-xs text-muted"><?= htmlspecialchars($h->nama_user??'Sistem') ?> · <?= htmlspecialchars($h->nama_role??'') ?></div>
           <?php if ($h->catatan): ?><div class="text-xs mt-1"><?= htmlspecialchars($h->catatan) ?></div><?php endif; ?>
