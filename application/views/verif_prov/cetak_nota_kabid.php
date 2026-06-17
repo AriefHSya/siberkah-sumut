@@ -43,6 +43,21 @@ $nama_dp  = $prefix . ' ' . $nama_raw;  // mis. "Kab. Labuhanbatu Utara"
 $kabid   = isset($pejabat['kabid_anggaran'])  ? $pejabat['kabid_anggaran']  : null;
 $kabadan = isset($pejabat['kepala_badan'])     ? $pejabat['kepala_badan']    : null;
 
+// Label jenis penyaluran untuk field Hal
+$_jp = $pm->jenis_penyaluran;
+$_kt = $pm->kode_tahap ?? '';
+if ($_jp === 'bertahap') {
+    $label_jenis = $_kt === 'tahap_2' ? 'Tahap II' : 'Tahap I';
+} elseif ($_jp === 'sekaligus') {
+    $label_jenis = 'Sekaligus';
+} elseif ($_jp === 'khusus_mendesak') {
+    $label_jenis = 'Mendesak';
+} elseif ($_jp === 'khusus_bencana') {
+    $label_jenis = 'Bencana';
+} else {
+    $label_jenis = ucfirst(str_replace('_', ' ', $_jp));
+}
+
 // Suffix nomor — spasi kosong dirender di HTML, bukan di variabel PHP
 $no_nota_suffix = '/KabidRan/' . $pm->tahun;
 ?>
@@ -162,7 +177,7 @@ body{font-family:'Times New Roman',Times,serif;font-size:12pt;color:#000;backgro
     <tr>
       <td class="f-lbl">Hal</td>
       <td class="f-sep">:</td>
-      <td class="f-val f-hal">Pencairan Bantuan Keuangan untuk <?= htmlspecialchars($nama_dp) ?></td>
+      <td class="f-val f-hal">Pencairan Bantuan Keuangan untuk <?= htmlspecialchars($nama_dp) ?> (<?= htmlspecialchars($label_jenis) ?>)</td>
     </tr>
   </table>
 
