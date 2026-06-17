@@ -69,7 +69,7 @@ class Verifikasi_prov_model extends CI_Model
         $this->db->from('trx_permohonan pm')
             ->join('ref_kabkota k', 'k.id = pm.kabkota_id')
             ->join('users u', 'u.id = pm.created_by', 'left')
-            ->where('pm.status', 'diajukan');
+            ->where_in('pm.status', ['diajukan', 'selesai']);
         if (!empty($filters['tahun']))
             $this->db->where('pm.tahun', $filters['tahun']);
         if (!empty($filters['kabkota_id']))

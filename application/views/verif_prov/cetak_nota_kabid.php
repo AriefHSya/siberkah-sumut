@@ -168,12 +168,15 @@ body{font-family:'Times New Roman',Times,serif;font-size:12pt;color:#000;backgro
 
   <!-- ISI -->
   <p class="para">Sehubungan telah ditetapkannya Peraturan Gubernur Sumatera Utara
-  Nomor 17 Tahun 2026 tentang Perubahan Kedua atas Peraturan Gubernur Sumatera
-  Utara Nomor 3 Tahun 2025 tentang Penjabaran Anggaran Pendapatan dan Belanja Daerah
-  Provinsi Sumatera Utara Tahun Anggaran 2026 dan Surat Sekretaris Daerah Provinsi
-  Sumatera Utara Nomor 900.1.1/3807/2026 tanggal 08 Mei 2026 tentang Rincian Alokasi
-  Bantuan Keuangan Provinsi TA 2026, terlampir disampaikan surat permohonan penyaluran
-  Bantuan Keuangan Provinsi dari Pemerintah <?= htmlspecialchars($nama_dp) ?>.</p>
+  Nomor 18 Tahun 2026 tanggal 12 Juni 2026 tentang Tata Cara Perencanaan, Penganggaran,
+  Pelaksanaan, dan Penatausahaan, Pertanggungjawaban dan Pelaporan Serta Monitoring dan
+  Evaluasi Belanja Bantuan Keuangan, Surat Keputusan Gubernur Sumatera Utara Nomor
+  188.44/314/KPTS/2026 tanggal 07 Mei 2026 tentang Pemberian Bantuan Keuangan Bersifat
+  Khusus Kepada Pemerintah Kabupaten/Kota di Wilayah Provinsi Sumatera Utara serta Surat
+  Sekretaris Daerah Provinsi Sumatera Utara Nomor 900.1.1/3807/2026 tanggal 08 Mei 2026
+  tentang Rincian Alokasi Bantuan Keuangan Provinsi TA 2026, terlampir kami sampaikan
+  permohonan pencairan Bantuan Keuangan Provinsi dari <?= htmlspecialchars($nama_dp) ?>
+  yang telah diajukan dan diverifikasi.</p>
 
   <p class="para">Adapun alokasi bantuan keuangan tersebut berjumlah
   <?= $total_rp ?> - (<?= $total_terbilang ?> rupiah).</p>

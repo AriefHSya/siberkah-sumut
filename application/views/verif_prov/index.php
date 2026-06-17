@@ -117,6 +117,9 @@ function label_kelompok_prov($jenis, $kode_tahap) {
           <div class="text-xs text-muted mt-1">
             <?= label_kelompok_prov($row->jenis_penyaluran, $row->kode_tahap) ?>
           </div>
+          <?php if ($row->status === 'selesai'): ?>
+          <div class="mt-1"><span class="badge badge-hijau">Selesai</span></div>
+          <?php endif; ?>
         </td>
         <td class="text-center fw-500"><?= $jml ?> kegiatan</td>
         <td class="fw-500 text-sm" style="text-align:right;color:var(--biru)">
@@ -137,10 +140,17 @@ function label_kelompok_prov($jenis, $kode_tahap) {
         <td class="text-sm"><?= tgl_indo($row->created_at) ?></td>
         <td>
           <div class="aksi-row">
+            <?php if ($row->status === 'selesai'): ?>
+            <a href="<?= site_url('verifikasi/prov/permohonan/'.$row->id) ?>"
+               class="btn btn-outline btn-xs">
+              <i class="ti ti-eye"></i> Lihat
+            </a>
+            <?php else: ?>
             <a href="<?= site_url('verifikasi/prov/permohonan/'.$row->id) ?>"
                class="btn btn-primary btn-xs">
               <i class="ti ti-shield-check"></i> Proses
             </a>
+            <?php endif; ?>
           </div>
         </td>
       </tr>
