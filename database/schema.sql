@@ -11,7 +11,7 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;
 SET @@SESSION.SQL_LOG_BIN= 0;
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '448bbbb8-00cd-11f1-9d50-42a88396694b:1-250';
+-- SET @@GLOBAL.GTID_PURGED=... (dikomentari: hanya berlaku jika server MySQL menggunakan GTID mode ON)
 DROP TABLE IF EXISTS `permission_logs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -299,6 +299,22 @@ CREATE TABLE `ref_pemda_pejabat` (
   CONSTRAINT `ref_pemda_pejabat_ibfk_1` FOREIGN KEY (`kabkota_id`) REFERENCES `ref_kabkota` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `ref_pejabat_bkad_prov`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ref_pejabat_bkad_prov` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `tahun` year NOT NULL,
+  `jenis` enum('kepala_badan','kabid_anggaran','bendahara_pengeluaran') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `nama` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `nip` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `jabatan` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_pejabat_bkad` (`tahun`,`jenis`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `ref_tahun`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -417,6 +433,7 @@ CREATE TABLE `trx_dokumen_persyaratan` (
   `tahapan_id` int NOT NULL,
   `jenis_dokumen` enum('surat_permohonan_pencairan','surat_pernyataan_bupati','dokumen_pekerjaan_kontrak','daftar_pekerjaan','laporan_reviu_inspektorat','ba_kemajuan_pekerjaan','rekapitulasi_kegiatan','bast','kwitansi_sts','foto_dokumentasi','lainnya') COLLATE utf8mb4_unicode_ci NOT NULL,
   `nama_file` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `nama_asli` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Nama file asli sebelum direname ke nama acak',
   `file_path` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `ukuran_kb` int DEFAULT '0',
   `is_required` tinyint(1) DEFAULT '1',
@@ -480,6 +497,13 @@ CREATE TABLE `trx_pekerjaan` (
   `latitude` decimal(10,8) DEFAULT NULL COMMENT 'WGS84 — siap untuk Google Maps API',
   `longitude` decimal(11,8) DEFAULT NULL COMMENT 'WGS84 — siap untuk Google Maps API',
   `peta_lokasi_path` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `dok_spk_path` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'File SPK',
+  `nama_dok_spk` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Nama file SPK asli sebelum direname ke nama acak',
+  `dok_spmk_path` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'File SPMK',
+  `nama_dok_spmk` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Nama file SPMK asli sebelum direname ke nama acak',
+  `dok_bast_path` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'File BAST (sekaligus)',
+  `nama_dok_bast` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Nama file BAST asli sebelum direname ke nama acak',
+  `belanja_pendukung_json` text COLLATE utf8mb4_unicode_ci COMMENT 'JSON rincian belanja pendukung',
   `ref_perda_id` int DEFAULT NULL,
   `ref_perkada_id` int DEFAULT NULL,
   `status` enum('draft','opd_submitted','inspektorat_reviu','inspektorat_revisi','inspektorat_approved','skpkd_kab_verif','skpkd_kab_revisi','skpkd_kab_approved','skpkd_prov_verif','skpkd_prov_revisi','disalurkan_tahap1','dikonfirmasi_tahap1','opd_capaian_tahap1','disalurkan_sekaligus','disalurkan_tahap2','selesai','ditolak') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
@@ -518,6 +542,62 @@ CREATE TABLE `trx_pekerjaan_log` (
   PRIMARY KEY (`id`),
   KEY `pekerjaan_id` (`pekerjaan_id`),
   CONSTRAINT `trx_pekerjaan_log_ibfk_1` FOREIGN KEY (`pekerjaan_id`) REFERENCES `trx_pekerjaan` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `trx_permohonan`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `trx_permohonan` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `kabkota_id` int NOT NULL,
+  `tahun` varchar(4) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `jenis_penyaluran` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `kode_tahap` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `no_permohonan` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `tgl_permohonan` date DEFAULT NULL,
+  `status` enum('draft','diajukan','batal','ditolak','selesai') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
+  `catatan` text COLLATE utf8mb4_unicode_ci,
+  `catatan_tolak` text COLLATE utf8mb4_unicode_ci,
+  `file_surat_permohonan_path` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `nama_surat_permohonan` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Nama asli surat_permohonan sebelum direname',
+  `file_surat_pernyataan_path` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `nama_surat_pernyataan` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Nama asli surat_pernyataan sebelum direname',
+  `file_rekap_kegiatan_path` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `nama_rekap_kegiatan` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Nama asli rekap_kegiatan sebelum direname',
+  `nota_kabid_at` datetime DEFAULT NULL,
+  `nota_kabadan_at` datetime DEFAULT NULL,
+  `ringkasan_at` datetime DEFAULT NULL,
+  `no_sp2d` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `tgl_sp2d` date DEFAULT NULL,
+  `nilai_sp2d` bigint unsigned DEFAULT NULL,
+  `rek_asal` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `nama_bank_asal` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `rek_tujuan` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `nama_bank_tujuan` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status_sp2d` enum('proses','selesai','gagal') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `kode_transaksi_rkud` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `nilai_rkud` bigint unsigned DEFAULT NULL,
+  `tgl_rkud` date DEFAULT NULL,
+  `tgl_konfirmasi_rkud` datetime DEFAULT NULL,
+  `created_by` int NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_kabkota_tahun` (`kabkota_id`,`tahun`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `trx_permohonan_item`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `trx_permohonan_item` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `permohonan_id` int NOT NULL,
+  `tahapan_id` int NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_item` (`permohonan_id`,`tahapan_id`),
+  KEY `idx_tahapan` (`tahapan_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `trx_penyaluran_dana`;
@@ -562,6 +642,7 @@ CREATE TABLE `trx_reviu_inspektorat` (
   `no_lhr` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `tgl_lhr` date DEFAULT NULL,
   `file_lhr_path` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `nama_lhr_asli` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Nama file LHR asli sebelum direname ke nama acak',
   `ref_inspektur_id` int DEFAULT NULL,
   `user_inspektorat` int NOT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
@@ -693,6 +774,7 @@ CREATE TABLE `users` (
   `id` int NOT NULL AUTO_INCREMENT,
   `username` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `must_change_password` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Wajib ganti password saat login berikutnya (1=ya)',
   `failed_login_attempts` tinyint unsigned NOT NULL DEFAULT '0' COMMENT 'Jumlah percobaan login gagal berturut-turut',
   `locked_at` datetime DEFAULT NULL COMMENT 'Waktu akun dikunci otomatis (5x gagal login)',
   `nama` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -761,11 +843,7 @@ SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
 SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;
 SET @@SESSION.SQL_LOG_BIN= 0;
 
---
--- GTID state at the beginning of the backup 
---
-
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '448bbbb8-00cd-11f1-9d50-42a88396694b:1-250';
+-- SET @@GLOBAL.GTID_PURGED=... (dikomentari: hanya berlaku jika server MySQL menggunakan GTID mode ON)
 
 -- Setting default (nilai dikonfigurasi lewat UI atau env var)
 INSERT IGNORE INTO ref_app_setting (kode, nilai, keterangan) VALUES
