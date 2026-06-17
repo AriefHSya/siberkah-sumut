@@ -48,7 +48,7 @@ class Reviu_model extends CI_Model
                       bid.nama as nama_bidang,
                       r.id as reviu_id, r.hasil_reviu, r.no_lhr');
         $this->_filter_reviu($filters);
-        $this->db->order_by('t.created_at', 'ASC');
+        $this->db->order_by('t.tgl_pengajuan', 'DESC');
         if ($limit > 0) $this->db->limit($limit, $offset);
         return $this->db->get()->result();
     }
