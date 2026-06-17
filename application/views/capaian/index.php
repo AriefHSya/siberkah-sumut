@@ -105,15 +105,22 @@
       <?php endif; ?>
     </td>
     <td>
-      <?php if ($this->rbac->can('capaian.input')): ?>
-      <a href="<?= site_url('capaian/form/'.$row->pekerjaan_id) ?>"
-         class="btn btn-sm <?= $row->capaian_id ? 'btn-outline' : 'btn-primary' ?> btn-icon"
-         title="<?= $row->capaian_id ? 'Edit Capaian' : 'Input Capaian' ?>">
-        <i class="ti ti-<?= $row->capaian_id ? 'edit' : 'plus' ?>"></i>
-      </a>
-      <?php else: ?>
-      <a href="<?= site_url('capaian/form/'.$row->pekerjaan_id) ?>" class="btn btn-sm btn-outline btn-icon" title="Lihat"><i class="ti ti-eye"></i></a>
-      <?php endif; ?>
+      <div class="aksi-row">
+        <?php if ($row->capaian_id): ?>
+        <a href="<?= site_url('capaian/form/'.$row->pekerjaan_id) ?>"
+           class="btn btn-outline btn-sm" title="Lihat Data Capaian">
+          <i class="ti ti-eye"></i> Lihat
+        </a>
+        <?php endif; ?>
+        <?php if ($this->rbac->can('capaian.input')): ?>
+        <a href="<?= site_url('capaian/form/'.$row->pekerjaan_id) ?>"
+           class="btn btn-sm <?= $row->capaian_id ? 'btn-outline' : 'btn-primary' ?>"
+           title="<?= $row->capaian_id ? 'Edit Capaian' : 'Input Capaian' ?>">
+          <i class="ti ti-<?= $row->capaian_id ? 'edit' : 'plus' ?>"></i>
+          <?= $row->capaian_id ? 'Edit' : 'Input' ?>
+        </a>
+        <?php endif; ?>
+      </div>
     </td>
   </tr>
   <?php endforeach; else: ?>

@@ -64,27 +64,31 @@ class Capaian extends Auth_Controller
         ]));
     }
 
-    // ─── FORM: Input / Edit Capaian ──────────────────────────
+    // ─── FORM: Input / Edit / Lihat Capaian ─────────────────────
 
     public function form($pekerjaan_id)
     {
-        $this->requirePerm('capaian.input');
-
+        // Constructor sudah guard capaian.view.
+        // capaian.input diperlukan hanya saat belum ada data (untuk input baru).
         $detail = $this->Capaian_model->get_detail($pekerjaan_id);
         if (!$detail) { show_404(); return; }
 
-        // Guard: OPD hanya bisa input capaian miliknya
-        if ($this->role_kode === 'opd_teknis'
-            && $detail->created_by != $this->user_id
-            && $detail->kabkota_id != $this->kabkota_id) {
+        // Scope: role kabkota hanya boleh akses pekerjaan milik kabkotanya
+        if ($this->rbac->isKabkota() && (int)$detail->kabkota_id !== (int)$this->kabkota_id) {
             $this->session->set_flashdata('error', 'Akses ditolak.');
             redirect('capaian'); return;
         }
 
-        // Guard status: hanya pekerjaan dengan status tepat
+        // Guard status
         if (!in_array($detail->status, ['dikonfirmasi_tahap1', 'opd_capaian_tahap1'])) {
             $this->session->set_flashdata('error',
                 'Capaian output hanya dapat diinput setelah dana Tahap I dikonfirmasi diterima.');
+            redirect('capaian'); return;
+        }
+
+        // User tanpa capaian.input hanya boleh lihat jika capaian sudah ada
+        if (!$this->rbac->can('capaian.input') && empty($detail->capaian_id)) {
+            $this->session->set_flashdata('error', 'Belum ada data capaian yang dapat dilihat.');
             redirect('capaian'); return;
         }
 
@@ -94,7 +98,7 @@ class Capaian extends Auth_Controller
         }
 
         $this->render('capaian/form', array_merge($this->data, [
-            'title'  => 'Input Capaian Output — ' . $detail->kode_bkp,
+            'title'  => ($detail->capaian_id ? 'Capaian Output — ' : 'Input Capaian Output — ') . $detail->kode_bkp,
             'detail' => $detail,
             'tahap2' => $tahap2,
         ]));
