@@ -250,10 +250,10 @@
     <div class="card mb-2">
       <div class="card-title"><i class="ti ti-layers-intersect"></i> Tahapan Penyaluran</div>
       <?php if (!empty($tahapan)):
-        // Untuk bertahap: hanya tampilkan Tahap I di sini.
-        // Tahap II akan muncul di menu Capaian setelah Tahap I selesai disalurkan.
+        // Untuk bertahap: Tahap I selalu tampil.
+        // Tahap II tampil juga setelah diajukan OPD (status != 'belum').
         $tahapan_tampil = ($p->jenis_penyaluran === 'bertahap')
-            ? array_filter($tahapan, fn($t) => $t->kode_tahap === 'tahap_1')
+            ? array_filter($tahapan, fn($t) => $t->kode_tahap === 'tahap_1' || $t->status !== 'belum')
             : $tahapan;
       foreach ($tahapan_tampil as $t):
         $dl = $deadline_info[$t->id] ?? ['ok'=>TRUE,'pesan'=>'','bw'=>NULL];
@@ -267,8 +267,14 @@
       $pct      = (float)($t->persen_nilai ?? 100) / 100;
       $pendukung= (float)($p->nilai_belanja_pendukung ?? 0);
       if ($p->jenis_penyaluran === 'bertahap') {
-          $nilai_pengajuan = ($p->nilai_kontrak * $pct) + $pendukung;  // Tahap I saja yang ditampilkan
-          $label_formula   = rupiah($p->nilai_kontrak * $pct).' (kontrak) + '.rupiah($pendukung).' (pendukung)';
+          if ($t->kode_tahap === 'tahap_1') {
+              $nilai_pengajuan = ($p->nilai_kontrak * $pct) + $pendukung;
+              $label_formula   = rupiah($p->nilai_kontrak * $pct).' (kontrak) + '.rupiah($pendukung).' (pendukung)';
+          } else {
+              // Tahap II: tanpa belanja pendukung (sudah dibayar di Tahap I)
+              $nilai_pengajuan = $p->nilai_kontrak * $pct;
+              $label_formula   = rupiah($p->nilai_kontrak * $pct).' (kontrak)';
+          }
       } else {
           $nilai_pengajuan = ($p->nilai_kontrak ?? 0) + $pendukung;
           $label_formula   = $pendukung > 0 ? rupiah($p->nilai_kontrak).' + '.rupiah($pendukung) : NULL;
@@ -364,11 +370,15 @@
       </div>
       <?php endif; ?>
 
-      <?php if ($p->jenis_penyaluran === 'bertahap' && !empty($tahapan)): ?>
+      <?php
+      // Cari data Tahap II untuk cek status-nya
+      $tahap2_info = NULL;
+      foreach ($tahapan as $_t) { if ($_t->kode_tahap === 'tahap_2') { $tahap2_info = $_t; break; } }
+      if ($p->jenis_penyaluran === 'bertahap' && !empty($tahapan) && (!$tahap2_info || $tahap2_info->status === 'belum')): ?>
       <div class="alert alert-info mt-1" style="font-size:12px">
         <i class="ti ti-info-circle"></i>
-        <div>Jenis <strong>Bertahap</strong>: Tahap II (50%) akan muncul di menu <strong>Capaian</strong>
-        setelah Tahap I selesai disalurkan dan dikonfirmasi.</div>
+        <div>Jenis <strong>Bertahap</strong>: Tahap II akan tampil di sini setelah OPD Teknis mengajukan
+        Tahap II melalui menu <strong>Capaian</strong>.</div>
       </div>
       <?php endif; ?>
     </div>
