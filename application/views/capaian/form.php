@@ -98,7 +98,7 @@
 
     <!-- Tanggal Realisasi -->
     <div class="form-group">
-      <label class="form-label">Tanggal Realisasi</label>
+      <label class="form-label">Tanggal Realisasi Keuangan Daerah</label>
       <input type="date" name="tgl_realisasi" class="form-control fc"
              value="<?= htmlspecialchars($detail->tgl_realisasi ?? '') ?>">
     </div>

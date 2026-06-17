@@ -383,6 +383,13 @@ class Pekerjaan extends Auth_Controller
         $semua_dok   = $this->Pekerjaan_model->get_semua_dokumen_pekerjaan($id);
         $history     = $this->Pekerjaan_model->get_status_history($id);
 
+        // Capaian output fisik (hanya untuk jenis bertahap)
+        $capaian = NULL;
+        if ($pekerjaan->jenis_penyaluran === 'bertahap') {
+            $this->load->model('Capaian_model');
+            $capaian = $this->Capaian_model->get_detail($id);
+        }
+
         // Ambil dokumen per tahapan
         $dok_per_tahapan = [];
         foreach ($semua_dok as $d) {
@@ -427,6 +434,7 @@ class Pekerjaan extends Auth_Controller
             'history'         => $history,
             'pejabat'         => $pejabat_map,
             'back_url'        => $back_url,
+            'capaian'         => $capaian,
         ]));
     }
 

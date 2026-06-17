@@ -373,6 +373,66 @@
       <?php endif; ?>
     </div>
 
+    <!-- Capaian Output Fisik (hanya bertahap + sudah diisi OPD) -->
+    <?php if (!empty($capaian) && !empty($capaian->capaian_id)): ?>
+    <div class="card mb-2" style="border-left:4px solid var(--hijau-mid)">
+      <div class="card-title">
+        <i class="ti ti-chart-bar"></i> Capaian Output Fisik Tahap I
+        <span class="badge badge-hijau" style="margin-left:auto"><?= (float)$capaian->persen_fisik ?>%</span>
+      </div>
+
+      <!-- Progress bar -->
+      <div style="background:#e9ecef;border-radius:6px;height:10px;margin-bottom:14px;overflow:hidden">
+        <div style="height:100%;background:var(--hijau-mid);width:<?= min(100,(float)$capaian->persen_fisik) ?>%;transition:width .3s"></div>
+      </div>
+
+      <table class="tbl" style="margin-bottom:10px">
+        <tr>
+          <td class="text-muted text-sm" style="width:40%">No. BA Kemajuan</td>
+          <td class="mono text-sm"><?= htmlspecialchars($capaian->no_ba_kemajuan ?: '—') ?></td>
+        </tr>
+        <tr>
+          <td class="text-muted text-sm">Tanggal BA</td>
+          <td class="text-sm"><?= tgl_indo($capaian->tgl_ba_kemajuan) ?: '—' ?></td>
+        </tr>
+        <tr>
+          <td class="text-muted text-sm">Persentase Fisik</td>
+          <td><strong style="font-size:16px;color:var(--hijau-mid)"><?= (float)$capaian->persen_fisik ?>%</strong></td>
+        </tr>
+        <tr>
+          <td class="text-muted text-sm">Tanggal Realisasi</td>
+          <td class="text-sm"><?= tgl_indo($capaian->tgl_realisasi) ?: '—' ?></td>
+        </tr>
+        <?php if ($capaian->keterangan): ?>
+        <tr>
+          <td class="text-muted text-sm" style="vertical-align:top;padding-top:8px">Keterangan</td>
+          <td class="text-sm"><?= nl2br(htmlspecialchars($capaian->keterangan)) ?></td>
+        </tr>
+        <?php endif; ?>
+      </table>
+
+      <!-- Tombol unduhan dokumen capaian -->
+      <?php if ($capaian->foto_path || !empty($capaian->ba_path)): ?>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid var(--border);padding-top:10px">
+        <?php if ($capaian->foto_path): ?>
+        <a href="<?= site_url('berkas/unduh/capaian/'.$capaian->pekerjaan_id) ?>" target="_blank"
+           class="btn btn-outline btn-sm">
+          <i class="ti ti-photo"></i>
+          <?= htmlspecialchars($capaian->nama_foto_asli ?? 'Foto Dokumentasi') ?>
+        </a>
+        <?php endif; ?>
+        <?php if (!empty($capaian->ba_path)): ?>
+        <a href="<?= site_url('berkas/unduh/capaian-ba/'.$capaian->pekerjaan_id) ?>" target="_blank"
+           class="btn btn-outline btn-sm">
+          <i class="ti ti-file-check"></i>
+          <?= htmlspecialchars($capaian->nama_ba_asli ?? 'Berita Acara Kemajuan') ?>
+        </a>
+        <?php endif; ?>
+      </div>
+      <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
     <!-- Timeline Status -->
     <div class="card">
       <div class="card-title"><i class="ti ti-timeline"></i> Riwayat Status</div>
