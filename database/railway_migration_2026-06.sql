@@ -252,6 +252,22 @@ SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.kode IN ('superadmin','admin_provinsi','skpkd_kabkota')
   AND p.kode = 'admin.user.unlock';
 
+-- ─────────────────────────────────────────────────────────────
+-- 10. Fix enum kode_tahap trx_tahapan_penyaluran + backfill data khusus
+--     trx_tahapan_penyaluran.kode_tahap harus punya nilai 'khusus'
+--     (bukan 'khusus_mendesak'/'khusus_bencana') agar konsisten
+--     dengan ref_batas_waktu.kode_tahap dan _definisi_tahapan().
+-- ─────────────────────────────────────────────────────────────
+ALTER TABLE trx_tahapan_penyaluran
+  MODIFY COLUMN kode_tahap enum('tahap_1','tahap_2','sekaligus','khusus') NOT NULL;
+
+-- Backfill: tahapan khusus yang kode_tahap-nya kosong akibat enum mismatch
+UPDATE trx_tahapan_penyaluran t
+JOIN trx_pekerjaan p ON p.id = t.pekerjaan_id
+SET t.kode_tahap = 'khusus'
+WHERE (t.kode_tahap = '' OR t.kode_tahap IS NULL)
+  AND p.jenis_penyaluran IN ('khusus_mendesak','khusus_bencana');
+
 -- ============================================================
 -- SELESAI — verifikasi cepat
 -- ============================================================

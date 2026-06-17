@@ -599,7 +599,7 @@ CREATE TABLE `trx_tahapan_penyaluran` (
   `id` int NOT NULL AUTO_INCREMENT,
   `pekerjaan_id` int NOT NULL,
   `batas_waktu_id` int DEFAULT NULL COMMENT 'FK → ref_batas_waktu (snapshot batas waktu saat submit)',
-  `kode_tahap` enum('tahap_1','tahap_2','sekaligus','khusus_mendesak','khusus_bencana') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `kode_tahap` enum('tahap_1','tahap_2','sekaligus','khusus') COLLATE utf8mb4_unicode_ci NOT NULL,
   `urutan` tinyint NOT NULL DEFAULT '1',
   `label_tahap` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `persen_nilai` decimal(5,2) NOT NULL DEFAULT '50.00',
