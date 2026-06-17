@@ -282,6 +282,16 @@ ALTER TABLE trx_capaian_output
     COMMENT 'Nama file BA asli sebelum direname ke nama acak'
     AFTER ba_path;
 
+-- ─────────────────────────────────────────────────────────────
+-- 12. Item checklist tambahan untuk Reviu Tahap II
+--     Dua item khusus bertahap_tahap2 yang hanya muncul saat
+--     Inspektorat mereviu Tahap II penyaluran bertahap.
+--     Jika error "Duplicate entry 'CK-21'" atau 'CK-22' -> SKIP
+-- ─────────────────────────────────────────────────────────────
+INSERT IGNORE INTO ref_checklist_item (kode, uraian_item, jenis_penyaluran, urutan, is_active) VALUES
+('CK-21', 'Dokumentasi sudah sesuai dengan kondisi lapangan',                                  'bertahap_tahap2', 21, 1),
+('CK-22', 'Laporan progress pekerjaan sudah sesuai ketentuan dan progress lapangan',            'bertahap_tahap2', 22, 1);
+
 -- ============================================================
 -- SELESAI — verifikasi cepat
 -- ============================================================
