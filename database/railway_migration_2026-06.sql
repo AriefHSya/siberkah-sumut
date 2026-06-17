@@ -158,11 +158,6 @@ CREATE TABLE IF NOT EXISTS `trx_permohonan_item` (
   KEY `idx_tahapan` (`tahapan_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Jaga-jaga jika trx_permohonan sudah ada dari versi lama
--- (sebelum kolom/enum di atas ditambahkan). MODIFY aman diulang.
-ALTER TABLE trx_permohonan
-  MODIFY COLUMN status enum('draft','diajukan','batal','ditolak') NOT NULL DEFAULT 'draft';
-
 -- Jika error "Duplicate column name 'catatan_tolak'" -> SKIP
 ALTER TABLE trx_permohonan
   ADD COLUMN catatan_tolak text AFTER catatan;
