@@ -19,8 +19,9 @@
     <?php endif; ?>
     <?php if ($this->rbac->can('pekerjaan.submit') && $p->status === 'draft'): ?>
     <?php
-    $dok_spk_ok  = !empty($p->dok_spk_path)  && file_exists(FCPATH . $p->dok_spk_path);
-    $dok_spmk_ok = !empty($p->dok_spmk_path) && file_exists(FCPATH . $p->dok_spmk_path);
+    $darurat     = in_array($p->jenis_penyaluran, ['khusus_mendesak','khusus_bencana']);
+    $dok_spk_ok  = $darurat || (!empty($p->dok_spk_path)  && file_exists(FCPATH . $p->dok_spk_path));
+    $dok_spmk_ok = $darurat || (!empty($p->dok_spmk_path) && file_exists(FCPATH . $p->dok_spmk_path));
     $dok_bast_ok = $p->jenis_penyaluran !== 'sekaligus'
         || (!empty($p->dok_bast_path) && file_exists(FCPATH . $p->dok_bast_path));
     $dok_siap = $dok_spk_ok && $dok_spmk_ok && $dok_bast_ok;
@@ -31,7 +32,7 @@
       <i class="ti ti-send"></i> Submit ke Inspektorat
     </a>
     <?php else: ?>
-    <button class="btn btn-sm" disabled title="Upload dokumen SPK, SPMK<?= $p->jenis_penyaluran==='sekaligus'?' dan BAST':'' ?> terlebih dahulu"
+    <button class="btn btn-sm" disabled title="Upload dokumen <?= $p->jenis_penyaluran==='sekaligus'?'BAST':'SPK, SPMK' ?> terlebih dahulu"
             style="background:var(--abu-light);color:var(--abu);border:1px solid var(--border);cursor:not-allowed">
       <i class="ti ti-lock"></i> Submit ke Inspektorat
     </button>
@@ -136,12 +137,13 @@
     <!-- ══ UPLOAD DOKUMEN WAJIB (hanya saat Draft) ══════════════ -->
     <?php if ($p->status === 'draft' && $this->rbac->can('pekerjaan.upload_dok')): ?>
     <?php
+    $darurat_dok = in_array($p->jenis_penyaluran, ['khusus_mendesak','khusus_bencana']);
     $dok_list = [
-        'spk'  => ['label'=>'SPK',  'desc'=>'Surat Perintah Kerja',     'path'=>$p->dok_spk_path  ?? NULL, 'wajib'=>TRUE],
-        'spmk' => ['label'=>'SPMK', 'desc'=>'Surat Perintah Mulai Kerja','path'=>$p->dok_spmk_path ?? NULL, 'wajib'=>TRUE],
+        'spk'  => ['label'=>'SPK',  'desc'=>'Surat Perintah Kerja',      'path'=>$p->dok_spk_path  ?? NULL, 'wajib'=>!$darurat_dok],
+        'spmk' => ['label'=>'SPMK', 'desc'=>'Surat Perintah Mulai Kerja','path'=>$p->dok_spmk_path ?? NULL, 'wajib'=>!$darurat_dok],
         'bast' => ['label'=>'BAST', 'desc'=>'Berita Acara Serah Terima', 'path'=>$p->dok_bast_path ?? NULL, 'wajib'=>$p->jenis_penyaluran === 'sekaligus'],
     ];
-    $semua_lengkap = (!empty($p->dok_spk_path) && !empty($p->dok_spmk_path))
+    $semua_lengkap = ($darurat_dok || (!empty($p->dok_spk_path) && !empty($p->dok_spmk_path)))
         && ($p->jenis_penyaluran !== 'sekaligus' || !empty($p->dok_bast_path));
     ?>
     <div class="card mb-2" style="border-left:4px solid <?= $semua_lengkap ? 'var(--hijau-mid)' : 'var(--kuning-mid)' ?>">
@@ -400,6 +402,12 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 const mapD = L.map('mapDetail').setView([<?= $p->latitude ?>, <?= $p->longitude ?>], 15);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '© OpenStreetMap contributors', maxZoom: 19

@@ -55,7 +55,7 @@ class MY_Controller extends CI_Controller
             ."script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; "
             ."style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; "
             ."font-src 'self' https://cdn.jsdelivr.net https://unpkg.com data:; "
-            ."img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com; "
+            ."img-src 'self' data: blob: https://unpkg.com https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com; "
             ."connect-src 'self'; "
             ."object-src 'none'; "
             ."base-uri 'self'; "
