@@ -271,6 +271,40 @@ class Laporan_model extends CI_Model
         return $bkp_list;
     }
 
+    // ─── REKAP TAHAP II ───────────────────────────────────────
+
+    /**
+     * Daftar pekerjaan bertahap yang sudah memasuki proses Tahap II.
+     * Nilai Salur Tahap I dan Nilai Pengajuan Tahap II dihitung di view.
+     *
+     * Filter: jenis_penyaluran='bertahap' AND t2.status != 'belum'
+     */
+    public function get_rekap_tahap2($tahun, $kabkota_id = NULL)
+    {
+        $this->db
+            ->select('b.kode_bkp, b.uraian_bkp,
+                      k.nama as nama_kabkota,
+                      p.id as pekerjaan_id, p.status, p.nama_kegiatan_dok,
+                      p.nilai_kontrak, p.nilai_belanja_pendukung, p.lokasi_deskripsi,
+                      t1.persen_nilai as persen_tahap1,
+                      t2.persen_nilai as persen_tahap2, t2.status as status_tahap2')
+            ->from('ref_bkp b')
+            ->join('ref_kabkota k',  'k.id = b.kabkota_id')
+            ->join('trx_pekerjaan p', 'p.bkp_id = b.id')
+            ->join('trx_tahapan_penyaluran t1',
+                   "t1.pekerjaan_id = p.id AND t1.kode_tahap = 'tahap_1'")
+            ->join('trx_tahapan_penyaluran t2',
+                   "t2.pekerjaan_id = p.id AND t2.kode_tahap = 'tahap_2'")
+            ->where('b.tahun', $tahun)
+            ->where('p.jenis_penyaluran', 'bertahap')
+            ->where('t2.status !=', 'belum');
+        if ($kabkota_id) $this->db->where('b.kabkota_id', $kabkota_id);
+        return $this->db
+            ->order_by('k.nama', 'ASC')
+            ->order_by('b.kode_bkp', 'ASC')
+            ->get()->result();
+    }
+
     /** Summary statistik untuk header laporan akhir kab */
     public function get_summary_laporan_kab($tahun, $kabkota_id)
     {

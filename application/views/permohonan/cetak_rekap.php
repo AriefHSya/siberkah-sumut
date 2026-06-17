@@ -33,14 +33,34 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
 </div>
 
 <?php
-$pm  = $permohonan;
-$is_tahap1       = ($pm->jenis_penyaluran === 'bertahap' && $pm->kode_tahap !== 'tahap_2');
+$pm       = $permohonan;
+$is_tahap2 = ($pm->jenis_penyaluran === 'bertahap' && $pm->kode_tahap === 'tahap_2');
+$is_tahap1 = ($pm->jenis_penyaluran === 'bertahap' && !$is_tahap2);
+
+$total_pagu      = array_sum(array_column((array)$items, 'pagu_bkp'));
 $total_kontrak   = array_sum(array_column((array)$items, 'nilai_kontrak'));
-$total_tahap1    = $is_tahap1 ? array_sum(array_column((array)$items, 'nilai_diajukan')) : 0;
 $total_pendukung = array_sum(array_column((array)$items, 'nilai_belanja_pendukung'));
-$total_nilai     = array_sum(array_map(function($it) {
-    return ($it->nilai_diajukan ?? 0) + ($it->nilai_belanja_pendukung ?? 0);
-}, (array)$items));
+
+// Tahap I: nilai_diajukan sudah termasuk bagian 50%, total pengajuan = diajukan + pendukung
+// Tahap II: nilai_diajukan = 50% × NK saja, pendukung sudah dibayar di Tahap I
+if ($is_tahap1) {
+    $total_tahap1_pct = array_sum(array_column((array)$items, 'nilai_diajukan'));
+    $total_nilai      = $total_tahap1_pct + $total_pendukung;
+} elseif ($is_tahap2) {
+    // Nilai Salur Tahap I = hanya 50% × Nilai Kontrak (untuk ditampilkan di tabel)
+    $total_salur_t1   = array_sum(array_map(function($it) {
+        $pct1 = 100 - (float)$it->persen_nilai;
+        return ($pct1 / 100) * $it->nilai_kontrak;
+    }, (array)$items));
+    // Nilai Pengajuan Tahap II = nilai_diajukan (50% × NK, pendukung tidak dikurangi)
+    $total_nilai      = array_sum(array_column((array)$items, 'nilai_diajukan'));
+} else {
+    $total_tahap1_pct = 0;
+    $total_salur_t1   = 0;
+    $total_nilai      = array_sum(array_map(function($it) {
+        return ($it->nilai_diajukan ?? 0) + ($it->nilai_belanja_pendukung ?? 0);
+    }, (array)$items));
+}
 
 $label_jenis_pm = [
     'sekaligus'       => 'Sekaligus',
@@ -79,17 +99,32 @@ $label_kelompok = $label_jenis_pm[$pm->jenis_penyaluran] ?? $pm->jenis_penyalura
       <th style="width:120px">Kode BKP</th>
       <th>Nama Kegiatan / Lokasi</th>
       <th style="width:100px">Penyedia</th>
+      <th style="width:110px" class="right">Pagu BKP</th>
       <th style="width:110px" class="right">Nilai Kontrak</th>
       <?php if ($is_tahap1): ?>
       <th style="width:100px" class="right">Nilai Tahap I (50%)</th>
-      <?php endif; ?>
       <th style="width:100px" class="right">Nilai Pendukung</th>
-      <th style="width:110px" class="right"><?= $is_tahap1 ? 'Nilai Pengajuan' : 'Nilai Diajukan' ?></th>
+      <th style="width:110px" class="right">Nilai Pengajuan</th>
+      <?php elseif ($is_tahap2): ?>
+      <th style="width:105px" class="right">Nilai Salur Tahap I<br><small style="font-weight:normal">(50% Nilai Kontrak)</small></th>
+      <th style="width:100px" class="right">Nilai Pendukung</th>
+      <th style="width:110px" class="right">Nilai Pengajuan Tahap II<br><small style="font-weight:normal">(50% Nilai Kontrak)</small></th>
+      <?php else: ?>
+      <th style="width:100px" class="right">Nilai Pendukung</th>
+      <th style="width:110px" class="right">Nilai Diajukan</th>
+      <?php endif; ?>
     </tr>
   </thead>
   <tbody>
   <?php $no = 1; foreach ($items as $item):
-        $nilai_diajukan_item = ($item->nilai_diajukan ?? 0) + ($item->nilai_belanja_pendukung ?? 0);
+    $pct1               = $is_tahap2 ? (100 - (float)$item->persen_nilai) : 0;
+    $nilai_salur_t1     = $is_tahap2
+        ? ($pct1 / 100) * $item->nilai_kontrak   // hanya 50% kontrak, untuk kolom Salur T.I
+        : 0;
+    $nilai_pengajuan_t2 = $is_tahap2 ? ($item->nilai_diajukan ?? 0) : 0;
+    $nilai_diajukan_item = $is_tahap2
+        ? $nilai_pengajuan_t2
+        : (($item->nilai_diajukan ?? 0) + ($item->nilai_belanja_pendukung ?? 0));
   ?>
   <tr>
     <td class="center"><?= $no++ ?></td>
@@ -101,24 +136,40 @@ $label_kelompok = $label_jenis_pm[$pm->jenis_penyaluran] ?? $pm->jenis_penyalura
       <?php endif; ?>
     </td>
     <td><?= htmlspecialchars($item->nama_penyedia ?: '—') ?></td>
+    <td class="right"><?= rupiah($item->pagu_bkp ?? 0) ?></td>
     <td class="right"><?= rupiah($item->nilai_kontrak) ?></td>
     <?php if ($is_tahap1): ?>
     <td class="right"><?= rupiah($item->nilai_diajukan ?? 0) ?></td>
-    <?php endif; ?>
     <td class="right"><?= ($item->nilai_belanja_pendukung ?? 0) > 0 ? rupiah($item->nilai_belanja_pendukung) : '—' ?></td>
     <td class="right"><strong><?= rupiah($nilai_diajukan_item) ?></strong></td>
+    <?php elseif ($is_tahap2): ?>
+    <td class="right"><?= rupiah($nilai_salur_t1) ?></td>
+    <td class="right"><?= ((float)$item->nilai_belanja_pendukung > 0) ? rupiah($item->nilai_belanja_pendukung) : '—' ?></td>
+    <td class="right"><strong><?= rupiah($nilai_pengajuan_t2) ?></strong></td>
+    <?php else: ?>
+    <td class="right"><?= ($item->nilai_belanja_pendukung ?? 0) > 0 ? rupiah($item->nilai_belanja_pendukung) : '—' ?></td>
+    <td class="right"><strong><?= rupiah($nilai_diajukan_item) ?></strong></td>
+    <?php endif; ?>
   </tr>
   <?php endforeach; ?>
   </tbody>
   <tfoot>
     <tr style="background:#e8e8e8">
       <td colspan="4" style="text-align:right;font-weight:bold">TOTAL</td>
+      <td class="right"><strong><?= rupiah($total_pagu) ?></strong></td>
       <td class="right"><strong><?= rupiah($total_kontrak) ?></strong></td>
       <?php if ($is_tahap1): ?>
-      <td class="right"><strong><?= rupiah($total_tahap1) ?></strong></td>
-      <?php endif; ?>
+      <td class="right"><strong><?= rupiah($total_tahap1_pct) ?></strong></td>
       <td class="right"><strong><?= rupiah($total_pendukung) ?></strong></td>
       <td class="right"><strong><?= rupiah($total_nilai) ?></strong></td>
+      <?php elseif ($is_tahap2): ?>
+      <td class="right"><strong><?= rupiah($total_salur_t1) ?></strong></td>
+      <td class="right"><strong><?= rupiah($total_pendukung) ?></strong></td>
+      <td class="right"><strong><?= rupiah($total_nilai) ?></strong></td>
+      <?php else: ?>
+      <td class="right"><strong><?= rupiah($total_pendukung) ?></strong></td>
+      <td class="right"><strong><?= rupiah($total_nilai) ?></strong></td>
+      <?php endif; ?>
     </tr>
   </tfoot>
 </table>

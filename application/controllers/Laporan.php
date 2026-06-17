@@ -276,6 +276,55 @@ class Laporan extends Auth_Controller
         $writer2->download('rekap_penyaluran_'.$tahun.'.xlsx');
     }
 
+    // ─── REKAP TAHAP II ──────────────────────────────────────
+
+    public function rekap_tahap2()
+    {
+        $this->requirePerm('laporan.cetak_rekap_penyaluran');
+        $tahun      = $this->input->get('tahun') ?? $this->tahun;
+        $kabkota_id = $this->input->get('kabkota_id');
+
+        if (!$this->rbac->isProvinsi() && $this->kabkota_id) {
+            $kabkota_id = $this->kabkota_id;
+        }
+
+        $list = $this->Laporan_model->get_rekap_tahap2($tahun, $kabkota_id);
+
+        $this->render('laporan/rekap_tahap2', array_merge($this->data, [
+            'title'        => 'Rekap Pengajuan Tahap II — SIBERKAH SUMUT',
+            'tahun'        => $tahun,
+            'kabkota_id'   => $kabkota_id,
+            'list'         => $list,
+            'tahun_list'   => $this->Parameter_model->get_all_tahun(),
+            'kabkota_list' => $this->rbac->isProvinsi() ? $this->Parameter_model->get_kabkota() : [],
+        ]));
+    }
+
+    public function cetak_rekap_tahap2()
+    {
+        $this->requirePerm('laporan.cetak_rekap_penyaluran');
+        $tahun      = $this->input->get('tahun') ?? $this->tahun;
+        $kabkota_id = $this->input->get('kabkota_id');
+
+        if (!$this->rbac->isProvinsi() && $this->kabkota_id) {
+            $kabkota_id = $this->kabkota_id;
+        }
+
+        $list    = $this->Laporan_model->get_rekap_tahap2($tahun, $kabkota_id);
+        $kabkota = $kabkota_id
+            ? $this->db->get_where('ref_kabkota', ['id' => $kabkota_id])->row()
+            : NULL;
+
+        $this->render_plain('laporan/cetak_rekap_tahap2', [
+            'list'       => $list,
+            'tahun'      => $tahun,
+            'kabkota'    => $kabkota,
+            'is_provinsi'=> $this->rbac->isProvinsi(),
+            'tgl_cetak'  => tgl_indo(date('Y-m-d')),
+            'nama_user'  => $this->data['current_user']->nama,
+        ]);
+    }
+
     // ─── LAPORAN AKHIR KAB/KOTA ──────────────────────────────
 
     public function laporan_akhir_kab()

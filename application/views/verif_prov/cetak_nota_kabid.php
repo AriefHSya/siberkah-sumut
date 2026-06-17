@@ -19,7 +19,10 @@ function _tb($n) {
 }
 
 // Total nilai pengajuan
-$total_nilai = array_sum(array_map(function($it) {
+// Tahap II: 50% × NK = nilai_diajukan (pendukung tidak termasuk, sudah dibayar di Tahap I)
+$_is_tahap2  = ($pm->jenis_penyaluran === 'bertahap' && $pm->kode_tahap === 'tahap_2');
+$total_nilai = array_sum(array_map(function($it) use ($_is_tahap2) {
+    if ($_is_tahap2) return ($it->nilai_diajukan ?? 0);
     return ($it->nilai_diajukan ?? 0) + ($it->nilai_belanja_pendukung ?? 0);
 }, (array)$items));
 $total_rp        = 'Rp. ' . number_format($total_nilai, 0, ',', '.') . ',00';

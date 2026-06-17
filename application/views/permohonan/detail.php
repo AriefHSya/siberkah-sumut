@@ -8,15 +8,31 @@ function label_kelompok_det($jenis, $kode_tahap) {
 }
 $pm = $permohonan;
 
-$is_tahap1 = ($pm->jenis_penyaluran === 'bertahap' && $pm->kode_tahap !== 'tahap_2');
+$is_tahap2 = ($pm->jenis_penyaluran === 'bertahap' && $pm->kode_tahap === 'tahap_2');
+$is_tahap1 = ($pm->jenis_penyaluran === 'bertahap' && !$is_tahap2);
 
-// Total nilai = nilai_diajukan + nilai_belanja_pendukung per item
 $total_kontrak   = array_sum(array_column((array)$items, 'nilai_kontrak'));
-$total_tahap1    = $is_tahap1 ? array_sum(array_column((array)$items, 'nilai_diajukan')) : 0;
 $total_pendukung = array_sum(array_column((array)$items, 'nilai_belanja_pendukung'));
-$total_nilai     = array_sum(array_map(function($it) {
-    return ($it->nilai_diajukan ?? 0) + ($it->nilai_belanja_pendukung ?? 0);
-}, (array)$items));
+
+if ($is_tahap1) {
+    // 50% portion
+    $total_tahap1_pct = array_sum(array_column((array)$items, 'nilai_diajukan'));
+    $total_nilai      = $total_tahap1_pct + $total_pendukung;
+} elseif ($is_tahap2) {
+    // Nilai Salur Tahap I = 50% × Nilai Kontrak saja (untuk ditampilkan di tabel)
+    $total_salur_t1 = array_sum(array_map(function($it) {
+        $pct1 = 100 - (float)$it->persen_nilai;
+        return ($pct1 / 100) * $it->nilai_kontrak;
+    }, (array)$items));
+    // Nilai Pengajuan Tahap II = nilai_diajukan (50% × NK, pendukung tidak dikurangi)
+    $total_nilai = array_sum(array_column((array)$items, 'nilai_diajukan'));
+} else {
+    $total_tahap1_pct = 0;
+    $total_salur_t1   = 0;
+    $total_nilai      = array_sum(array_map(function($it) {
+        return ($it->nilai_diajukan ?? 0) + ($it->nilai_belanja_pendukung ?? 0);
+    }, (array)$items));
+}
 
 $dok_types = [
     'surat_permohonan' => ['label'=>'Surat Permohonan Kepala Daerah', 'icon'=>'ti-file-text'],
@@ -97,9 +113,13 @@ $dok_types = [
             <td class="fw-500"><?= count($items) ?> kegiatan</td></tr>
         <tr><td class="text-muted text-sm">Total Nilai Kontrak</td>
             <td class="fw-500"><?= rupiah($total_kontrak) ?></td></tr>
+        <?php if ($is_tahap2): ?>
+        <tr><td class="text-muted text-sm">Nilai Salur Tahap I <span class="text-xs">(50% Kontrak)</span></td>
+            <td class="fw-500"><?= rupiah($total_salur_t1) ?></td></tr>
+        <?php endif; ?>
         <tr><td class="text-muted text-sm">Total Nilai Pendukung</td>
             <td class="fw-500"><?= rupiah($total_pendukung) ?></td></tr>
-        <tr><td class="text-muted text-sm">Total Nilai Diajukan</td>
+        <tr><td class="text-muted text-sm"><?= $is_tahap2 ? 'Total Pengajuan Tahap II' : 'Total Nilai Diajukan' ?></td>
             <td class="fw-500 text-biru"><?= rupiah($total_nilai) ?></td></tr>
         <tr><td class="text-muted text-sm">Dibuat Oleh</td>
             <td class="text-sm"><?= htmlspecialchars($pm->nama_pembuat ?? '—') ?></td></tr>
@@ -271,8 +291,11 @@ function closeUpload(jenis) {
           <?php if ($is_tahap1): ?>
           <th style="text-align:right">Nilai Tahap I (50%)</th>
           <?php endif; ?>
+          <?php if ($is_tahap2): ?>
+          <th style="text-align:right">Salur Tahap I (50%)</th>
+          <?php endif; ?>
           <th style="text-align:right">Nilai Pendukung</th>
-          <th style="text-align:right"><?= $is_tahap1 ? 'Nilai Pengajuan' : 'Nilai Diajukan' ?></th>
+          <th style="text-align:right"><?= $is_tahap2 ? 'Pengajuan Tahap II' : ($is_tahap1 ? 'Nilai Pengajuan' : 'Nilai Diajukan') ?></th>
           <th>No. Kontrak</th>
           <th>Penyedia</th>
           <th>Status</th>
@@ -280,7 +303,11 @@ function closeUpload(jenis) {
       </thead>
       <tbody>
       <?php if (!empty($items)): $no = 1; foreach ($items as $item):
-            $nilai_diajukan_item = ($item->nilai_diajukan ?? 0) + ($item->nilai_belanja_pendukung ?? 0);
+            $pct1               = $is_tahap2 ? (100 - (float)$item->persen_nilai) : 0;
+            $nilai_salur_t1     = $is_tahap2 ? ($pct1 / 100) * $item->nilai_kontrak : 0;
+            $nilai_diajukan_item = $is_tahap2
+                ? ($item->nilai_diajukan ?? 0)
+                : (($item->nilai_diajukan ?? 0) + ($item->nilai_belanja_pendukung ?? 0));
       ?>
       <tr>
         <td class="center text-muted text-sm"><?= $no++ ?></td>
@@ -293,19 +320,22 @@ function closeUpload(jenis) {
         <?php if ($is_tahap1): ?>
         <td class="fw-500 text-sm" style="text-align:right;color:var(--teal-mid)"><?= rupiah($item->nilai_diajukan ?? 0) ?></td>
         <?php endif; ?>
+        <?php if ($is_tahap2): ?>
+        <td class="fw-500 text-sm" style="text-align:right;color:var(--teal-mid)"><?= rupiah($nilai_salur_t1) ?></td>
+        <?php endif; ?>
         <td class="text-sm" style="text-align:right;color:var(--text-muted)">
           <?= ($item->nilai_belanja_pendukung ?? 0) > 0 ? rupiah($item->nilai_belanja_pendukung) : '—' ?>
         </td>
         <td class="fw-500 text-sm" style="text-align:right;color:var(--biru)">
           <?= rupiah($nilai_diajukan_item) ?>
-          <?php if (!$is_tahap1): ?><div class="text-xs text-muted"><?= $item->persen_nilai ?>%</div><?php endif; ?>
+          <?php if (!$is_tahap1 && !$is_tahap2): ?><div class="text-xs text-muted"><?= $item->persen_nilai ?>%</div><?php endif; ?>
         </td>
         <td class="mono text-xs"><?= htmlspecialchars($item->no_dok_pekerjaan ?: '—') ?></td>
         <td class="text-xs"><?= htmlspecialchars($item->nama_penyedia ?: '—') ?></td>
         <td><?= badge_status($item->pekerjaan_status) ?></td>
       </tr>
       <?php endforeach; else: ?>
-      <tr><td colspan="<?= $is_tahap1 ? 10 : 9 ?>" class="text-center text-muted" style="padding:30px">Tidak ada data.</td></tr>
+      <tr><td colspan="<?= ($is_tahap1 || $is_tahap2) ? 10 : 9 ?>" class="text-center text-muted" style="padding:30px">Tidak ada data.</td></tr>
       <?php endif; ?>
       </tbody>
       <?php if (!empty($items) && count($items) > 1): ?>
@@ -314,7 +344,10 @@ function closeUpload(jenis) {
           <td colspan="3" class="fw-500 text-sm text-right" style="padding:8px 7px">Total</td>
           <td class="fw-500 text-sm text-right"><?= rupiah($total_kontrak) ?></td>
           <?php if ($is_tahap1): ?>
-          <td class="fw-500 text-sm text-right" style="color:var(--teal-mid)"><?= rupiah($total_tahap1) ?></td>
+          <td class="fw-500 text-sm text-right" style="color:var(--teal-mid)"><?= rupiah($total_tahap1_pct) ?></td>
+          <?php endif; ?>
+          <?php if ($is_tahap2): ?>
+          <td class="fw-500 text-sm text-right" style="color:var(--teal-mid)"><?= rupiah($total_salur_t1) ?></td>
           <?php endif; ?>
           <td class="fw-500 text-sm text-right text-muted"><?= rupiah($total_pendukung) ?></td>
           <td class="fw-500 text-sm text-right text-biru"><?= rupiah($total_nilai) ?></td>

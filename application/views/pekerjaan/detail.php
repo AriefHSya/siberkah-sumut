@@ -271,9 +271,9 @@
               $nilai_pengajuan = ($p->nilai_kontrak * $pct) + $pendukung;
               $label_formula   = rupiah($p->nilai_kontrak * $pct).' (kontrak) + '.rupiah($pendukung).' (pendukung)';
           } else {
-              // Tahap II: tanpa belanja pendukung (sudah dibayar di Tahap I)
+              // Tahap II: 50% × Nilai Kontrak (pendukung tidak termasuk, sudah dibayar di Tahap I)
               $nilai_pengajuan = $p->nilai_kontrak * $pct;
-              $label_formula   = rupiah($p->nilai_kontrak * $pct).' (kontrak)';
+              $label_formula   = '50% × '.rupiah($p->nilai_kontrak);
           }
       } else {
           $nilai_pengajuan = ($p->nilai_kontrak ?? 0) + $pendukung;
@@ -314,36 +314,84 @@
           </div>
         </div>
 
-        <!-- Dokumen yang diupload OPD sebelum submit (SPK, SPMK, BAST) -->
-        <?php $ada_dok_draft = array_filter(array_column($dok_draft_tampil, 'path')); ?>
-        <?php if (!empty($ada_dok_draft)): ?>
-        <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
-          <div class="text-xs text-muted fw-600 mb-2" style="text-transform:uppercase;letter-spacing:0.4px">
-            <i class="ti ti-files"></i> Dokumen Pendukung Pengajuan
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">
-            <?php foreach ($dok_draft_tampil as $label => $dok):
-              if (!$dok['path'] || !file_exists(FCPATH . $dok['path'])) continue;
-            ?>
-            <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;
-                        border:1px solid var(--hijau-mid);border-radius:var(--radius);
-                        background:var(--hijau-light)">
-              <i class="ti ti-<?= $dok['icon'] ?>" style="color:var(--hijau-mid);font-size:14px"></i>
-              <span class="text-xs fw-600" style="color:var(--hijau-mid)"><?= $label ?></span>
-              <a href="<?= site_url('berkas/unduh/draft/'.$p->id.'/'.strtolower($label)) ?>" target="_blank"
-                 class="btn btn-xs" style="padding:2px 8px;background:var(--hijau-mid);color:#fff;border:none"
-                 title="Preview / Download <?= $label ?>">
-                <i class="ti ti-eye"></i> Lihat
-              </a>
-              <a href="<?= site_url('berkas/unduh/draft/'.$p->id.'/'.strtolower($label)) ?>"
-                 class="btn btn-xs" style="padding:2px 8px;background:#fff;color:var(--hijau-mid);border:1px solid var(--hijau-mid)"
-                 title="Download <?= $label ?>">
-                <i class="ti ti-download"></i>
-              </a>
+        <!-- Dokumen pendukung: Tahap I = SPK/SPMK/BAST, Tahap II = Foto Dokumentasi + BA Kemajuan -->
+        <?php if ($t->kode_tahap !== 'tahap_1'): ?>
+          <?php if (!empty($capaian) && !empty($capaian->capaian_id) && ($capaian->foto_path || !empty($capaian->ba_path))): ?>
+          <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
+            <div class="text-xs text-muted fw-600 mb-2" style="text-transform:uppercase;letter-spacing:0.4px">
+              <i class="ti ti-files"></i> Dokumen Pendukung Pengajuan
             </div>
-            <?php endforeach; ?>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <?php if ($capaian->foto_path): ?>
+              <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;
+                          border:1px solid var(--hijau-mid);border-radius:var(--radius);
+                          background:var(--hijau-light)">
+                <i class="ti ti-photo" style="color:var(--hijau-mid);font-size:14px"></i>
+                <span class="text-xs fw-600" style="color:var(--hijau-mid)"><?= htmlspecialchars($capaian->nama_foto_asli ?? 'Foto Dokumentasi') ?></span>
+                <a href="<?= site_url('berkas/unduh/capaian/'.$capaian->pekerjaan_id) ?>" target="_blank"
+                   class="btn btn-xs" style="padding:2px 8px;background:var(--hijau-mid);color:#fff;border:none"
+                   title="Preview / Download Foto Dokumentasi">
+                  <i class="ti ti-eye"></i> Lihat
+                </a>
+                <a href="<?= site_url('berkas/unduh/capaian/'.$capaian->pekerjaan_id) ?>"
+                   class="btn btn-xs" style="padding:2px 8px;background:#fff;color:var(--hijau-mid);border:1px solid var(--hijau-mid)"
+                   title="Download Foto Dokumentasi">
+                  <i class="ti ti-download"></i>
+                </a>
+              </div>
+              <?php endif; ?>
+              <?php if (!empty($capaian->ba_path)): ?>
+              <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;
+                          border:1px solid var(--hijau-mid);border-radius:var(--radius);
+                          background:var(--hijau-light)">
+                <i class="ti ti-file-check" style="color:var(--hijau-mid);font-size:14px"></i>
+                <span class="text-xs fw-600" style="color:var(--hijau-mid)"><?= htmlspecialchars($capaian->nama_ba_asli ?? 'BA Kemajuan Pekerjaan') ?></span>
+                <a href="<?= site_url('berkas/unduh/capaian-ba/'.$capaian->pekerjaan_id) ?>" target="_blank"
+                   class="btn btn-xs" style="padding:2px 8px;background:var(--hijau-mid);color:#fff;border:none"
+                   title="Preview / Download BA Kemajuan">
+                  <i class="ti ti-eye"></i> Lihat
+                </a>
+                <a href="<?= site_url('berkas/unduh/capaian-ba/'.$capaian->pekerjaan_id) ?>"
+                   class="btn btn-xs" style="padding:2px 8px;background:#fff;color:var(--hijau-mid);border:1px solid var(--hijau-mid)"
+                   title="Download BA Kemajuan">
+                  <i class="ti ti-download"></i>
+                </a>
+              </div>
+              <?php endif; ?>
+            </div>
           </div>
-        </div>
+          <?php endif; ?>
+        <?php else: ?>
+          <?php $ada_dok_draft = array_filter(array_column($dok_draft_tampil, 'path')); ?>
+          <?php if (!empty($ada_dok_draft)): ?>
+          <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
+            <div class="text-xs text-muted fw-600 mb-2" style="text-transform:uppercase;letter-spacing:0.4px">
+              <i class="ti ti-files"></i> Dokumen Pendukung Pengajuan
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <?php foreach ($dok_draft_tampil as $label => $dok):
+                if (!$dok['path'] || !file_exists(FCPATH . $dok['path'])) continue;
+              ?>
+              <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;
+                          border:1px solid var(--hijau-mid);border-radius:var(--radius);
+                          background:var(--hijau-light)">
+                <i class="ti ti-<?= $dok['icon'] ?>" style="color:var(--hijau-mid);font-size:14px"></i>
+                <span class="text-xs fw-600" style="color:var(--hijau-mid)"><?= $label ?></span>
+                <a href="<?= site_url('berkas/unduh/draft/'.$p->id.'/'.strtolower($label)) ?>" target="_blank"
+                   class="btn btn-xs" style="padding:2px 8px;background:var(--hijau-mid);color:#fff;border:none"
+                   title="Preview / Download <?= $label ?>">
+                  <i class="ti ti-eye"></i> Lihat
+                </a>
+                <a href="<?= site_url('berkas/unduh/draft/'.$p->id.'/'.strtolower($label)) ?>"
+                   class="btn btn-xs" style="padding:2px 8px;background:#fff;color:var(--hijau-mid);border:1px solid var(--hijau-mid)"
+                   title="Download <?= $label ?>">
+                  <i class="ti ti-download"></i>
+                </a>
+              </div>
+              <?php endforeach; ?>
+            </div>
+          </div>
+          <?php endif; ?>
         <?php endif; ?>
 
         <!-- Dokumen tahapan — view/download saja, upload dikelola SKPKD Kab/Kota -->

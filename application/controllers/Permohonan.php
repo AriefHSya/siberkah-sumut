@@ -413,8 +413,10 @@ class Permohonan extends Auth_Controller
         ];
         $label_jenis = $label_map[$permohonan->jenis_penyaluran] ?? $permohonan->jenis_penyaluran;
 
-        $items_notif = $this->Permohonan_model->get_items($id);
-        $total_notif = array_sum(array_map(function($it) {
+        $items_notif  = $this->Permohonan_model->get_items($id);
+        $is_t2_notif  = ($permohonan->jenis_penyaluran === 'bertahap' && $permohonan->kode_tahap === 'tahap_2');
+        $total_notif  = array_sum(array_map(function($it) use ($is_t2_notif) {
+            if ($is_t2_notif) return ($it->nilai_diajukan ?? 0);
             return ($it->nilai_diajukan ?? 0) + ($it->nilai_belanja_pendukung ?? 0);
         }, (array)$items_notif));
 
@@ -448,8 +450,12 @@ class Permohonan extends Auth_Controller
             redirect('permohonan'); return;
         }
 
-        $items       = $this->Permohonan_model->get_items($id);
-        $total_nilai = array_sum(array_column((array)$items, 'nilai_diajukan'));
+        $items      = $this->Permohonan_model->get_items($id);
+        $is_tahap2  = ($permohonan->jenis_penyaluran === 'bertahap' && $permohonan->kode_tahap === 'tahap_2');
+        $total_nilai = array_sum(array_map(function($it) use ($is_tahap2) {
+            if ($is_tahap2) return ($it->nilai_diajukan ?? 0);
+            return ($it->nilai_diajukan ?? 0) + ($it->nilai_belanja_pendukung ?? 0);
+        }, (array)$items));
 
         $this->render('permohonan/detail', array_merge($this->data, [
             'title'       => 'Permohonan — ' . $permohonan->no_permohonan,

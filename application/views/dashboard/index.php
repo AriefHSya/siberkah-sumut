@@ -35,6 +35,22 @@ foreach ($per_bidang as $b) {
     $bidang_nilai[]  = (float)$b->total_nilai;
 }
 
+/* Palette warna per bidang — 12 warna berbeda */
+$bidang_palette_hex = [
+    '#1A5EA8','#3B6D11','#A32D2D','#854F0B','#0F6E56','#3C3489',
+    '#D97706','#1F7A9A','#7B3F00','#5F5E5A','#6B21A8','#065F46',
+];
+$bidang_palette_solid = [];
+$bidang_palette_light = [];
+foreach ($bidang_palette_hex as $hex) {
+    $h = ltrim($hex, '#');
+    $r = hexdec(substr($h, 0, 2));
+    $g = hexdec(substr($h, 2, 2));
+    $b = hexdec(substr($h, 4, 2));
+    $bidang_palette_solid[] = "rgba($r,$g,$b,0.82)";
+    $bidang_palette_light[] = "rgba($r,$g,$b,0.35)";
+}
+
 /* Top 10 kab/kota untuk chart provinsi */
 $top_kab = $is_provinsi ? array_slice((array)$per_kabkota, 0, 10) : [];
 $kab_labels = array_map(fn($k) => $k->nama, $top_kab);
@@ -305,6 +321,17 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
     <?php if (!empty($per_bidang)): ?>
     <div style="position:relative;height:<?= min(400, max(180, count($per_bidang) * 38)) ?>px">
       <canvas id="chartBidang"></canvas>
+    </div>
+    <!-- Legend per bidang -->
+    <div style="display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:14px;padding-top:10px;border-top:1px solid var(--border)">
+      <?php foreach ($per_bidang as $i => $b):
+        $col = $bidang_palette_hex[$i % count($bidang_palette_hex)]; ?>
+      <span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text)">
+        <span style="width:12px;height:12px;border-radius:3px;background:<?= $col ?>;flex-shrink:0;display:inline-block"></span>
+        <?= htmlspecialchars($b->nama) ?>
+        <span style="color:var(--text-muted);font-size:10.5px">(<?= $b->total ?> pek.)</span>
+      </span>
+      <?php endforeach; ?>
     </div>
     <?php else: ?>
     <div style="padding:32px;text-align:center;color:var(--text-muted)">
@@ -622,9 +649,16 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
   var grpSelesai = <?= $grp_selesai ?>;
   var grpTolak   = <?= $grp_tolak ?>;
 
-  var bidangLabels = <?= json_encode($bidang_labels) ?>;
-  var bidangVals   = <?= json_encode($bidang_vals) ?>;
-  var bidangNilai  = <?= json_encode($bidang_nilai) ?>;
+  var bidangLabels  = <?= json_encode($bidang_labels) ?>;
+  var bidangVals    = <?= json_encode($bidang_vals) ?>;
+  var bidangNilai   = <?= json_encode($bidang_nilai) ?>;
+  var BIDANG_SOLID  = <?= json_encode($bidang_palette_solid) ?>;
+  var BIDANG_LIGHT  = <?= json_encode($bidang_palette_light) ?>;
+  var BIDANG_HEX    = <?= json_encode($bidang_palette_hex) ?>;
+  /* Potong sesuai jumlah bidang aktual */
+  var bidangSolid = BIDANG_SOLID.slice(0, bidangLabels.length);
+  var bidangLight = BIDANG_LIGHT.slice(0, bidangLabels.length);
+  var bidangHex   = BIDANG_HEX.slice(0, bidangLabels.length);
 
   <?php if ($is_provinsi && !empty($top_kab)): ?>
   var kabLabels     = <?= json_encode(array_values($kab_labels)) ?>;
@@ -697,8 +731,8 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
           {
             label: 'Jumlah Pekerjaan',
             data: bidangVals,
-            backgroundColor: 'rgba(26,94,168,0.75)',
-            borderColor:     '#1A5EA8',
+            backgroundColor: bidangSolid,
+            borderColor:     bidangHex,
             borderWidth: 1,
             borderRadius: 4,
             yAxisID: 'yCount',
@@ -706,10 +740,11 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
           {
             label: 'Nilai (Juta Rp)',
             data: bidangNilai.map(function(v){ return v / 1000000; }),
-            backgroundColor: 'rgba(15,110,86,0.6)',
-            borderColor:     '#0F6E56',
+            backgroundColor: bidangLight,
+            borderColor:     bidangHex,
             borderWidth: 1,
             borderRadius: 4,
+            borderDash: [4, 3],
             yAxisID: 'yNilai',
           }
         ]
@@ -722,13 +757,22 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
           legend: {
             display: true,
             position: 'top',
-            labels: { boxWidth: 12, padding: 12 }
+            labels: {
+              boxWidth: 12,
+              padding: 12,
+              generateLabels: function(chart) {
+                return [
+                  { text: 'Jumlah Pekerjaan', fillStyle: 'rgba(90,90,90,0.85)', strokeStyle: '#555', lineWidth: 1 },
+                  { text: 'Nilai (Juta Rp)',   fillStyle: 'rgba(90,90,90,0.35)', strokeStyle: '#555', lineWidth: 1 }
+                ];
+              }
+            }
           },
           tooltip: {
             callbacks: {
               label: function(ctx) {
-                if (ctx.datasetIndex === 0) return 'Pekerjaan: ' + ctx.raw;
-                return 'Nilai: Rp ' + ctx.raw.toFixed(2) + ' Jt';
+                if (ctx.datasetIndex === 0) return ' Jumlah: ' + ctx.raw + ' pekerjaan';
+                return ' Nilai: Rp ' + ctx.raw.toFixed(1) + ' Jt';
               }
             }
           }

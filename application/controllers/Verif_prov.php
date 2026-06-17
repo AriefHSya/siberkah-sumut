@@ -83,11 +83,14 @@ class Verif_prov extends Auth_Controller
 
         $items = $this->Verifikasi_prov_model->get_permohonan_items_for_prov($id);
 
-        $is_tahap1       = ($pm->jenis_penyaluran === 'bertahap' && $pm->kode_tahap !== 'tahap_2');
+        $is_tahap2       = ($pm->jenis_penyaluran === 'bertahap' && $pm->kode_tahap === 'tahap_2');
+        $is_tahap1       = ($pm->jenis_penyaluran === 'bertahap' && !$is_tahap2);
         $total_kontrak   = array_sum(array_column((array)$items, 'nilai_kontrak'));
         $total_tahap1    = $is_tahap1 ? array_sum(array_column((array)$items, 'nilai_diajukan')) : 0;
         $total_pendukung = array_sum(array_column((array)$items, 'nilai_belanja_pendukung'));
-        $total_nilai     = array_sum(array_map(function($it) {
+        $total_nilai     = array_sum(array_map(function($it) use ($is_tahap2) {
+            // Tahap II: 50% × NK = nilai_diajukan (pendukung tidak termasuk)
+            if ($is_tahap2) return ($it->nilai_diajukan ?? 0);
             return ($it->nilai_diajukan ?? 0) + ($it->nilai_belanja_pendukung ?? 0);
         }, (array)$items));
 
@@ -96,6 +99,7 @@ class Verif_prov extends Auth_Controller
             'pm'             => $pm,
             'items'          => $items,
             'is_tahap1'      => $is_tahap1,
+            'is_tahap2'      => $is_tahap2,
             'total_kontrak'  => $total_kontrak,
             'total_tahap1'   => $total_tahap1,
             'total_pendukung'=> $total_pendukung,
@@ -636,7 +640,10 @@ class Verif_prov extends Auth_Controller
             $penyaluran_lama = $this->Verifikasi_prov_model->get_penyaluran($item->tahapan_id);
             $sudah_disalurkan = $penyaluran_lama && $penyaluran_lama->status_transfer === 'selesai';
 
-            $nilai_item = ($item->nilai_diajukan ?? 0) + ($item->nilai_belanja_pendukung ?? 0);
+            $is_item_t2 = ($item->jenis_penyaluran === 'bertahap' && $item->kode_tahap === 'tahap_2');
+            $nilai_item = $is_item_t2
+                ? ($item->nilai_diajukan ?? 0)
+                : ($item->nilai_diajukan ?? 0) + ($item->nilai_belanja_pendukung ?? 0);
             $this->Verifikasi_prov_model->simpan_sp2d($item->tahapan_id, [
                 'no_sp2d'          => $no_sp2d,
                 'tgl_sp2d'         => $tgl_sp2d,

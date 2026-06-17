@@ -43,7 +43,11 @@ class Verifikasi_prov_model extends CI_Model
              JOIN trx_tahapan_penyaluran t2 ON t2.id = pi2.tahapan_id
              WHERE pi2.permohonan_id = pm.id
                AND t2.status IN ('disalurkan','dikonfirmasi')) as item_disalurkan,
-            (SELECT SUM(t3.nilai_diajukan + IFNULL(pk3.nilai_belanja_pendukung,0))
+            (SELECT SUM(
+                CASE WHEN pm.jenis_penyaluran = 'bertahap' AND pm.kode_tahap = 'tahap_2'
+                     THEN t3.nilai_diajukan
+                     ELSE t3.nilai_diajukan + IFNULL(pk3.nilai_belanja_pendukung, 0)
+                END)
              FROM trx_permohonan_item pi3
              JOIN trx_tahapan_penyaluran t3 ON t3.id = pi3.tahapan_id
              JOIN trx_pekerjaan pk3 ON pk3.id = t3.pekerjaan_id

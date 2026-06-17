@@ -27,13 +27,17 @@ class Permohonan_model extends CI_Model
 
     public function get_all($filters = [], $limit = 0, $offset = 0)
     {
-        $this->db->select('pm.*, k.nama as nama_kabkota,
+        $this->db->select("pm.*, k.nama as nama_kabkota,
             (SELECT COUNT(*) FROM trx_permohonan_item WHERE permohonan_id = pm.id) as jumlah_item,
-            (SELECT SUM(tp.nilai_diajukan + IFNULL(pk.nilai_belanja_pendukung,0))
+            (SELECT SUM(
+                CASE WHEN pm.jenis_penyaluran = 'bertahap' AND pm.kode_tahap = 'tahap_2'
+                     THEN tp.nilai_diajukan
+                     ELSE tp.nilai_diajukan + IFNULL(pk.nilai_belanja_pendukung, 0)
+                END)
              FROM trx_permohonan_item pi
              JOIN trx_tahapan_penyaluran tp ON tp.id = pi.tahapan_id
              JOIN trx_pekerjaan pk ON pk.id = tp.pekerjaan_id
-             WHERE pi.permohonan_id = pm.id) as total_nilai');
+             WHERE pi.permohonan_id = pm.id) as total_nilai", FALSE);
         $this->_build_query($filters);
         $this->db->order_by('pm.created_at', 'DESC');
         if ($limit > 0) $this->db->limit($limit, $offset);
@@ -68,7 +72,7 @@ class Permohonan_model extends CI_Model
                       p.nilai_belanja_pendukung,
                       p.no_dok_pekerjaan, p.nama_penyedia, p.jenis_penyaluran,
                       p.status as pekerjaan_status,
-                      b.kode_bkp, b.uraian_bkp')
+                      b.kode_bkp, b.uraian_bkp, b.nilai as pagu_bkp')
             ->from('trx_permohonan_item pi')
             ->join('trx_tahapan_penyaluran t', 't.id = pi.tahapan_id')
             ->join('trx_pekerjaan p', 'p.id = t.pekerjaan_id')
@@ -100,9 +104,12 @@ class Permohonan_model extends CI_Model
     public function get_kelompok_tersedia($kabkota_id, $tahun)
     {
         return $this->db
-            ->select('p.jenis_penyaluran, t.kode_tahap,
+            ->select("p.jenis_penyaluran, t.kode_tahap,
                       COUNT(*) as jumlah,
-                      SUM(t.nilai_diajukan + IFNULL(p.nilai_belanja_pendukung,0)) as total_nilai')
+                      SUM(CASE WHEN p.jenis_penyaluran = 'bertahap' AND t.kode_tahap = 'tahap_2'
+                               THEN t.nilai_diajukan
+                               ELSE t.nilai_diajukan + IFNULL(p.nilai_belanja_pendukung, 0)
+                          END) as total_nilai", FALSE)
             ->from('trx_tahapan_penyaluran t')
             ->join('trx_pekerjaan p', 'p.id = t.pekerjaan_id')
             ->join('ref_bkp b', 'b.id = p.bkp_id')

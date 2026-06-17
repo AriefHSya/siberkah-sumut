@@ -170,3 +170,5 @@ $route['laporan/export-penyaluran']         = 'laporan/export_penyaluran';
 $route['laporan/export-penyaluran-xlsx']    = 'laporan/export_penyaluran_xlsx';
 $route['laporan/laporan-akhir-kab']         = 'laporan/laporan_akhir_kab';
 $route['laporan/cetak-laporan-akhir-kab']   = 'laporan/cetak_laporan_akhir_kab';
+$route['laporan/rekap-tahap2']              = 'laporan/rekap_tahap2';
+$route['laporan/cetak-rekap-tahap2']        = 'laporan/cetak_rekap_tahap2';

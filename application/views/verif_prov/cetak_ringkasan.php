@@ -20,12 +20,18 @@ function _label_tahapan($jenis, $kode) {
 $kabid = isset($pejabat['kabid_anggaran']) ? $pejabat['kabid_anggaran'] : null;
 
 // Totals
-$total_pagu = $total_kontrak = $total_pendukung = $total_salur = 0;
+// Kolom 3 berbeda per jenis:
+//   Tahap II → Nilai Salur Tahap I = nilai_diajukan + pendukung (50%NK + pendukung)
+//   Lainnya  → Nilai Pendukung = nilai_belanja_pendukung
+$_is_tahap2_ring = ($pm->jenis_penyaluran === 'bertahap' && $pm->kode_tahap === 'tahap_2');
+$total_pagu = $total_kontrak = $total_col3 = $total_salur = 0;
 foreach ((array)$items as $it) {
-    $total_pagu      += ($it->pagu_bkp               ?? 0);
-    $total_kontrak   += ($it->nilai_kontrak           ?? 0);
-    $total_pendukung += ($it->nilai_belanja_pendukung ?? 0);
-    $total_salur     += ($it->nilai_diajukan          ?? 0);
+    $total_pagu    += ($it->pagu_bkp    ?? 0);
+    $total_kontrak += ($it->nilai_kontrak ?? 0);
+    $total_col3    += $_is_tahap2_ring
+        ? ($it->nilai_diajukan ?? 0) + ($it->nilai_belanja_pendukung ?? 0)
+        : ($it->nilai_belanja_pendukung ?? 0);
+    $total_salur += ($it->nilai_diajukan ?? 0);
 }
 ?>
 <!DOCTYPE html>
@@ -129,7 +135,11 @@ body{font-family:'Times New Roman',Times,serif;font-size:10.5pt;color:#000;backg
         <th>Nama Kegiatan</th>
         <th style="width:125px">Pagu BKP (Rp.)</th>
         <th style="width:125px">Nilai Kontrak (Rp.)</th>
+        <?php if ($_is_tahap2_ring): ?>
+        <th style="width:135px">Nilai Salur Tahap I (Rp.)<br><span style="font-weight:normal;font-size:8pt">(50% Kontrak + Pendukung)</span></th>
+        <?php else: ?>
         <th style="width:120px">Nilai Pendukung (Rp.)</th>
+        <?php endif; ?>
         <th style="width:85px">Jenis Tahapan</th>
         <th style="width:125px">Nilai Salur (Rp.)</th>
       </tr>
@@ -141,7 +151,11 @@ body{font-family:'Times New Roman',Times,serif;font-size:10.5pt;color:#000;backg
         <td class="td-nama"><?= htmlspecialchars($it->nama_kegiatan_dok) ?></td>
         <td class="td-rp"><?= number_format($it->pagu_bkp ?? 0, 2, ',', '.') ?></td>
         <td class="td-rp"><?= number_format($it->nilai_kontrak ?? 0, 2, ',', '.') ?></td>
-        <td class="td-rp"><?= number_format($it->nilai_belanja_pendukung ?? 0, 2, ',', '.') ?></td>
+        <td class="td-rp"><?= number_format(
+            $_is_tahap2_ring
+                ? ($it->nilai_diajukan ?? 0) + ($it->nilai_belanja_pendukung ?? 0)
+                : ($it->nilai_belanja_pendukung ?? 0),
+            2, ',', '.') ?></td>
         <td class="td-ctr"><?= _label_tahapan($it->jenis_penyaluran, $it->kode_tahap) ?></td>
         <td class="td-rp"><strong><?= number_format($it->nilai_diajukan ?? 0, 2, ',', '.') ?></strong></td>
       </tr>
@@ -151,8 +165,8 @@ body{font-family:'Times New Roman',Times,serif;font-size:10.5pt;color:#000;backg
       <tr>
         <td colspan="2" class="td-label">Jumlah</td>
         <td class="td-rp"><?= number_format($total_pagu,      2, ',', '.') ?></td>
-        <td class="td-rp"><?= number_format($total_kontrak,   2, ',', '.') ?></td>
-        <td class="td-rp"><?= number_format($total_pendukung, 2, ',', '.') ?></td>
+        <td class="td-rp"><?= number_format($total_kontrak, 2, ',', '.') ?></td>
+        <td class="td-rp"><?= number_format($total_col3,    2, ',', '.') ?></td>
         <td></td>
         <td class="td-rp"><?= number_format($total_salur,     2, ',', '.') ?></td>
       </tr>

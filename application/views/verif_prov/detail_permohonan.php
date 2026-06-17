@@ -372,7 +372,10 @@ function closeTolakPermohonan() {
       </thead>
       <tbody>
       <?php if (!empty($items)): $no = 1; foreach ($items as $item):
-            $nilai_pengajuan = ($item->nilai_diajukan ?? 0) + ($item->nilai_belanja_pendukung ?? 0);
+            // Tahap II: 50% × NK = nilai_diajukan (pendukung tidak termasuk)
+            $nilai_pengajuan = $is_tahap2
+                ? ($item->nilai_diajukan ?? 0)
+                : ($item->nilai_diajukan ?? 0) + ($item->nilai_belanja_pendukung ?? 0);
 
             $st = $item->tahapan_status;
             if ($st === 'dikonfirmasi')       { $badge = ['hijau','Dikonfirmasi']; $btn_label = 'Detail'; $btn_cls = 'btn-outline'; }
