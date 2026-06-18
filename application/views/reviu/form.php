@@ -1,66 +1,292 @@
-<?php $p = $pekerjaan; $r = $reviu; ?>
+<?php
+$p  = $pekerjaan;
+$r  = $reviu;
+$confirmed   = $r && !empty($r->checklist_confirmed_at);
+$lhr_done    = $r && !empty($r->no_lhr) && !empty($r->file_lhr_path);
+$keputusan   = $r ? $r->hasil_reviu : NULL;
+$can_input   = $this->rbac->can('reviu.input');
+$can_approve = $this->rbac->can('reviu.approve');
 
+// Hitung stats
+$total_item      = count($items);
+$filled          = $r ? ($stat['sesuai'] + $stat['tidak_sesuai'] + $stat['tidak_berlaku']) : 0;
+$pct_filled      = $total_item > 0 ? round($filled / $total_item * 100) : 0;
+$semua_terisi    = ($filled >= $total_item && $total_item > 0);
+$ada_tidak_sesuai= $r && ($stat['tidak_sesuai'] ?? 0) > 0;
+// Semua sesuai = confirmed + tidak ada 'tidak_sesuai' + semua item terisi
+$semua_sesuai    = $confirmed && !$ada_tidak_sesuai && $semua_terisi;
+?>
+
+<!-- ── HEADER ───────────────────────────────────────────── -->
 <div class="page-header">
   <div>
-    <div class="page-title"><i class="ti ti-clipboard-check"></i> Reviu — <?= htmlspecialchars($p->kode_bkp) ?></div>
-    <div style="margin-top:4px;display:flex;align-items:center;gap:8px">
+    <div class="page-title">
+      <i class="ti ti-clipboard-check"></i> Reviu — <?= htmlspecialchars($p->kode_bkp) ?>
+    </div>
+    <div style="margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <?= badge_jenis($p->jenis_penyaluran) ?>
       <span class="badge badge-abu"><?= htmlspecialchars($tahapan->label_tahap) ?></span>
       <span class="text-xs text-muted"><?= htmlspecialchars($p->nama_kabkota) ?> · TA <?= $p->tahun ?></span>
+      <!-- Status tahap reviu -->
+      <?php if ($keputusan): ?>
+        <?php $hmap=['disetujui'=>['hijau','Disetujui'],'perlu_perbaikan'=>['kuning','Dikembalikan ke OPD'],'ditolak'=>['merah','Ditolak']]; $h=$hmap[$keputusan]??['abu','?']; ?>
+        <span class="badge badge-<?= $h[0] ?>"><i class="ti ti-gavel" style="font-size:10px"></i> <?= $h[1] ?></span>
+      <?php elseif ($lhr_done): ?>
+        <span class="badge badge-biru">LHR Terupload — Siap Putuskan</span>
+      <?php elseif ($confirmed): ?>
+        <span class="badge badge-kuning">Checklist Terkunci — Menunggu LHR</span>
+      <?php else: ?>
+        <span class="badge badge-abu">Checklist Belum Selesai</span>
+      <?php endif; ?>
     </div>
   </div>
-  <div class="aksi-row">
-    <?php if ($r && $this->rbac->can('reviu.cetak_kertas_kerja')): ?>
-    <a href="<?= site_url('reviu/cetak-kertas-kerja/'.$r->id) ?>" target="_blank" class="btn btn-outline btn-sm">
-      <i class="ti ti-printer"></i> Cetak Kertas Kerja
-    </a>
-    <?php endif; ?>
-    <?php if ($r && $r->hasil_reviu === 'disetujui' && $this->rbac->can('reviu.download_rekap')): ?>
-    <a href="<?= site_url('reviu/cetak-rekap/'.$r->id) ?>" target="_blank" class="btn btn-outline btn-sm">
-      <i class="ti ti-report"></i> Cetak Rekap
-    </a>
-    <?php endif; ?>
-    <a href="<?= site_url('reviu') ?>" class="btn btn-outline btn-sm"><i class="ti ti-arrow-left"></i> Kembali</a>
-  </div>
+  <a href="<?= site_url('reviu') ?>" class="btn btn-outline btn-sm">
+    <i class="ti ti-arrow-left"></i> Kembali
+  </a>
 </div>
 
-<div class="g2">
-  <!-- Kolom Kiri: Info + Checklist -->
-  <div style="grid-column:1/3">
+<!-- ══════════════════════════════════════════════════════════
+     BLOK 1: DATA PEKERJAAN OPD (collapsible reference)
+     ══════════════════════════════════════════════════════════ -->
+<div class="card mb-2">
+  <div class="card-title" style="cursor:pointer" onclick="toggleDataPekerjaan()">
+    <i class="ti ti-file-text"></i> Data Pekerjaan OPD Teknis
+    <span class="text-xs text-muted fw-500" style="margin-left:8px" id="dp-hint"></span>
+    <i class="ti ti-chevron-up" id="dp-chevron" style="margin-left:auto"></i>
+  </div>
 
-    <!-- Info Pekerjaan (ringkas) -->
-    <div class="card mb-2">
-      <div class="card-title"><i class="ti ti-info-circle"></i> Informasi Pekerjaan</div>
-      <div class="g3">
-        <div><div class="text-xs text-muted">Uraian BKP</div><div class="text-sm fw-500"><?= htmlspecialchars($p->uraian_bkp) ?></div></div>
-        <div><div class="text-xs text-muted">Nama Kegiatan</div><div class="text-sm"><?= htmlspecialchars($p->nama_kegiatan_dok) ?></div></div>
-        <div><div class="text-xs text-muted">Nilai Kontrak</div><div class="fw-500 text-biru"><?= rupiah($p->nilai_kontrak) ?></div></div>
-        <div><div class="text-xs text-muted">Penyedia</div><div class="text-sm"><?= htmlspecialchars($p->nama_penyedia ?: '—') ?></div></div>
-        <div><div class="text-xs text-muted">No. Kontrak</div><div class="mono text-sm"><?= htmlspecialchars($p->no_dok_pekerjaan ?: '—') ?></div></div>
-        <div><div class="text-xs text-muted">No. SPMK</div><div class="mono text-sm"><?= htmlspecialchars($p->no_spmk ?: '—') ?></div></div>
+  <div id="dataPekerjaan">
+    <!-- Ringkasan cepat -->
+    <div class="g3 mb-2">
+      <div>
+        <div class="text-xs text-muted">Uraian BKP</div>
+        <div class="text-sm fw-500"><?= htmlspecialchars($p->uraian_bkp) ?></div>
       </div>
-      <div class="mt-2">
-        <a href="<?= site_url('pekerjaan/detail/'.$p->id) ?>" class="btn btn-outline btn-xs" target="_blank">
-          <i class="ti ti-external-link"></i> Lihat Detail Lengkap
+      <div>
+        <div class="text-xs text-muted">Nama Kegiatan</div>
+        <div class="text-sm"><?= htmlspecialchars($p->nama_kegiatan_dok ?: '—') ?></div>
+      </div>
+      <div>
+        <div class="text-xs text-muted">Nilai Kontrak</div>
+        <div class="fw-500 text-biru"><?= rupiah($p->nilai_kontrak) ?></div>
+      </div>
+    </div>
+
+    <!-- 17 Field lengkap -->
+    <table class="tbl mb-2" style="font-size:12px">
+      <thead>
+        <tr><th style="width:35%">Field</th><th>Nilai</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="text-muted">1. Nama Kegiatan</td><td><?= htmlspecialchars($p->nama_kegiatan_dok ?: '—') ?></td></tr>
+        <tr><td class="text-muted">2. Volume & Satuan</td><td><?= htmlspecialchars($p->volume_satuan ?: '—') ?></td></tr>
+        <tr><td class="text-muted">3. Metode Pelaksanaan</td><td><?= htmlspecialchars($p->metode_pelaksanaan ?: '—') ?></td></tr>
+        <tr><td class="text-muted">4. Jenis Pekerjaan</td><td><?= htmlspecialchars($p->jenis_pekerjaan ?: '—') ?></td></tr>
+        <tr><td class="text-muted">5. Jangka Waktu</td><td><?= $p->jangka_waktu_hari ? $p->jangka_waktu_hari.' hari' : '—' ?></td></tr>
+        <tr><td class="text-muted">6. Nama Penyedia</td><td class="fw-500"><?= htmlspecialchars($p->nama_penyedia ?: '—') ?></td></tr>
+        <tr><td class="text-muted">7. Alamat Penyedia</td><td><?= htmlspecialchars($p->alamat_penyedia ?: '—') ?></td></tr>
+        <tr><td class="text-muted">8. No. Dok. Pekerjaan</td><td class="mono"><?= htmlspecialchars($p->no_dok_pekerjaan ?: '—') ?></td></tr>
+        <tr><td class="text-muted">9. Tgl. Dokumen</td><td><?= tgl_indo($p->tgl_dok_pekerjaan) ?></td></tr>
+        <tr><td class="text-muted">10. No. SPMK</td><td class="mono"><?= htmlspecialchars($p->no_spmk ?: '—') ?></td></tr>
+        <tr><td class="text-muted">11. Tgl. SPMK</td><td><?= tgl_indo($p->tgl_spmk) ?></td></tr>
+        <?php if ($p->jenis_penyaluran === 'sekaligus'): ?>
+        <tr><td class="text-muted">12. No. BAST</td><td class="mono"><?= htmlspecialchars($p->no_bast ?: '—') ?></td></tr>
+        <tr><td class="text-muted">13. Tgl. BAST</td><td><?= tgl_indo($p->tgl_bast) ?></td></tr>
+        <?php endif; ?>
+        <tr><td class="text-muted">14. Nilai Kontrak</td><td class="fw-500 text-biru"><?= rupiah($p->nilai_kontrak) ?></td></tr>
+        <tr>
+          <td class="text-muted" style="vertical-align:top">15. Belanja Pendukung</td>
+          <td>
+            <span class="fw-500"><?= rupiah($p->nilai_belanja_pendukung) ?></span>
+            <?php
+            // Tampilkan breakdown rincian belanja pendukung jika tersedia
+            $bp_json = !empty($p->belanja_pendukung_json) ? json_decode($p->belanja_pendukung_json, TRUE) : [];
+            if (!empty($bp_json) && is_array($bp_json)):
+            ?>
+            <div style="margin-top:4px;padding:6px 8px;background:var(--biru-light);border-radius:4px;font-size:11px">
+              <div class="text-muted fw-600 mb-1">Rincian:</div>
+              <?php foreach ($bp_json as $i => $item): if (empty($item['uraian']) || empty($item['nilai'])) continue; ?>
+              <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:2px">
+                <span><?= ($i+1) ?>. <?= htmlspecialchars($item['uraian']) ?></span>
+                <span class="fw-500 mono" style="white-space:nowrap"><?= rupiah((float)$item['nilai']) ?></span>
+              </div>
+              <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+          </td>
+        </tr>
+        <tr><td class="text-muted">16. Perda APBD</td><td><?= $p->no_perda ? 'No. '.htmlspecialchars($p->no_perda).' / '.tgl_indo($p->tgl_perda) : '—' ?></td></tr>
+        <tr><td class="text-muted">17. Perkada/Pergub BKP</td><td><?= $p->no_perkada ? 'No. '.htmlspecialchars($p->no_perkada).' / '.tgl_indo($p->tgl_perkada) : '—' ?></td></tr>
+      </tbody>
+    </table>
+
+    <!-- Peta Lokasi Pekerjaan — Google Maps embed (read-only, tanpa library JS) -->
+    <?php if ($p->latitude && $p->longitude): ?>
+    <div class="mb-2">
+      <div class="text-xs text-muted fw-600 mb-1" style="text-transform:uppercase;letter-spacing:0.5px">
+        <i class="ti ti-map-pin"></i> Lokasi Pekerjaan
+      </div>
+      <?php if ($p->lokasi_deskripsi): ?>
+      <div class="text-xs text-muted mb-1"><?= htmlspecialchars($p->lokasi_deskripsi) ?></div>
+      <?php endif; ?>
+      <div class="text-xs text-muted mb-1">
+        📍 <?= $p->latitude ?>, <?= $p->longitude ?>
+        &nbsp;
+        <a href="https://maps.google.com/?q=<?= $p->latitude ?>,<?= $p->longitude ?>"
+           target="_blank" style="font-size:11px">
+          <i class="ti ti-external-link"></i> Buka di Google Maps
         </a>
-        <?php if ($this->rbac->can('pekerjaan.cetak_permohonan')): ?>
-        <a href="<?= site_url('pekerjaan/cetak-permohonan/'.$p->id) ?>" class="btn btn-outline btn-xs" target="_blank">
-          <i class="ti ti-printer"></i> Cetak Permohonan Reviu
+      </div>
+      <iframe
+        src="https://maps.google.com/maps?q=<?= (float)$p->latitude ?>,<?= (float)$p->longitude ?>&z=16&output=embed"
+        width="100%" height="220"
+        style="border:1px solid var(--border);border-radius:var(--radius);display:block"
+        loading="lazy"
+        allowfullscreen
+        referrerpolicy="no-referrer-when-downgrade">
+      </iframe>
+    </div>
+    <?php else: ?>
+    <div class="mb-2 text-sm text-muted">
+      <i class="ti ti-map-off"></i> Lokasi belum ditentukan oleh OPD.
+    </div>
+    <?php endif; ?>
+
+    <!-- Dokumen yang diupload OPD -->
+    <div>
+      <div class="text-xs text-muted fw-600 mb-1" style="text-transform:uppercase;letter-spacing:0.5px">Dokumen yang Diupload OPD</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <?php
+        $dok_draft = [
+            'SPK'  => $p->dok_spk_path  ?? NULL,
+            'SPMK' => $p->dok_spmk_path ?? NULL,
+            'BAST' => $p->dok_bast_path  ?? NULL,
+        ];
+        foreach ($dok_draft as $label => $path):
+          if (!$path) continue;
+        ?>
+        <a href="<?= site_url('berkas/unduh/draft/'.$p->id.'/'.strtolower($label)) ?>" target="_blank"
+           style="display:flex;align-items:center;gap:6px;padding:7px 12px;
+                  border:1px solid var(--hijau-mid);border-radius:var(--radius);
+                  font-size:12px;text-decoration:none;color:var(--hijau-mid);
+                  background:var(--hijau-light)">
+          <i class="ti ti-file-check" style="font-size:15px"></i>
+          <strong><?= $label ?></strong>
         </a>
+        <?php endforeach; ?>
+        <?php if (!empty($dokumen)): foreach ($dokumen as $d): ?>
+        <a href="<?= site_url('berkas/unduh/dok/'.$d->id) ?>" target="_blank"
+           style="display:flex;align-items:center;gap:6px;padding:7px 12px;
+                  border:1px solid var(--border);border-radius:var(--radius);
+                  font-size:12px;text-decoration:none;color:var(--text)">
+          <i class="ti <?= icon_file($d->file_path) ?>" style="color:var(--biru);font-size:15px"></i>
+          <div><div class="fw-500"><?= label_jenis_dok($d->jenis_dokumen) ?></div>
+          <div class="text-xs text-muted"><?= $d->ukuran_kb ?> KB</div></div>
+        </a>
+        <?php endforeach; endif; ?>
+        <?php if (empty($dokumen) && !array_filter(array_values($dok_draft))): ?>
+        <span class="text-sm text-muted">Belum ada dokumen yang diupload OPD.</span>
         <?php endif; ?>
       </div>
     </div>
-
+    <div class="mt-2">
+      <a href="<?= site_url('pekerjaan/detail/'.$p->id) ?>" class="btn btn-outline btn-xs" target="_blank">
+        <i class="ti ti-external-link"></i> Lihat Detail Pekerjaan Lengkap
+      </a>
+    </div>
   </div>
 </div>
 
-<!-- Statistik Checklist -->
+<!-- ══════════════════════════════════════════════════════════
+     BLOK 1B: CAPAIAN OUTPUT FISIK (hanya Tahap II)
+     ══════════════════════════════════════════════════════════ -->
+<?php if ($tahapan->kode_tahap === 'tahap_2'): ?>
+<div class="card mb-2" style="border-left:4px solid var(--hijau-mid)">
+  <div class="card-title">
+    <i class="ti ti-chart-bar"></i> Capaian Output Fisik Tahap I — Input OPD Teknis
+    <?php if (!empty($capaian) && !empty($capaian->capaian_id)): ?>
+    <span class="badge badge-hijau" style="margin-left:auto"><?= (float)$capaian->persen_fisik ?>%</span>
+    <?php else: ?>
+    <span class="badge badge-merah" style="margin-left:auto">Belum Diisi</span>
+    <?php endif; ?>
+  </div>
+
+  <?php if (!empty($capaian) && !empty($capaian->capaian_id)): ?>
+
+  <!-- Progress bar -->
+  <div style="background:#e9ecef;border-radius:6px;height:10px;margin-bottom:14px;overflow:hidden">
+    <div style="height:100%;background:var(--hijau-mid);width:<?= min(100,(float)$capaian->persen_fisik) ?>%"></div>
+  </div>
+
+  <table class="tbl" style="margin-bottom:12px">
+    <tr>
+      <td class="text-muted text-sm" style="width:35%">Persentase Capaian Fisik</td>
+      <td><strong style="font-size:18px;color:var(--hijau-mid)"><?= (float)$capaian->persen_fisik ?>%</strong></td>
+    </tr>
+    <tr>
+      <td class="text-muted text-sm">No. Berita Acara Kemajuan</td>
+      <td class="mono text-sm"><?= htmlspecialchars($capaian->no_ba_kemajuan ?: '—') ?></td>
+    </tr>
+    <tr>
+      <td class="text-muted text-sm">Tanggal Berita Acara</td>
+      <td class="text-sm"><?= tgl_indo($capaian->tgl_ba_kemajuan) ?: '—' ?></td>
+    </tr>
+    <tr>
+      <td class="text-muted text-sm">Tanggal Realisasi</td>
+      <td class="text-sm"><?= tgl_indo($capaian->tgl_realisasi) ?: '—' ?></td>
+    </tr>
+    <?php if ($capaian->keterangan): ?>
+    <tr>
+      <td class="text-muted text-sm" style="vertical-align:top;padding-top:8px">Keterangan</td>
+      <td class="text-sm"><?= nl2br(htmlspecialchars($capaian->keterangan)) ?></td>
+    </tr>
+    <?php endif; ?>
+  </table>
+
+  <!-- Dokumen capaian -->
+  <?php if ($capaian->foto_path || !empty($capaian->ba_path)): ?>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid var(--border);padding-top:10px">
+    <div class="text-xs text-muted fw-600" style="width:100%;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">
+      <i class="ti ti-files"></i> Dokumen Capaian OPD
+    </div>
+    <?php if ($capaian->foto_path): ?>
+    <a href="<?= site_url('berkas/unduh/capaian/'.$capaian->pekerjaan_id) ?>" target="_blank"
+       style="display:flex;align-items:center;gap:6px;padding:7px 12px;
+              border:1px solid var(--hijau-mid);border-radius:var(--radius);
+              font-size:12px;text-decoration:none;color:var(--hijau-mid);background:var(--hijau-light)">
+      <i class="ti ti-photo" style="font-size:15px"></i>
+      <strong>Foto Dokumentasi</strong>
+      <span class="text-xs text-muted" style="margin-left:2px"><?= htmlspecialchars($capaian->nama_foto_asli ?? '') ?></span>
+    </a>
+    <?php endif; ?>
+    <?php if (!empty($capaian->ba_path)): ?>
+    <a href="<?= site_url('berkas/unduh/capaian-ba/'.$capaian->pekerjaan_id) ?>" target="_blank"
+       style="display:flex;align-items:center;gap:6px;padding:7px 12px;
+              border:1px solid var(--hijau-mid);border-radius:var(--radius);
+              font-size:12px;text-decoration:none;color:var(--hijau-mid);background:var(--hijau-light)">
+      <i class="ti ti-file-check" style="font-size:15px"></i>
+      <strong>Berita Acara Kemajuan</strong>
+      <span class="text-xs text-muted" style="margin-left:2px"><?= htmlspecialchars($capaian->nama_ba_asli ?? '') ?></span>
+    </a>
+    <?php endif; ?>
+  </div>
+  <?php endif; ?>
+
+  <?php else: ?>
+  <div class="alert alert-warning" style="font-size:13px">
+    <i class="ti ti-alert-triangle"></i>
+    <div>OPD Teknis belum mengisi data capaian output fisik Tahap I.
+    Data capaian diperlukan sebelum Tahap II dapat diproses.</div>
+  </div>
+  <?php endif; ?>
+</div>
+<?php endif; ?>
+
+<!-- ══════════════════════════════════════════════════════════
+     BLOK 2: STATISTIK + PROGRESS CHECKLIST
+     ══════════════════════════════════════════════════════════ -->
 <?php if ($r): ?>
 <div class="g4 mb-2">
-  <?php
-  $total_item = count($items);
-  $pct_sesuai = $total_item > 0 ? round($stat['sesuai']/$total_item*100) : 0;
-  ?>
   <div class="stat-card">
     <div class="stat-icon" style="background:var(--biru-light)"><i class="ti ti-list-check" style="color:var(--biru)"></i></div>
     <div class="stat-val"><?= $total_item ?></div>
@@ -68,43 +294,56 @@
   </div>
   <div class="stat-card">
     <div class="stat-icon" style="background:var(--hijau-light)"><i class="ti ti-circle-check" style="color:var(--hijau-mid)"></i></div>
-    <div class="stat-val" style="color:var(--hijau-mid)"><?= $stat['sesuai'] ?></div>
+    <div class="stat-val" id="statSesuai" style="color:var(--hijau-mid)"><?= $stat['sesuai'] ?></div>
     <div class="stat-label">Sesuai</div>
   </div>
   <div class="stat-card">
     <div class="stat-icon" style="background:var(--merah-light)"><i class="ti ti-circle-x" style="color:var(--merah-mid)"></i></div>
-    <div class="stat-val" style="color:var(--merah-mid)"><?= $stat['tidak_sesuai'] ?></div>
+    <div class="stat-val" id="statTidakSesuai" style="color:var(--merah-mid)"><?= $stat['tidak_sesuai'] ?></div>
     <div class="stat-label">Tidak Sesuai</div>
   </div>
   <div class="stat-card">
     <div class="stat-icon" style="background:var(--abu-light)"><i class="ti ti-minus-circle" style="color:var(--abu)"></i></div>
-    <div class="stat-val"><?= $stat['tidak_berlaku'] ?></div>
-    <div class="stat-label">Tidak Berlaku</div>
+    <div class="stat-val" id="statTidakBerlaku"><?= $stat['tidak_berlaku'] ?></div>
+    <div class="stat-label">Tidak Berlaku / N/A</div>
   </div>
 </div>
-<!-- Progress bar -->
 <div style="margin-bottom:16px">
   <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
     <span>Progress pengisian checklist</span>
-    <span class="fw-500"><?= $stat['sesuai'] + $stat['tidak_sesuai'] + $stat['tidak_berlaku'] ?> / <?= $total_item ?> diisi</span>
+    <span class="fw-500" id="progressText"><?= $filled ?> / <?= $total_item ?> diisi · <?= $pct_filled ?>%</span>
   </div>
-  <div style="height:6px;background:var(--bg);border-radius:4px;overflow:hidden">
-    <?php $filled = $stat['sesuai'] + $stat['tidak_sesuai'] + $stat['tidak_berlaku']; $pct = $total_item > 0 ? round($filled/$total_item*100) : 0; ?>
-    <div style="height:100%;background:var(--biru);width:<?= $pct ?>%;transition:width 0.3s"></div>
+  <div style="height:8px;background:var(--bg);border-radius:4px;overflow:hidden">
+    <div id="progressFill" style="height:100%;background:<?= $pct_filled >= 100 ? 'var(--hijau-mid)' : 'var(--biru)' ?>;width:<?= $pct_filled ?>%;transition:width 0.3s"></div>
   </div>
+  <?php if ($confirmed): ?>
+  <div class="text-xs mt-1" style="color:var(--hijau-mid)">
+    <i class="ti ti-lock"></i> Checklist dikunci pada <?= tgl_short($r->checklist_confirmed_at) ?>
+  </div>
+  <?php endif; ?>
 </div>
 <?php endif; ?>
 
-<!-- FORM CHECKLIST -->
-<?php if ($this->rbac->can('reviu.input') && $r): ?>
+<!-- ══════════════════════════════════════════════════════════
+     BLOK 3: FORM CHECKLIST
+     ══════════════════════════════════════════════════════════ -->
+<?php if ($can_input && $r && !$confirmed): ?>
 <?= form_open(site_url('reviu/simpan-checklist/'.$r->id), ['id'=>'formChecklist']) ?>
 <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
+<input type="hidden" name="action" id="hiddenAction" value="save">
 <?php endif; ?>
 
 <div class="card mb-2">
   <div class="card-title">
     <i class="ti ti-list-check"></i> Checklist Reviu
-    <span class="badge badge-biru" style="font-size:10px;margin-left:auto"><?= count($items) ?> item · <?= ucfirst($p->jenis_penyaluran) ?> <?= $tahapan->kode_tahap ?></span>
+    <span class="badge badge-biru" style="font-size:10px;margin-left:6px">
+      <?= $total_item ?> item · <?= ucfirst(str_replace('_',' ',$p->jenis_penyaluran)) ?> · <?= $tahapan->kode_tahap ?>
+    </span>
+    <?php if ($confirmed): ?>
+    <span class="badge badge-hijau" style="margin-left:auto;font-size:10px">
+      <i class="ti ti-lock" style="font-size:10px"></i> Terkunci
+    </span>
+    <?php endif; ?>
   </div>
 
   <?php if (empty($items)): ?>
@@ -113,101 +352,230 @@
   </div>
   <?php else: ?>
 
+  <div class="table-wrap">
   <table class="tbl" id="tblChecklist">
     <thead>
       <tr>
-        <th style="width:40px">#</th>
+        <th style="width:50px">Kode</th>
         <th>Uraian Item Pemeriksaan</th>
-        <th style="width:200px">Hasil</th>
-        <th style="width:220px">Catatan</th>
+        <th style="width:200px;text-align:center">Hasil</th>
+        <th style="width:230px">Catatan Temuan</th>
       </tr>
     </thead>
     <tbody>
     <?php foreach ($items as $item):
-      $is_val  = $isian[$item->id] ?? NULL;
-      $nilai   = $is_val ? $is_val->nilai : 'tidak_berlaku';
+      $is_val = $isian[$item->id] ?? NULL;
+      $nilai  = $is_val ? $is_val->nilai : 'tidak_berlaku';
     ?>
     <tr id="row-<?= $item->id ?>" class="<?= $nilai === 'tidak_sesuai' ? 'ck-row-masalah' : '' ?>">
-      <td class="text-muted text-sm mono"><?= $item->kode ?></td>
-      <td class="text-sm"><?= htmlspecialchars($item->uraian_item) ?>
+      <td class="text-muted text-xs mono fw-500" style="text-align:center"><?= $item->kode ?></td>
+      <td class="text-sm">
+        <?= htmlspecialchars($item->uraian_item) ?>
         <?php if ($item->jenis_penyaluran): ?>
         <span class="badge badge-abu" style="font-size:9px;margin-left:4px"><?= $item->jenis_penyaluran ?></span>
         <?php endif; ?>
       </td>
       <td>
-        <?php if ($this->rbac->can('reviu.input') && $r): ?>
-        <div style="display:flex;flex-direction:column;gap:3px">
-          <?php foreach (['sesuai'=>['hijau','Sesuai'],'tidak_sesuai'=>['merah','Tidak Sesuai'],'tidak_berlaku'=>['abu','N/A']] as $val=>[$cl,$lab]): ?>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px">
+        <?php if ($can_input && $r && !$confirmed): ?>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <?php foreach (['sesuai'=>['hijau','✓ Sesuai'],'tidak_sesuai'=>['merah','✗ Tidak Sesuai'],'tidak_berlaku'=>['abu','— N/A']] as $val=>[$cl,$lab]): ?>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid <?= $nilai===$val ? 'var(--'.$cl.'-mid,var(--'.$cl.'))' : 'transparent' ?>;background:<?= $nilai===$val ? 'var(--'.$cl.'-light)' : 'transparent' ?>">
             <input type="radio" name="nilai[<?= $item->id ?>]" value="<?= $val ?>"
               <?= $nilai===$val ? 'checked' : '' ?>
-              onchange="onNilaiChange(<?= $item->id ?>, '<?= $val ?>')">
-            <span class="badge badge-<?= $cl ?>" style="font-size:10px"><?= $lab ?></span>
+              onchange="onNilaiChange(<?= $item->id ?>, this)">
+            <span><?= $lab ?></span>
           </label>
           <?php endforeach; ?>
         </div>
         <?php else: ?>
-          <?php $cl_map = ['sesuai'=>'hijau','tidak_sesuai'=>'merah','tidak_berlaku'=>'abu'];
-                $lb_map = ['sesuai'=>'Sesuai','tidak_sesuai'=>'Tidak Sesuai','tidak_berlaku'=>'N/A']; ?>
-          <span class="badge badge-<?= $cl_map[$nilai] ?>"><?= $lb_map[$nilai] ?></span>
+          <?php $cl_map=['sesuai'=>'hijau','tidak_sesuai'=>'merah','tidak_berlaku'=>'abu'];
+                $lb_map=['sesuai'=>'✓ Sesuai','tidak_sesuai'=>'✗ Tidak Sesuai','tidak_berlaku'=>'— N/A']; ?>
+          <span class="badge badge-<?= $cl_map[$nilai] ?? 'abu' ?>" style="font-size:11px">
+            <?= $lb_map[$nilai] ?? '—' ?>
+          </span>
         <?php endif; ?>
       </td>
       <td>
-        <?php if ($this->rbac->can('reviu.input') && $r): ?>
+        <?php if ($can_input && $r && !$confirmed): ?>
         <input type="text" name="catatan[<?= $item->id ?>]"
+          id="catatan_<?= $item->id ?>"
           class="form-control fc-sm"
           value="<?= htmlspecialchars($is_val->catatan ?? '') ?>"
-          placeholder="Catatan (opsional)" maxlength="500">
+          placeholder="Catatan temuan..." maxlength="500">
         <?php else: ?>
-        <span class="text-sm text-muted"><?= htmlspecialchars($is_val->catatan ?? '—') ?></span>
+        <span class="text-sm <?= empty($is_val->catatan) ? 'text-muted' : '' ?>">
+          <?= $is_val && $is_val->catatan ? htmlspecialchars($is_val->catatan) : '—' ?>
+        </span>
         <?php endif; ?>
       </td>
     </tr>
     <?php endforeach; ?>
     </tbody>
   </table>
+  </div>
 
-  <?php if ($this->rbac->can('reviu.input') && $r): ?>
-  <div style="display:flex;justify-content:flex-end;margin-top:14px;gap:8px">
-    <button type="button" class="btn btn-outline btn-sm" onclick="isiSemua('sesuai')">
-      <i class="ti ti-checks"></i> Semua Sesuai
+  <!-- Data Reviewer — disimpan bersama checklist, tampil saat belum/sudah dikunci -->
+  <?php if ($can_input && $r): ?>
+  <div style="margin-top:14px;padding:12px;background:var(--biru-light);border-radius:var(--radius)">
+    <div class="text-xs text-muted fw-600 mb-2">
+      <i class="ti ti-user-check"></i> Data Reviewer / Pemeriksa
+    </div>
+    <div class="g3">
+      <div class="form-group mb-0">
+        <label>Nama Reviewer</label>
+        <?php if (!$confirmed): ?>
+        <input type="text" name="reviewer_nama" class="form-control fc fc-sm"
+               value="<?= htmlspecialchars($r->reviewer_nama ?? ($pejabat->nama ?? '')) ?>"
+               placeholder="Nama lengkap reviewer">
+        <?php else: ?>
+        <div class="fw-500 text-sm"><?= htmlspecialchars($r->reviewer_nama ?: '—') ?></div>
+        <?php endif; ?>
+      </div>
+      <div class="form-group mb-0">
+        <label>NIP</label>
+        <?php if (!$confirmed): ?>
+        <input type="text" name="reviewer_nip" class="form-control fc fc-sm mono"
+               value="<?= htmlspecialchars($r->reviewer_nip ?? ($pejabat->nip ?? '')) ?>"
+               placeholder="NIP reviewer">
+        <?php else: ?>
+        <div class="text-sm mono"><?= htmlspecialchars($r->reviewer_nip ?: '—') ?></div>
+        <?php endif; ?>
+      </div>
+      <div class="form-group mb-0">
+        <label>Jabatan</label>
+        <?php if (!$confirmed): ?>
+        <input type="text" name="reviewer_jabatan" class="form-control fc fc-sm"
+               value="<?= htmlspecialchars($r->reviewer_jabatan ?? 'Inspektur') ?>"
+               placeholder="Jabatan">
+        <?php else: ?>
+        <div class="text-sm"><?= htmlspecialchars($r->reviewer_jabatan ?: '—') ?></div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
+
+  <!-- Tombol aksi checklist (hanya saat belum terkunci) -->
+  <?php if ($can_input && $r && !$confirmed): ?>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;gap:8px">
+      <button type="button" class="btn btn-outline btn-sm" onclick="isiSemua('sesuai')">
+        <i class="ti ti-checks"></i> Semua Sesuai
+      </button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="simpanDraft()">
+        <i class="ti ti-device-floppy"></i> Simpan Draft
+      </button>
+    </div>
+    <button type="button" id="btnKunci" class="btn btn-primary btn-sm" onclick="konfirmasiKunci()"
+            <?= $semua_terisi ? '' : 'disabled title="Isi semua item checklist terlebih dahulu"' ?>>
+      <i class="ti ti-lock"></i> Selesai & Kunci Checklist
     </button>
-    <button type="submit" class="btn btn-primary btn-sm" id="btnSimpanCk">
-      <i class="ti ti-device-floppy"></i> Simpan Checklist
-    </button>
+  </div>
+  <div id="hintKunci" class="text-xs text-muted mt-1" style="text-align:right;<?= $semua_terisi ? 'display:none' : '' ?>">
+    Isi semua item checklist terlebih dahulu untuk mengunci.
   </div>
   <?php endif; ?>
 
   <?php endif; // end empty items ?>
 </div>
 
-<?php if ($this->rbac->can('reviu.input') && $r): ?>
+<?php if ($can_input && $r && !$confirmed): ?>
 <?= form_close() ?>
 <?php endif; ?>
 
-<!-- UPLOAD LHR + KEPUTUSAN -->
-<?php if ($this->rbac->can('reviu.input') && $r): ?>
-<div class="g2">
-  <!-- Upload LHR -->
-  <div class="card">
-    <div class="card-title"><i class="ti ti-file-certificate"></i> Laporan Hasil Reviu (LHR)</div>
-    <?php if ($r->no_lhr): ?>
-    <div style="padding:10px;background:var(--hijau-light);border-radius:var(--radius);margin-bottom:12px">
-      <div class="text-sm fw-500">LHR Sudah Terupload</div>
-      <div class="text-sm">No. LHR: <strong><?= htmlspecialchars($r->no_lhr) ?></strong></div>
-      <div class="text-sm">Tanggal: <?= tgl_indo($r->tgl_lhr) ?></div>
-      <?php if ($r->file_lhr_path): ?>
-      <a href="<?= base_url($r->file_lhr_path) ?>" target="_blank" class="btn btn-outline btn-xs mt-1">
-        <i class="ti ti-download"></i> Download LHR
-      </a>
+<!-- ══════════════════════════════════════════════════════════
+     BLOK 4A: KEMBALIKAN KE OPD (muncul jika ada item tidak sesuai)
+     ══════════════════════════════════════════════════════════ -->
+<?php if ($r && $confirmed && !$keputusan && $ada_tidak_sesuai): ?>
+<div class="card mb-2" style="border-left:4px solid var(--kuning-mid)">
+  <div class="card-title"><i class="ti ti-arrow-back-up"></i> Kembalikan ke OPD Teknis</div>
+  <div class="alert alert-warning mb-2" style="font-size:12px">
+    <i class="ti ti-alert-triangle"></i>
+    <div>Ada <strong><?= $stat['tidak_sesuai'] ?></strong> item checklist ditandai
+    <strong>Tidak Sesuai</strong>. Isi catatan di bawah dan kembalikan ke OPD untuk diperbaiki.</div>
+  </div>
+  <?= form_open(site_url('reviu/putuskan/'.$r->id)) ?>
+  <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
+  <?= form_hidden('hasil_reviu', 'perlu_perbaikan') ?>
+  <div class="form-group mb-3">
+    <label>Catatan untuk OPD Teknis <span class="req">*</span></label>
+    <textarea name="catatan" class="form-control" rows="4" required
+      placeholder="Uraikan temuan dan bagian yang perlu diperbaiki OPD secara spesifik..."><?= htmlspecialchars($r->catatan ?? '') ?></textarea>
+    <div class="form-hint">Catatan ini akan diterima OPD Teknis saat memperbaiki data.</div>
+  </div>
+  <button type="submit" class="btn btn-outline" style="border-color:var(--kuning-mid);color:var(--kuning-mid)"
+          onclick="return confirm('Kembalikan pekerjaan ini ke OPD Teknis?\n\nOPD akan menerima notifikasi.')">
+    <i class="ti ti-arrow-back-up"></i> Kembalikan ke OPD
+  </button>
+  <?= form_close() ?>
+</div>
+<?php endif; ?>
+
+<!-- ══════════════════════════════════════════════════════════
+     BLOK 4B: CETAK + LHR + APPROVE (hanya jika semua sesuai)
+     ══════════════════════════════════════════════════════════ -->
+<?php if ($r && $confirmed && !$keputusan && $semua_sesuai): ?>
+<div class="g2 mb-2">
+
+  <!-- Panel Print Kertas Kerja -->
+  <div class="card" style="border-left:4px solid var(--biru)">
+    <div class="card-title"><i class="ti ti-printer"></i> Kertas Kerja Reviu</div>
+    <p class="text-sm text-muted mb-3">
+      Cetak kertas kerja checklist untuk ditandatangani oleh reviewer.
+      Masukkan data reviewer sebelum mencetak.
+    </p>
+    <!-- Pre-fill dari data tersimpan di DB, fallback ke data pejabat -->
+    <div class="form-group mb-2">
+      <label>Nama Reviewer</label>
+      <input type="text" id="rvNama" class="form-control" placeholder="Nama lengkap reviewer"
+             value="<?= htmlspecialchars($r->reviewer_nama ?? ($pejabat->nama ?? '')) ?>">
+    </div>
+    <div class="form-group mb-2">
+      <label>NIP</label>
+      <input type="text" id="rvNip" class="form-control mono" placeholder="NIP reviewer"
+             value="<?= htmlspecialchars($r->reviewer_nip ?? ($pejabat->nip ?? '')) ?>">
+    </div>
+    <div class="form-group mb-3">
+      <label>Jabatan</label>
+      <input type="text" id="rvJabatan" class="form-control" placeholder="Jabatan reviewer"
+             value="<?= htmlspecialchars($r->reviewer_jabatan ?? 'Inspektur') ?>">
+    </div>
+    <button type="button" class="btn btn-primary" onclick="cetakKertasKerja()">
+      <i class="ti ti-printer"></i> Cetak Kertas Kerja
+    </button>
+    <div class="text-xs text-muted mt-2">
+      <i class="ti ti-info-circle"></i>
+      Setelah dicetak dan ditandatangani, scan dan upload sebagai bagian dari LHR.
+    </div>
+  </div>
+
+  <!-- Panel Upload LHR -->
+  <div class="card" style="border-left:4px solid <?= $lhr_done ? 'var(--hijau-mid)' : 'var(--kuning-mid)' ?>">
+    <div class="card-title">
+      <i class="ti ti-file-certificate"></i> Laporan Hasil Reviu (LHR)
+      <?php if ($lhr_done): ?>
+      <span class="badge badge-hijau" style="margin-left:auto">Terupload</span>
+      <?php else: ?>
+      <span class="badge badge-kuning" style="margin-left:auto">Belum Upload</span>
       <?php endif; ?>
     </div>
-    <p class="text-xs text-muted mb-2">Update LHR jika ada perubahan:</p>
+
+    <?php if ($lhr_done): ?>
+    <div style="padding:10px;background:var(--hijau-light);border-radius:var(--radius);margin-bottom:12px">
+      <div class="text-sm fw-500"><i class="ti ti-circle-check" style="color:var(--hijau-mid)"></i> LHR Sudah Terupload</div>
+      <div class="text-sm mt-1">No. LHR: <strong><?= htmlspecialchars($r->no_lhr) ?></strong></div>
+      <div class="text-sm">Tanggal: <?= tgl_indo($r->tgl_lhr) ?></div>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <a href="<?= site_url('berkas/unduh/lhr/'.$r->id) ?>" target="_blank" class="btn btn-outline btn-xs">
+          <i class="ti ti-eye"></i> Lihat File LHR
+        </a>
+      </div>
+    </div>
+    <p class="text-xs text-muted mb-2">Upload ulang jika ada koreksi:</p>
     <?php endif; ?>
 
     <?= form_open_multipart(site_url('reviu/upload-lhr/'.$r->id)) ?>
     <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
-
     <div class="form-group mb-2">
       <label>No. LHR <span class="req">*</span></label>
       <input type="text" name="no_lhr" class="form-control"
@@ -219,137 +587,264 @@
       <input type="date" name="tgl_lhr" class="form-control"
         value="<?= $r->tgl_lhr ?? date('Y-m-d') ?>">
     </div>
-    <?php if ($pejabat): ?>
-    <div class="form-group mb-2">
-      <label>Penandatangan (Inspektur)</label>
-      <select name="ref_inspektur_id" class="form-control">
-        <option value="">— Pilih atau ketik manual —</option>
-        <option value="<?= $pejabat->id ?>"
-          <?= ($r->ref_inspektur_id == $pejabat->id) ? 'selected' : '' ?>>
-          <?= htmlspecialchars($pejabat->nama) ?> — <?= htmlspecialchars($pejabat->jabatan ?? 'Inspektur') ?>
-        </option>
-      </select>
+    <div class="form-group mb-3">
+      <label>File LHR (PDF) <span class="req">*</span></label>
+      <input type="file" name="file_lhr" class="form-control"
+             accept=".pdf,.doc,.docx" <?= $lhr_done ? '' : 'required' ?>>
+      <div class="form-hint">Format PDF/DOC, maks 10 MB.<?= $lhr_done ? ' Kosongkan jika tidak ingin mengganti file.' : '' ?></div>
     </div>
-    <?php endif; ?>
-    <div class="form-group mb-2">
-      <label>File LHR <span class="text-xs text-muted">(PDF/DOC, maks 10 MB)</span></label>
-      <input type="file" name="file_lhr" class="form-control" accept=".pdf,.doc,.docx">
-      <?php if ($r->file_lhr_path): ?>
-      <div class="form-hint">File sebelumnya akan diganti jika upload baru.</div>
-      <?php endif; ?>
-    </div>
-    <button type="submit" class="btn btn-primary btn-sm">
-      <i class="ti ti-upload"></i> <?= $r->no_lhr ? 'Update LHR' : 'Upload LHR' ?>
+    <button type="submit" class="btn btn-primary">
+      <i class="ti ti-upload"></i> <?= $lhr_done ? 'Update LHR' : 'Upload LHR' ?>
     </button>
     <?= form_close() ?>
-  </div>
-
-  <!-- Keputusan Reviu -->
-  <div class="card">
-    <div class="card-title"><i class="ti ti-gavel"></i> Keputusan Reviu</div>
-
-    <?php if ($r->hasil_reviu): ?>
-    <?php $hmap = ['disetujui'=>['hijau','Disetujui'],'perlu_perbaikan'=>['kuning','Perlu Perbaikan'],'ditolak'=>['merah','Ditolak']]; $h=$hmap[$r->hasil_reviu]; ?>
-    <div style="padding:12px;background:var(--<?= $h[0] ?>-light);border-radius:var(--radius);margin-bottom:12px">
-      <div class="fw-500">Keputusan: <span class="badge badge-<?= $h[0] ?>"><?= $h[1] ?></span></div>
-      <div class="text-sm mt-1"><?= htmlspecialchars($r->catatan ?: '—') ?></div>
-      <?php if ($r->tgl_reviu_selesai): ?>
-      <div class="text-xs text-muted mt-1">Tanggal: <?= tgl_indo($r->tgl_reviu_selesai) ?></div>
-      <?php endif; ?>
-    </div>
-    <p class="text-xs text-muted mb-2">Ubah keputusan jika diperlukan:</p>
-    <?php endif; ?>
-
-    <?php if ($stat['tidak_sesuai'] > 0): ?>
-    <div class="alert alert-warning mb-2" style="font-size:12px">
-      <i class="ti ti-alert-triangle"></i>
-      <div>Ada <strong><?= $stat['tidak_sesuai'] ?></strong> item checklist yang ditandai <strong>Tidak Sesuai</strong>. Pertimbangkan kembali sebelum menyetujui.</div>
-    </div>
-    <?php endif; ?>
-
-    <?php if (!$r->no_lhr): ?>
-    <div class="alert alert-info mb-2" style="font-size:12px">
-      <i class="ti ti-info-circle"></i>
-      <div>Upload Nomor LHR terlebih dahulu sebelum menyetujui reviu.</div>
-    </div>
-    <?php endif; ?>
-
-    <?= form_open(site_url('reviu/putuskan/'.$r->id)) ?>
-    <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
-    <div class="form-group mb-2">
-      <label>Hasil Reviu <span class="req">*</span></label>
-      <select name="hasil_reviu" class="form-control" required>
-        <option value="">— Pilih keputusan —</option>
-        <option value="disetujui"       <?= ($r->hasil_reviu==='disetujui')?'selected':'' ?>>✅ Disetujui</option>
-        <option value="perlu_perbaikan" <?= ($r->hasil_reviu==='perlu_perbaikan')?'selected':'' ?>>⚠️ Perlu Perbaikan (kembalikan ke OPD)</option>
-        <option value="ditolak"         <?= ($r->hasil_reviu==='ditolak')?'selected':'' ?>>❌ Ditolak</option>
-      </select>
-    </div>
-    <div class="form-group mb-2">
-      <label>Catatan <span class="text-xs text-muted">(wajib jika Perlu Perbaikan/Ditolak)</span></label>
-      <textarea name="catatan" class="form-control" rows="3"
-        placeholder="Uraikan temuan atau alasan keputusan..."><?= htmlspecialchars($r->catatan ?? '') ?></textarea>
-    </div>
-    <button type="submit" class="btn btn-primary"
-      onclick="return confirm('Yakin dengan keputusan reviu ini? Tindakan ini akan mengubah status pekerjaan dan mengirim notifikasi.')">
-      <i class="ti ti-gavel"></i> Simpan Keputusan
-    </button>
-    <?= form_close() ?>
-  </div>
-</div>
-
-<!-- Dokumen Pendukung -->
-<?php if (!empty($dokumen)): ?>
-<div class="card mt-2">
-  <div class="card-title"><i class="ti ti-files"></i> Dokumen Pendukung yang Diupload OPD</div>
-  <div style="display:flex;flex-wrap:wrap;gap:8px">
-    <?php foreach ($dokumen as $d): ?>
-    <a href="<?= base_url($d->file_path) ?>" target="_blank"
-       style="display:flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;text-decoration:none;color:var(--text)">
-      <i class="ti <?= icon_file($d->file_path) ?>" style="color:var(--biru);font-size:16px"></i>
-      <div>
-        <div class="fw-500"><?= label_jenis_dok($d->jenis_dokumen) ?></div>
-        <div class="text-xs text-muted"><?= $d->ukuran_kb ?> KB</div>
-      </div>
-    </a>
-    <?php endforeach; ?>
   </div>
 </div>
 <?php endif; ?>
-<?php endif; // end can reviu.input ?>
 
-<style>
-.ck-row-masalah td { background: #fff8f8; }
-</style>
+<!-- ══════════════════════════════════════════════════════════
+     BLOK 5: KEPUTUSAN (muncul setelah LHR diupload)
+     ══════════════════════════════════════════════════════════ -->
+<?php if ($r && $lhr_done && !$keputusan && $can_approve): ?>
+<div class="g2 mb-2">
+
+  <!-- Setujui → Kirim ke SKPKD -->
+  <div class="card" style="border-left:4px solid var(--hijau-mid)">
+    <div class="card-title"><i class="ti ti-send"></i> Setujui & Kirim ke SKPKD Kab/Kota</div>
+    <?php if ($ada_tidak_sesuai): ?>
+    <div class="alert alert-warning mb-2" style="font-size:12px">
+      <i class="ti ti-alert-triangle"></i>
+      <div>Ada <strong><?= $stat['tidak_sesuai'] ?></strong> item checklist ditandai <strong>Tidak Sesuai</strong>.
+      Pastikan sudah didiskusikan sebelum menyetujui.</div>
+    </div>
+    <?php endif; ?>
+    <p class="text-sm text-muted mb-3">
+      Reviu dinyatakan selesai dan data pekerjaan diteruskan ke SKPKD Kab/Kota
+      untuk verifikasi dan permohonan pencairan dana.
+    </p>
+    <?= form_open(site_url('reviu/putuskan/'.$r->id)) ?>
+    <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
+    <?= form_hidden('hasil_reviu', 'disetujui') ?>
+    <div class="form-group mb-3">
+      <label>Catatan Penutup <span class="text-muted text-xs">(opsional)</span></label>
+      <textarea name="catatan" class="form-control" rows="2"
+        placeholder="Catatan singkat hasil reviu..."></textarea>
+    </div>
+    <button type="submit" class="btn btn-success"
+            onclick="return confirm('Setujui reviu dan kirim ke SKPKD Kab/Kota?\n\nTindakan ini tidak dapat dibatalkan.')">
+      <i class="ti ti-circle-check"></i> Setujui — Kirim ke SKPKD
+    </button>
+    <?= form_close() ?>
+  </div>
+
+</div>
+<?php endif; ?>
+
+<!-- ══════════════════════════════════════════════════════════
+     BLOK 6: HASIL KEPUTUSAN (setelah putuskan)
+     ══════════════════════════════════════════════════════════ -->
+<?php if ($keputusan): ?>
+<?php
+$hmap = [
+    'disetujui'       => ['hijau', 'Disetujui', 'ti-circle-check',    'Data diteruskan ke SKPKD Kab/Kota untuk verifikasi.'],
+    'perlu_perbaikan' => ['kuning','Perlu Perbaikan','ti-arrow-back-up','Data dikembalikan ke OPD Teknis untuk diperbaiki.'],
+    'ditolak'         => ['merah', 'Ditolak',    'ti-circle-x',        'Pekerjaan ini ditolak oleh Inspektorat.'],
+];
+$h = $hmap[$keputusan] ?? ['abu','—','ti-question-mark',''];
+?>
+<div class="card mb-2" style="border-left:4px solid var(--<?= $h[0] ?>-mid,var(--<?= $h[0] ?>))">
+  <div class="card-title">
+    <i class="ti <?= $h[2] ?>" style="color:var(--<?= $h[0] ?>-mid,var(--<?= $h[0] ?>))"></i>
+    Keputusan Reviu: <?= $h[1] ?>
+  </div>
+  <div class="g3">
+    <div>
+      <div class="text-xs text-muted">Hasil</div>
+      <span class="badge badge-<?= $h[0] ?>" style="font-size:12px;padding:4px 12px"><?= $h[1] ?></span>
+    </div>
+    <div>
+      <div class="text-xs text-muted">Tanggal Keputusan</div>
+      <div class="fw-500"><?= tgl_indo($r->tgl_reviu_selesai) ?></div>
+    </div>
+    <div>
+      <div class="text-xs text-muted">No. LHR</div>
+      <div class="mono fw-500"><?= htmlspecialchars($r->no_lhr ?: '—') ?></div>
+    </div>
+  </div>
+  <?php if ($r->catatan): ?>
+  <div style="margin-top:12px;padding:12px;background:var(--<?= $h[0] ?>-light);border-radius:var(--radius)">
+    <div class="text-xs text-muted fw-600 mb-1">Catatan Inspektorat:</div>
+    <div class="text-sm" style="white-space:pre-line"><?= htmlspecialchars($r->catatan) ?></div>
+  </div>
+  <?php endif; ?>
+  <div class="mt-2" style="display:flex;gap:8px">
+    <?php if ($r->file_lhr_path): ?>
+    <a href="<?= site_url('berkas/unduh/lhr/'.$r->id) ?>" target="_blank" class="btn btn-outline btn-sm">
+      <i class="ti ti-download"></i> Download LHR
+    </a>
+    <?php endif; ?>
+    <a href="<?= site_url('reviu/cetak-rekap/'.$r->id) ?>" target="_blank" class="btn btn-outline btn-sm">
+      <i class="ti ti-report"></i> Cetak Rekap Reviu
+    </a>
+  </div>
+  <div class="text-xs text-muted mt-1"><?= $h[3] ?></div>
+</div>
+<?php endif; ?>
+
+<!-- ══ MODAL KONFIRMASI KUNCI CHECKLIST ══════════════════════ -->
+<div id="modalKunci" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);
+     z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:28px;width:480px;max-width:95vw;text-align:center">
+    <div style="font-size:48px;margin-bottom:8px">🔒</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:8px">Kunci Checklist?</div>
+    <p class="text-muted text-sm" style="margin-bottom:20px">
+      Setelah dikunci, <strong>isian checklist tidak dapat diubah lagi</strong>.<br>
+      Pastikan semua item sudah diperiksa dan diisi dengan benar.
+    </p>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button type="button" onclick="document.getElementById('modalKunci').style.display='none'"
+              class="btn btn-outline">Batal — Periksa Lagi</button>
+      <button type="button" onclick="eksekusiKunci()" class="btn btn-primary">
+        <i class="ti ti-lock"></i> Ya, Kunci Checklist
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
-function onNilaiChange(itemId, nilai) {
-  const row = document.getElementById('row-' + itemId);
+/* ── Toggle Data Pekerjaan ── */
+function toggleDataPekerjaan() {
+  var el   = document.getElementById('dataPekerjaan');
+  var chv  = document.getElementById('dp-chevron');
+  var hint = document.getElementById('dp-hint');
+  var open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  chv.className    = open ? 'ti ti-chevron-down' : 'ti ti-chevron-up';
+  chv.style.marginLeft = 'auto';
+  hint.textContent = open ? 'Klik untuk lihat detail' : '';
+}
+
+/* ── Cetak Kertas Kerja (buka tab baru dengan param reviewer) ── */
+function cetakKertasKerja() {
+  var nama    = encodeURIComponent(document.getElementById('rvNama').value.trim());
+  var nip     = encodeURIComponent(document.getElementById('rvNip').value.trim());
+  var jabatan = encodeURIComponent(document.getElementById('rvJabatan').value.trim());
+  if (!nama) { alert('Isi Nama Reviewer terlebih dahulu.'); return; }
+  var url = '<?= site_url('reviu/cetak-kertas-kerja/'.$r->id) ?>?nama='+nama+'&nip='+nip+'&jabatan='+jabatan;
+  window.open(url, '_blank');
+}
+
+/* ── Checklist interactions ── */
+function onNilaiChange(itemId, radioEl) {
+  var row   = document.getElementById('row-' + itemId);
+  var nilai = radioEl.value;
   row.classList.toggle('ck-row-masalah', nilai === 'tidak_sesuai');
-  // Auto-save via AJAX setiap perubahan (opsional)
+
+  // Highlight label terpilih
+  var labels = row.querySelectorAll('label');
+  labels.forEach(function(lbl) {
+    var inp = lbl.querySelector('input[type="radio"]');
+    var cls = inp.value === 'sesuai' ? 'var(--hijau-mid)' : inp.value === 'tidak_sesuai' ? 'var(--merah-mid)' : 'var(--abu)';
+    var bg  = inp.value === 'sesuai' ? 'var(--hijau-light)' : inp.value === 'tidak_sesuai' ? 'var(--merah-light)' : 'var(--abu-light)';
+    if (inp.checked) {
+      lbl.style.borderColor  = cls;
+      lbl.style.background   = bg;
+    } else {
+      lbl.style.borderColor  = 'transparent';
+      lbl.style.background   = 'transparent';
+    }
+  });
+
+  // Tandai catatan wajib jika tidak_sesuai
+  var catInput = document.getElementById('catatan_' + itemId);
+  if (catInput) {
+    catInput.style.borderColor = (nilai === 'tidak_sesuai') ? 'var(--kuning-mid)' : '';
+    catInput.placeholder = (nilai === 'tidak_sesuai')
+      ? 'Wajib isi catatan temuan...' : 'Catatan temuan...';
+  }
+
+  updateProgressBar();
 }
 
 function isiSemua(nilai) {
-  document.querySelectorAll('input[type="radio"][value="' + nilai + '"]').forEach(r => {
+  document.querySelectorAll('input[type="radio"][value="' + nilai + '"]').forEach(function(r) {
     r.checked = true;
-    onNilaiChange(r.name.match(/\d+/)[0], nilai);
+    onNilaiChange(r.name.match(/\d+/)[0], r);
   });
 }
 
-// Simpan checklist otomatis saat berpindah halaman
+function updateProgressBar() {
+  var total        = <?= $total_item ?>;
+  if (!total) return;
+  var rows         = document.querySelectorAll('#tblChecklist tbody tr');
+  var filled       = 0, sesuai = 0, tidakSesuai = 0, tidakBerlaku = 0;
+  rows.forEach(function(row) {
+    var checked = row.querySelector('input[type="radio"]:checked');
+    if (!checked) return;
+    filled++;
+    if (checked.value === 'sesuai')         sesuai++;
+    else if (checked.value === 'tidak_sesuai') tidakSesuai++;
+    else if (checked.value === 'tidak_berlaku') tidakBerlaku++;
+  });
+
+  var countable = sesuai + tidakSesuai;
+  var pct       = Math.round(countable / total * 100);
+  var warna     = (pct >= 100) ? 'var(--hijau-mid)' : 'var(--biru)';
+
+  var el;
+  if ((el = document.getElementById('progressText')))
+    el.textContent = countable + ' / ' + total + ' diisi · ' + pct + '%';
+  if ((el = document.getElementById('progressFill'))) {
+    el.style.width      = pct + '%';
+    el.style.background = warna;
+  }
+  if ((el = document.getElementById('statSesuai')))       el.textContent = sesuai;
+  if ((el = document.getElementById('statTidakSesuai')))  el.textContent = tidakSesuai;
+  if ((el = document.getElementById('statTidakBerlaku'))) el.textContent = tidakBerlaku;
+
+  var btn = document.getElementById('btnKunci');
+  if (btn) {
+    var semua = (filled >= total);
+    btn.disabled = !semua;
+    btn.title    = semua ? '' : 'Isi semua item checklist terlebih dahulu';
+  }
+  var hint = document.getElementById('hintKunci');
+  if (hint) hint.style.display = (filled >= total) ? 'none' : '';
+}
+
+function simpanDraft() {
+  document.getElementById('hiddenAction').value = 'save';
+  document.getElementById('formChecklist').submit();
+}
+
+function konfirmasiKunci() {
+  document.getElementById('modalKunci').style.display = 'flex';
+}
+
+function eksekusiKunci() {
+  document.getElementById('hiddenAction').value = 'confirm';
+  document.getElementById('formChecklist').dataset.dirty = 'false';
+  document.getElementById('formChecklist').submit();
+}
+
+/* ── Dirty state guard ── */
 window.addEventListener('beforeunload', function(e) {
-  const form = document.getElementById('formChecklist');
+  var form = document.getElementById('formChecklist');
   if (form && form.dataset.dirty === 'true') {
-    e.preventDefault();
-    e.returnValue = '';
+    e.preventDefault(); e.returnValue = '';
   }
 });
-document.querySelectorAll('#formChecklist input, #formChecklist textarea').forEach(el => {
-  el.addEventListener('change', () => {
-    const form = document.getElementById('formChecklist');
-    if (form) form.dataset.dirty = 'true';
+document.addEventListener('DOMContentLoaded', function() {
+  var form = document.getElementById('formChecklist');
+  if (!form) return;
+  form.querySelectorAll('input, textarea').forEach(function(el) {
+    el.addEventListener('change', function() { form.dataset.dirty = 'true'; });
+  });
+  form.addEventListener('submit', function() { form.dataset.dirty = 'false'; });
+
+  // Init warna label yang sudah terisi
+  form.querySelectorAll('input[type="radio"]:checked').forEach(function(r) {
+    onNilaiChange(r.name.match(/\d+/)[0], r);
   });
 });
-document.getElementById('formChecklist')?.addEventListener('submit', function() {
-  this.dataset.dirty = 'false';
-});
 </script>
+

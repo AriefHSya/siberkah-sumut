@@ -1,5 +1,5 @@
 <?php
-define('ENVIRONMENT', isset($_SERVER['CI_ENV']) ? $_SERVER['CI_ENV'] : 'development');
+define('ENVIRONMENT', isset($_SERVER['CI_ENV']) ? $_SERVER['CI_ENV'] : (getenv('APP_ENV') ?: 'development'));
 switch (ENVIRONMENT) {
     case 'development': error_reporting(E_ALL & ~E_DEPRECATED); ini_set('display_errors', 1); break;
     case 'production':  ini_set('display_errors', 0); error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_STRICT); break;
@@ -21,4 +21,5 @@ if (is_dir($application_folder)) {
     define('APPPATH', BASEPATH.$application_folder.DIRECTORY_SEPARATOR);
 }
 define('VIEWPATH', APPPATH.'views'.DIRECTORY_SEPARATOR);
+date_default_timezone_set('Asia/Jakarta');
 require_once BASEPATH.'core/CodeIgniter.php';

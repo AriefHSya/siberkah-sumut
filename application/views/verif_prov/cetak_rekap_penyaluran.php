@@ -16,6 +16,12 @@ h2{font-size:11pt;text-align:center;text-transform:uppercase;margin:10px 0 8px;f
 .tbl .right{text-align:right}
 .tbl .center{text-align:center}
 .tbl .total{background:#f5f5f5;font-weight:bold}
+.tbl-rincian{width:100%;border-collapse:collapse;font-size:8.5pt;margin:2px 0 6px}
+.tbl-rincian th,.tbl-rincian td{border:1px solid #999;padding:3px 6px;text-align:left}
+.tbl-rincian th{background:#f0f0f0;font-weight:bold;text-align:center}
+.tbl-rincian .right{text-align:right}
+.tbl-rincian .total{background:#f5f5f5;font-weight:bold}
+.rincian-label{font-size:8.5pt;font-weight:bold;color:#444;margin-bottom:2px}
 .summary-box{display:flex;gap:20px;margin:12px 0;justify-content:center}
 .sum-item{padding:8px 16px;border:1px solid #000;text-align:center;min-width:130px}
 .sum-item strong{display:block;font-size:14pt}
@@ -76,17 +82,23 @@ TAHUN ANGGARAN <?= $tahun ?></h2>
 </div>
 
 <!-- Tabel SP2D -->
+<?php
+function _label_jenis_sp2d($jenis, $kode) {
+    if ($jenis === 'bertahap') return 'Bertahap ' . ($kode === 'tahap_1' ? 'Tahap I' : 'Tahap II');
+    $m = ['sekaligus'=>'Sekaligus','khusus_mendesak'=>'Khusus Mendesak','khusus_bencana'=>'Khusus Bencana'];
+    return isset($m[$jenis]) ? $m[$jenis] : ucfirst(str_replace('_',' ',$jenis));
+}
+?>
 <table class="tbl">
   <thead>
     <tr>
       <th style="width:30px">No.</th>
+      <th>No. Permohonan</th>
       <th>Kab/Kota</th>
-      <th>Kode BKP</th>
-      <th>Nama Kegiatan</th>
-      <th>Tahapan</th>
-      <th>Jenis</th>
+      <th>Jenis Penyaluran</th>
       <th>No. SP2D</th>
       <th>Tgl SP2D</th>
+      <th class="center" style="width:60px">Jml Keg.</th>
       <th class="right">Nilai Transfer (Rp)</th>
       <th>Status</th>
     </tr>
@@ -95,7 +107,6 @@ TAHUN ANGGARAN <?= $tahun ?></h2>
   <?php
   $no = 1;
   $grand_total = 0;
-  $kab_saat_ini = '';
 
   if (!empty($daftar_sp2d)):
     foreach ($daftar_sp2d as $row):
@@ -103,26 +114,65 @@ TAHUN ANGGARAN <?= $tahun ?></h2>
   ?>
   <tr>
     <td class="center"><?= $no++ ?></td>
+    <td style="font-size:9pt"><?= htmlspecialchars($row->no_permohonan) ?></td>
     <td><?= htmlspecialchars($row->nama_kabkota) ?></td>
-    <td class="mono" style="font-size:9pt"><?= htmlspecialchars($row->kode_bkp) ?></td>
-    <td style="font-size:9pt"><?= htmlspecialchars($row->nama_kegiatan_dok ?: $row->uraian_bkp) ?></td>
-    <td class="center" style="font-size:9pt"><?= htmlspecialchars($row->label_tahap) ?></td>
-    <td class="center" style="font-size:9pt"><?= ucfirst(str_replace('_',' ',$row->jenis_penyaluran)) ?></td>
-    <td class="mono" style="font-size:9pt"><?= htmlspecialchars($row->no_sp2d) ?></td>
+    <td class="center" style="font-size:9pt"><?= _label_jenis_sp2d($row->jenis_penyaluran, $row->kode_tahap) ?></td>
+    <td style="font-size:9pt"><?= htmlspecialchars($row->no_sp2d) ?></td>
     <td class="center" style="font-size:9pt"><?= tgl_short($row->tgl_sp2d) ?></td>
+    <td class="center"><?= (int)($row->jumlah_item ?? 0) ?></td>
     <td class="right"><?= number_format($row->nilai_transfer, 0, ',', '.') ?></td>
-    <td class="center" style="font-size:9pt">
-      <?= strtoupper($row->status_transfer) ?>
+    <td class="center" style="font-size:9pt"><?= strtoupper($row->status_transfer) ?></td>
+  </tr>
+  <?php if (!empty($row->items)): ?>
+  <tr>
+    <td></td>
+    <td colspan="8" style="padding:6px 8px 8px">
+      <div class="rincian-label">Rincian Kegiatan:</div>
+      <table class="tbl-rincian">
+        <thead>
+          <tr>
+            <th style="width:25px">No.</th>
+            <th>Kode BKP</th>
+            <th>Uraian Kegiatan</th>
+            <th class="right" style="width:140px">Nilai Diajukan (Rp)</th>
+            <th class="right" style="width:140px">Nilai Pendukung (Rp)</th>
+          </tr>
+        </thead>
+        <tbody>
+        <?php
+        $sub_no = 1;
+        $sub_total_diajukan  = 0;
+        $sub_total_pendukung = 0;
+        foreach ($row->items as $item):
+          $sub_total_diajukan  += $item->nilai_diajukan;
+          $sub_total_pendukung += $item->nilai_belanja_pendukung;
+        ?>
+        <tr>
+          <td class="center"><?= $sub_no++ ?></td>
+          <td><?= htmlspecialchars($item->kode_bkp) ?></td>
+          <td><?= htmlspecialchars($item->uraian_bkp) ?></td>
+          <td class="right"><?= number_format($item->nilai_diajukan, 0, ',', '.') ?></td>
+          <td class="right"><?= $item->nilai_belanja_pendukung ? number_format($item->nilai_belanja_pendukung, 0, ',', '.') : '-' ?></td>
+        </tr>
+        <?php endforeach; ?>
+        <tr class="total">
+          <td colspan="3" class="right">Sub Total</td>
+          <td class="right"><?= number_format($sub_total_diajukan, 0, ',', '.') ?></td>
+          <td class="right"><?= $sub_total_pendukung ? number_format($sub_total_pendukung, 0, ',', '.') : '-' ?></td>
+        </tr>
+        </tbody>
+      </table>
     </td>
   </tr>
+  <?php endif; ?>
   <?php endforeach; ?>
   <tr class="total">
-    <td colspan="8" class="right">TOTAL (<?= count($daftar_sp2d) ?> SP2D)</td>
+    <td colspan="7" class="right">TOTAL (<?= count($daftar_sp2d) ?> SP2D)</td>
     <td class="right"><?= number_format($grand_total, 0, ',', '.') ?></td>
     <td></td>
   </tr>
   <?php else: ?>
-  <tr><td colspan="10" class="center" style="padding:20px;color:#888">Belum ada data penyaluran.</td></tr>
+  <tr><td colspan="9" class="center" style="padding:20px;color:#888">Belum ada data penyaluran.</td></tr>
   <?php endif; ?>
   </tbody>
 </table>
@@ -137,8 +187,7 @@ TAHUN ANGGARAN <?= $tahun ?></h2>
 </div>
 
 <div class="footer">
-  SIBERKAH SUMUT · Sistem Informasi Bantuan Keuangan Daerah · Prov. Sumatera Utara ·
-  Berdasarkan SE Gubernur No. 900.1.1.3689 · <?= $tgl_cetak ?>
+  SIBERKAH SUMUT · Sistem Informasi Bantuan Keuangan Daerah · Prov. Sumatera Utara
 </div>
 </body>
 </html>

@@ -2,8 +2,28 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Pekerjaan Controller — Sprint 2
- * Handles: daftar, input, edit, detail, upload dok, submit ke Inspektorat
+ * Pekerjaan.php — Controller Manajemen Pekerjaan BKP
+ *
+ * Menangani seluruh siklus data pekerjaan dari input OPD Teknis
+ * hingga submit ke Inspektorat untuk reviu.
+ *
+ * ROUTES (lihat config/routes.php untuk mapping lengkap):
+ *   GET  /pekerjaan                    → index()           — daftar pekerjaan (paginated + filter)
+ *   GET  /pekerjaan/input              → input()           — form tambah pekerjaan baru
+ *   POST /pekerjaan/simpan             → simpan()          — proses simpan pekerjaan baru
+ *   GET  /pekerjaan/edit/{id}          → edit()            — form edit pekerjaan
+ *   POST /pekerjaan/update/{id}        → update()          — proses update
+ *   GET  /pekerjaan/detail/{id}        → detail()          — detail + timeline status
+ *   POST /pekerjaan/submit/{id}        → submit()          — kirim ke Inspektorat
+ *   POST /pekerjaan/upload-dok         → upload_dok()      — upload dokumen persyaratan
+ *   POST /pekerjaan/hapus-dok          → hapus_dok()       — hapus dokumen
+ *   GET  /pekerjaan/cetak/{id}         → cetak_permohonan() — cetak PDF permohonan
+ *
+ * AKSES:
+ *   - Semua method memerlukan permission 'pekerjaan.view'
+ *   - input/simpan memerlukan 'pekerjaan.input'
+ *   - submit memerlukan 'pekerjaan.submit'
+ *   - Role kabkota hanya bisa melihat pekerjaan kabkota mereka sendiri (guard IDOR)
  */
 class Pekerjaan extends Auth_Controller
 {
@@ -83,14 +103,14 @@ class Pekerjaan extends Auth_Controller
             ->where(['b.tahun'=>$tahun,'b.is_active'=>1,'b.kabkota_id'=>$kabkota_id])
             ->order_by('b.kode_bkp','ASC')->get()->result();
 
-        // Dokumen perda/perkada untuk dropdown
+        // Dokumen perda/perkada untuk dropdown (jenis sesuai pemda.php)
         $dokumen_perda = $this->db
             ->where(['kabkota_id'=>$kabkota_id,'tahun'=>$tahun])
-            ->where_in('jenis',['perda_apbd','perda_apbd_p'])
+            ->where_in('jenis',['perda_apbd','perda_p_apbd'])
             ->get('ref_pemda_dokumen')->result();
         $dokumen_perkada = $this->db
             ->where(['kabkota_id'=>$kabkota_id,'tahun'=>$tahun])
-            ->where_in('jenis',['perkada_bkp','pergub_bkp'])
+            ->where_in('jenis',['perkada_apbd','perkada_pergeseran','perkada_p_apbd'])
             ->get('ref_pemda_dokumen')->result();
 
         // Batas waktu TA ini (untuk info di form)
@@ -129,16 +149,35 @@ class Pekerjaan extends Auth_Controller
         $nilai_pendukung = (int) str_replace(['.','Rp',' ',','], '', $this->input->post('nilai_belanja_pendukung'));
         $jenis = $this->input->post('jenis_penyaluran', TRUE);
 
-        // Validasi: bertahap wajib nilai_kontrak > 200jt
-        if ($jenis === 'bertahap' && $nilai_kontrak <= 200000000) {
-            $this->session->set_flashdata('error', 'Jenis Bertahap memerlukan nilai kontrak > Rp 200.000.000.');
+        // Validasi: bertahap wajib nilai_kontrak > 400jt
+        if ($jenis === 'bertahap' && $nilai_kontrak <= 400000000) {
+            $this->session->set_flashdata('error', 'Jenis Bertahap memerlukan nilai kontrak > Rp 400.000.000.');
+            redirect('pekerjaan/input'); return;
+        }
+
+        // Ambil data BKP untuk validasi nilai
+        $bkp = $this->db->get_where('ref_bkp', ['id'=>$bkp_id])->row();
+
+        // Validasi: kegiatan Konstruksi dengan nilai BKP > 400jt wajib Bertahap (tidak boleh Sekaligus)
+        $jenis_pekerjaan = $this->input->post('jenis_pekerjaan', TRUE);
+        if ($jenis === 'sekaligus' && $jenis_pekerjaan === 'konstruksi' && $bkp && $bkp->nilai > 400000000) {
+            $this->session->set_flashdata('error',
+                'Kegiatan Konstruksi dengan nilai BKP > Rp 400.000.000 wajib menggunakan jenis penyaluran Bertahap, tidak dapat Sekaligus.');
+            redirect('pekerjaan/input'); return;
+        }
+
+        // Validasi: nilai kontrak + pendukung tidak boleh melebihi nilai BKP
+        if ($bkp && ($nilai_kontrak + $nilai_pendukung) > $bkp->nilai) {
+            $this->session->set_flashdata('error',
+                'Total Nilai Kontrak + Belanja Pendukung (' . rupiah($nilai_kontrak + $nilai_pendukung) .
+                ') melebihi Nilai BKP (' . rupiah($bkp->nilai) . '). Sesuaikan nilai kontrak atau belanja pendukung.');
             redirect('pekerjaan/input'); return;
         }
 
         // Validasi: pendukung maks 5% dari nilai BKP (untuk bertahap)
+        // Gunakan perbandingan integer (x20) agar tidak ada masalah presisi float pada nilai miliaran
         if ($jenis === 'bertahap') {
-            $bkp = $this->db->get_where('ref_bkp', ['id'=>$bkp_id])->row();
-            if ($bkp && $nilai_pendukung > ($bkp->nilai * 0.05)) {
+            if ($bkp && ($nilai_pendukung * 20) > $bkp->nilai) {
                 $this->session->set_flashdata('error',
                     'Belanja pendukung tidak boleh melebihi 5% dari nilai BKP (' . rupiah($bkp->nilai * 0.05) . ').');
                 redirect('pekerjaan/input'); return;
@@ -166,6 +205,7 @@ class Pekerjaan extends Auth_Controller
             'jangka_waktu_hari'       => (int)$this->input->post('jangka_waktu_hari') ?: NULL,
             'nilai_kontrak'           => $nilai_kontrak,
             'nilai_belanja_pendukung' => $nilai_pendukung,
+            'belanja_pendukung_json'  => $this->input->post('belanja_pendukung_json', TRUE) ?: '[]',
             'lokasi_deskripsi'        => $this->input->post('lokasi_deskripsi', TRUE),
             'latitude'                => is_numeric($lat) ? $lat : NULL,
             'longitude'               => is_numeric($lng) ? $lng : NULL,
@@ -217,11 +257,11 @@ class Pekerjaan extends Auth_Controller
 
         $dokumen_perda = $this->db
             ->where(['kabkota_id'=>$kabkota_id,'tahun'=>$tahun])
-            ->where_in('jenis',['perda_apbd','perda_apbd_p'])
+            ->where_in('jenis',['perda_apbd','perda_p_apbd'])
             ->get('ref_pemda_dokumen')->result();
         $dokumen_perkada = $this->db
             ->where(['kabkota_id'=>$kabkota_id,'tahun'=>$tahun])
-            ->where_in('jenis',['perkada_bkp','pergub_bkp'])
+            ->where_in('jenis',['perkada_apbd','perkada_pergeseran','perkada_p_apbd'])
             ->get('ref_pemda_dokumen')->result();
 
         $this->render('pekerjaan/form', array_merge($this->data, [
@@ -243,13 +283,58 @@ class Pekerjaan extends Auth_Controller
         $pekerjaan = $this->Pekerjaan_model->get_by_id($id);
         if (!$pekerjaan) { show_404(); return; }
 
+        // Hanya bisa edit jika masih draft atau dikembalikan untuk revisi
+        if (!in_array($pekerjaan->status, ['draft','inspektorat_revisi','skpkd_kab_revisi'])) {
+            $this->session->set_flashdata('error', 'Pekerjaan tidak dapat diedit pada status ini.');
+            redirect('pekerjaan/detail/'.$id); return;
+        }
+
+        // Hanya OPD pemilik atau admin yang bisa edit
+        if (!$this->rbac->isProvinsi() && $pekerjaan->created_by != $this->user_id) {
+            $this->session->set_flashdata('error', 'Anda tidak berwenang mengedit pekerjaan ini.');
+            redirect('pekerjaan/detail/'.$id); return;
+        }
+
         $nilai_kontrak   = (int) str_replace(['.','Rp',' ',','], '', $this->input->post('nilai_kontrak'));
         $nilai_pendukung = (int) str_replace(['.','Rp',' ',','], '', $this->input->post('nilai_belanja_pendukung'));
+        $jenis_edit      = $this->input->post('jenis_penyaluran', TRUE);
+
+        // Validasi: bertahap wajib nilai_kontrak > 400jt
+        if ($jenis_edit === 'bertahap' && $nilai_kontrak <= 400000000) {
+            $this->session->set_flashdata('error', 'Jenis Bertahap memerlukan nilai kontrak > Rp 400.000.000.');
+            redirect('pekerjaan/edit/'.$id); return;
+        }
+
+        // Validasi: kegiatan Konstruksi dengan nilai BKP > 400jt wajib Bertahap (tidak boleh Sekaligus)
+        $bkp_edit = $this->db->get_where('ref_bkp', ['id'=>$pekerjaan->bkp_id])->row();
+        $jenis_pekerjaan_edit = $this->input->post('jenis_pekerjaan', TRUE);
+        if ($jenis_edit === 'sekaligus' && $jenis_pekerjaan_edit === 'konstruksi' && $bkp_edit && $bkp_edit->nilai > 400000000) {
+            $this->session->set_flashdata('error',
+                'Kegiatan Konstruksi dengan nilai BKP > Rp 400.000.000 wajib menggunakan jenis penyaluran Bertahap, tidak dapat Sekaligus.');
+            redirect('pekerjaan/edit/'.$id); return;
+        }
+
+        // Validasi: nilai kontrak + pendukung tidak boleh melebihi nilai BKP
+        if ($bkp_edit && ($nilai_kontrak + $nilai_pendukung) > $bkp_edit->nilai) {
+            $this->session->set_flashdata('error',
+                'Total Nilai Kontrak + Belanja Pendukung (' . rupiah($nilai_kontrak + $nilai_pendukung) .
+                ') melebihi Nilai BKP (' . rupiah($bkp_edit->nilai) . '). Sesuaikan nilai kontrak atau belanja pendukung.');
+            redirect('pekerjaan/edit/'.$id); return;
+        }
+
+        // Validasi: pendukung maks 5% dari nilai BKP (untuk bertahap)
+        // Gunakan perbandingan integer (x20) agar tidak ada masalah presisi float pada nilai miliaran
+        if ($jenis_edit === 'bertahap' && $bkp_edit && ($nilai_pendukung * 20) > $bkp_edit->nilai) {
+            $this->session->set_flashdata('error',
+                'Belanja pendukung tidak boleh melebihi 5% dari nilai BKP (' . rupiah($bkp_edit->nilai * 0.05) . ').');
+            redirect('pekerjaan/edit/'.$id); return;
+        }
+
         $lat = $this->input->post('latitude',  TRUE);
         $lng = $this->input->post('longitude', TRUE);
 
         $data = [
-            'jenis_penyaluran'        => $this->input->post('jenis_penyaluran', TRUE),
+            'jenis_penyaluran'        => $jenis_edit,
             'nama_kegiatan_dok'       => $this->input->post('nama_kegiatan_dok', TRUE),
             'volume_satuan'           => $this->input->post('volume_satuan', TRUE),
             'metode_pelaksanaan'      => $this->input->post('metode_pelaksanaan', TRUE),
@@ -265,6 +350,7 @@ class Pekerjaan extends Auth_Controller
             'jangka_waktu_hari'       => (int)$this->input->post('jangka_waktu_hari') ?: NULL,
             'nilai_kontrak'           => $nilai_kontrak,
             'nilai_belanja_pendukung' => $nilai_pendukung,
+            'belanja_pendukung_json'  => $this->input->post('belanja_pendukung_json', TRUE) ?: '[]',
             'lokasi_deskripsi'        => $this->input->post('lokasi_deskripsi', TRUE),
             'latitude'                => is_numeric($lat) ? $lat : NULL,
             'longitude'               => is_numeric($lng) ? $lng : NULL,
@@ -297,6 +383,13 @@ class Pekerjaan extends Auth_Controller
         $semua_dok   = $this->Pekerjaan_model->get_semua_dokumen_pekerjaan($id);
         $history     = $this->Pekerjaan_model->get_status_history($id);
 
+        // Capaian output fisik (hanya untuk jenis bertahap)
+        $capaian = NULL;
+        if ($pekerjaan->jenis_penyaluran === 'bertahap') {
+            $this->load->model('Capaian_model');
+            $capaian = $this->Capaian_model->get_detail($id);
+        }
+
         // Ambil dokumen per tahapan
         $dok_per_tahapan = [];
         foreach ($semua_dok as $d) {
@@ -322,6 +415,16 @@ class Pekerjaan extends Auth_Controller
         $pejabat_map = [];
         foreach ($pejabat as $p) $pejabat_map[$p->jenis] = $p;
 
+        // Tombol Kembali: gunakan ?back= jika ada dan masih URL lokal
+        $raw_back = $this->input->get('back');
+        $back_url = site_url('pekerjaan');
+        if ($raw_back) {
+            $decoded = urldecode($raw_back);
+            if (strpos($decoded, base_url()) === 0) {
+                $back_url = $decoded;
+            }
+        }
+
         $this->render('pekerjaan/detail', array_merge($this->data, [
             'title'           => 'Detail Pekerjaan — ' . $pekerjaan->kode_bkp,
             'pekerjaan'       => $pekerjaan,
@@ -330,6 +433,8 @@ class Pekerjaan extends Auth_Controller
             'deadline_info'   => $deadline_info,
             'history'         => $history,
             'pejabat'         => $pejabat_map,
+            'back_url'        => $back_url,
+            'capaian'         => $capaian,
         ]));
     }
 
@@ -420,6 +525,131 @@ class Pekerjaan extends Auth_Controller
         redirect('pekerjaan/detail/'.$id);
     }
 
+    // ─── BATALKAN PENGAJUAN KE INSPEKTORAT ───────────────────
+    // Hanya bisa saat status opd_submitted (belum diproses Inspektorat)
+
+    public function batal_submit($id)
+    {
+        $this->requirePerm('pekerjaan.submit');
+
+        $pekerjaan = $this->Pekerjaan_model->get_by_id($id);
+        if (!$pekerjaan) { show_404(); return; }
+
+        // Hanya bisa dibatalkan saat masih opd_submitted
+        if ($pekerjaan->status !== 'opd_submitted') {
+            $this->session->set_flashdata('error',
+                'Pengajuan tidak dapat dibatalkan. Pekerjaan sudah dalam proses reviu Inspektorat.');
+            redirect('pekerjaan/detail/'.$id); return;
+        }
+
+        // Guard: hanya OPD pemilik pekerjaan
+        if ($this->rbac->isKabkota() && (int)$pekerjaan->kabkota_id !== (int)$this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('pekerjaan'); return;
+        }
+
+        // Kembalikan status pekerjaan ke draft
+        $this->Pekerjaan_model->set_status($id, 'draft', $this->user_id,
+            'Pengajuan ke Inspektorat dibatalkan oleh OPD');
+
+        // Reset tahapan pertama kembali ke status 'belum' dan hapus tgl_pengajuan
+        $tahapan = $this->Pekerjaan_model->get_tahapan($id);
+        if (!empty($tahapan)) {
+            $this->db->where('id', $tahapan[0]->id)->update('trx_tahapan_penyaluran', [
+                'status'       => 'belum',
+                'tgl_pengajuan'=> NULL,
+                'updated_at'   => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        $this->log_aktivitas('pekerjaan.batal_submit', 'Batal submit pekerjaan id='.$id);
+        $this->session->set_flashdata('success',
+            'Pengajuan berhasil dibatalkan. Pekerjaan kembali ke status Draft dan dapat diedit.');
+        redirect('pekerjaan/detail/'.$id);
+    }
+
+    // ─── KIRIM REVISI KE INSPEKTORAT ─────────────────────────
+    // Dipanggil OPD setelah memperbaiki pekerjaan yang dikembalikan Inspektorat
+
+    public function kirim_revisi($id)
+    {
+        $this->requirePerm('pekerjaan.submit');
+
+        $pekerjaan = $this->Pekerjaan_model->get_by_id($id);
+        if (!$pekerjaan) { show_404(); return; }
+
+        if ($pekerjaan->status !== 'inspektorat_revisi') {
+            $this->session->set_flashdata('error', 'Status pekerjaan tidak valid untuk dikirim ulang.');
+            redirect('pekerjaan/detail/'.$id); return;
+        }
+
+        if ($this->rbac->isKabkota() && (int)$pekerjaan->kabkota_id !== (int)$this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('pekerjaan'); return;
+        }
+
+        // Temukan tahapan yang sedang dalam status inspektorat_revisi
+        $tahapan_list  = $this->Pekerjaan_model->get_tahapan($id);
+        $tahapan_revisi = NULL;
+        foreach ($tahapan_list as $t) {
+            if ($t->status === 'inspektorat_revisi') { $tahapan_revisi = $t; break; }
+        }
+        if (!$tahapan_revisi) {
+            $this->session->set_flashdata('error', 'Data tahapan tidak ditemukan.');
+            redirect('pekerjaan/detail/'.$id); return;
+        }
+
+        // Reset record reviu — hapus keputusan & kunci agar Inspektorat bisa reviu ulang
+        $reviu = $this->db->get_where('trx_reviu_inspektorat',
+            ['tahapan_id' => $tahapan_revisi->id])->row();
+        if ($reviu) {
+            $this->db->where('id', $reviu->id)->update('trx_reviu_inspektorat', [
+                'hasil_reviu'            => NULL,
+                'catatan'                => NULL,
+                'checklist_confirmed_at' => NULL,
+                'tgl_reviu_selesai'      => NULL,
+                'updated_at'             => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        // Reset status tahapan → opd_input
+        $this->db->where('id', $tahapan_revisi->id)->update('trx_tahapan_penyaluran', [
+            'status'     => 'opd_input',
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        // Set status pekerjaan → opd_submitted
+        $this->Pekerjaan_model->set_status($id, 'opd_submitted', $this->user_id,
+            'Revisi dikirim kembali ke Inspektorat oleh OPD Teknis');
+
+        // Notifikasi ke semua Inspektorat kabkota ini
+        $inspektorat_users = $this->db
+            ->select('u.id')
+            ->from('users u')
+            ->join('roles r', 'r.id = u.role_id')
+            ->where('r.kode', 'inspektorat')
+            ->where('u.kabkota_id', $pekerjaan->kabkota_id)
+            ->where('u.is_active', 1)
+            ->get()->result();
+        foreach ($inspektorat_users as $iu) {
+            $this->Notifikasi_model->kirim(
+                $iu->id,
+                'Revisi Pekerjaan Dikirim',
+                'OPD telah mengirim perbaikan untuk BKP ' . $pekerjaan->kode_bkp .
+                    '. Silakan lakukan reviu ulang.',
+                'info',
+                site_url('reviu'),
+                $id
+            );
+        }
+
+        $this->log_aktivitas('pekerjaan.kirim_revisi',
+            'Kirim revisi pekerjaan id='.$id.' ke Inspektorat');
+        $this->session->set_flashdata('success',
+            'Perbaikan berhasil dikirim ke Inspektorat untuk reviu ulang.');
+        redirect('pekerjaan/detail/'.$id);
+    }
+
     private function _validasi_kelengkapan($pekerjaan)
     {
         $errors = [];
@@ -428,7 +658,127 @@ class Pekerjaan extends Auth_Controller
         if (empty($pekerjaan->nama_penyedia))      $errors[] = 'Nama penyedia/rekanan belum diisi';
         if (empty($pekerjaan->nilai_kontrak) || $pekerjaan->nilai_kontrak <= 0) $errors[] = 'Nilai kontrak belum diisi';
         if (empty($pekerjaan->no_spmk))            $errors[] = 'Nomor SPMK belum diisi';
+
+        // Validasi dokumen wajib pre-submit
+        // SPK & SPMK tidak wajib untuk jenis penyaluran darurat/mendesak
+        $darurat = in_array($pekerjaan->jenis_penyaluran, ['khusus_mendesak', 'khusus_bencana']);
+        if (!$darurat && empty($pekerjaan->dok_spk_path))  $errors[] = 'File SPK belum diupload';
+        if (!$darurat && empty($pekerjaan->dok_spmk_path)) $errors[] = 'File SPMK belum diupload';
+        if ($pekerjaan->jenis_penyaluran === 'sekaligus' && empty($pekerjaan->dok_bast_path))
+            $errors[] = 'File BAST belum diupload (wajib untuk penyaluran Sekaligus)';
+
         return $errors;
+    }
+
+    // ─── UPLOAD DOKUMEN DRAFT (SPK / SPMK / BAST) ────────────
+    // Dipanggil sebelum submit, saat pekerjaan masih berstatus draft
+
+    public function upload_dok_draft($pekerjaan_id, $jenis)
+    {
+        $this->requirePerm('pekerjaan.upload_dok');
+
+        $jenis_allowed = ['spk', 'spmk', 'bast'];
+        if (!in_array($jenis, $jenis_allowed)) { show_404(); return; }
+
+        $pekerjaan = $this->Pekerjaan_model->get_by_id($pekerjaan_id);
+        if (!$pekerjaan) { show_404(); return; }
+        if ($pekerjaan->status !== 'draft') {
+            $this->session->set_flashdata('error', 'Dokumen draft hanya bisa diupload saat status Draft.');
+            redirect('pekerjaan/detail/'.$pekerjaan_id); return;
+        }
+
+        // Guard: hanya OPD pemilik pekerjaan ini
+        if ($this->rbac->isKabkota() && (int)$pekerjaan->kabkota_id !== (int)$this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('pekerjaan'); return;
+        }
+        // Khusus BAST: hanya untuk jenis sekaligus
+        if ($jenis === 'bast' && $pekerjaan->jenis_penyaluran !== 'sekaligus') {
+            $this->session->set_flashdata('error', 'BAST hanya untuk jenis penyaluran Sekaligus.');
+            redirect('pekerjaan/detail/'.$pekerjaan_id); return;
+        }
+
+        if ($_FILES['file_dok']['error'] !== UPLOAD_ERR_OK) {
+            $this->session->set_flashdata('error', 'File tidak valid atau tidak ada file yang dipilih.');
+            redirect('pekerjaan/detail/'.$pekerjaan_id); return;
+        }
+
+        // Validasi MIME sebenarnya sebelum menyimpan
+        $mime_ok = ['application/pdf','application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'image/jpeg','image/png'];
+        if (!$this->_mime_valid($_FILES['file_dok']['tmp_name'], $mime_ok)) {
+            $this->session->set_flashdata('error', 'Jenis file tidak diizinkan. Gunakan PDF, DOC, DOCX, JPG, atau PNG.');
+            redirect('pekerjaan/detail/'.$pekerjaan_id); return;
+        }
+
+        $orig_name  = basename($_FILES['file_dok']['name']);
+        $ext        = strtolower(pathinfo($orig_name, PATHINFO_EXTENSION));
+        $rand_name  = $this->_random_filename($ext);
+
+        $upload_dir = FCPATH . 'uploads/dokumen/' . $pekerjaan_id . '/';
+        if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, TRUE);
+
+        $this->load->library('upload');
+        $this->upload->initialize([
+            'upload_path'   => $upload_dir,
+            'allowed_types' => 'pdf|doc|docx|jpg|jpeg|png',
+            'max_size'      => 10240,
+            'file_name'     => $rand_name,
+        ]);
+
+        if (!$this->upload->do_upload('file_dok')) {
+            $this->session->set_flashdata('error', 'Upload gagal: ' . $this->upload->display_errors('', ''));
+            redirect('pekerjaan/detail/'.$pekerjaan_id); return;
+        }
+
+        $file_info = $this->upload->data();
+        $file_path = 'uploads/dokumen/' . $pekerjaan_id . '/' . $file_info['file_name'];
+
+        // Hapus file lama jika ada
+        $kolom     = 'dok_' . $jenis . '_path';
+        $file_lama = $pekerjaan->$kolom ?? NULL;
+        if ($file_lama && file_exists(FCPATH . $file_lama)) @unlink(FCPATH . $file_lama);
+
+        // Simpan path + nama asli ke kolom yang sesuai
+        $this->db->where('id', $pekerjaan_id)->update('trx_pekerjaan', [
+            $kolom                   => $file_path,
+            'nama_dok_' . $jenis     => $orig_name,
+            'updated_at'             => date('Y-m-d H:i:s'),
+        ]);
+
+        $label = strtoupper($jenis);
+        $this->log_aktivitas('pekerjaan.upload_dok', 'Upload '.$label.' pekerjaan id='.$pekerjaan_id);
+        $this->session->set_flashdata('success', 'File ' . $label . ' berhasil diupload.');
+        redirect('pekerjaan/detail/'.$pekerjaan_id);
+    }
+
+    public function hapus_dok_draft($pekerjaan_id, $jenis)
+    {
+        $this->requirePerm('pekerjaan.upload_dok');
+
+        $jenis_allowed = ['spk', 'spmk', 'bast'];
+        if (!in_array($jenis, $jenis_allowed)) { show_404(); return; }
+
+        $pekerjaan = $this->Pekerjaan_model->get_by_id($pekerjaan_id);
+        if (!$pekerjaan || $pekerjaan->status !== 'draft') {
+            redirect('pekerjaan/detail/'.$pekerjaan_id); return;
+        }
+        if ($this->rbac->isKabkota() && (int)$pekerjaan->kabkota_id !== (int)$this->kabkota_id) {
+            redirect('pekerjaan'); return;
+        }
+
+        $kolom     = 'dok_' . $jenis . '_path';
+        $file_path = $pekerjaan->$kolom ?? NULL;
+        if ($file_path && file_exists(FCPATH . $file_path)) @unlink(FCPATH . $file_path);
+
+        $this->db->where('id', $pekerjaan_id)->update('trx_pekerjaan', [
+            $kolom       => NULL,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->session->set_flashdata('success', 'File ' . strtoupper($jenis) . ' berhasil dihapus.');
+        redirect('pekerjaan/detail/'.$pekerjaan_id);
     }
 
     // ─── UPLOAD DOKUMEN ───────────────────────────────────────
@@ -452,6 +802,22 @@ class Pekerjaan extends Auth_Controller
         $jenis_dok    = $this->input->post('jenis_dokumen', TRUE);
         $keterangan   = $this->input->post('keterangan', TRUE);
 
+        // Validasi MIME + nama acak
+        if (empty($_FILES['file_dok']['name'])) {
+            $this->session->set_flashdata('error', 'Tidak ada file yang dipilih.');
+            redirect('pekerjaan/detail/'.$pekerjaan_id); return;
+        }
+        $mime_ok = ['application/pdf','application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'image/jpeg','image/png'];
+        if (!$this->_mime_valid($_FILES['file_dok']['tmp_name'], $mime_ok)) {
+            $this->session->set_flashdata('error', 'Jenis file tidak diizinkan. Gunakan PDF, DOC, DOCX, JPG, atau PNG.');
+            redirect('pekerjaan/detail/'.$pekerjaan_id); return;
+        }
+        $orig_name = basename($_FILES['file_dok']['name']);
+        $ext       = strtolower(pathinfo($orig_name, PATHINFO_EXTENSION));
+        $rand_name = $this->_random_filename($ext);
+
         // Konfigurasi upload
         $upload_dir = FCPATH . 'uploads/dokumen/' . $pekerjaan_id . '/';
         if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, TRUE);
@@ -460,7 +826,7 @@ class Pekerjaan extends Auth_Controller
             'upload_path'   => $upload_dir,
             'allowed_types' => 'pdf|doc|docx|jpg|jpeg|png',
             'max_size'      => 10240,
-            'file_name'     => 'dok_' . $tahapan_id . '_' . $jenis_dok . '_' . time(),
+            'file_name'     => $rand_name,
         ]);
 
         if (!$this->upload->do_upload('file_dok')) {
@@ -473,6 +839,7 @@ class Pekerjaan extends Auth_Controller
             'tahapan_id'    => $tahapan_id,
             'jenis_dokumen' => $jenis_dok,
             'nama_file'     => $up['file_name'],
+            'nama_asli'     => $orig_name,
             'file_path'     => 'uploads/dokumen/' . $pekerjaan_id . '/' . $up['file_name'],
             'ukuran_kb'     => (int)($up['file_size']),
             'keterangan'    => $keterangan,

@@ -2,8 +2,31 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Rbac Library — SIBERKAH SUMUT v4
- * Dinamis dari database, mendukung role custom
+ * Rbac.php — Library RBAC Dinamis SIBERKAH SUMUT
+ *
+ * Role-Based Access Control berbasis database.
+ * Permission di-load dari DB sekali per request dan di-cache di properti $_perms.
+ * Role 'superadmin' bypass semua permission check (return TRUE langsung).
+ *
+ * CARA PAKAI DI CONTROLLER:
+ *   $this->rbac->can('pekerjaan.input')          — cek 1 permission
+ *   $this->rbac->canAny(['a.view','b.view'])      — cek salah satu
+ *   $this->rbac->isProvinsi()                     — cek role provinsi
+ *   $this->rbac->isKabkota()                      — cek role kabkota
+ *   $this->rbac->isSuperadmin()                   — cek superadmin
+ *   $this->rbac->canManageUser($target_level)     — cek bisa manage user berdasar level
+ *
+ * CARA PAKAI DI VIEW:
+ *   <?php if ($this->rbac->can('parameter.tahun.manage')): ?>
+ *
+ * SIDEBAR:
+ *   $this->rbac->getMenus()   — daftar menu utama yang bisa diakses user
+ *   getSubParameter()         — sub-menu Parameter
+ *   getSubAdmin()             — sub-menu Admin
+ *
+ * POLA MENU:
+ *   ['key','url','label','icon','perm']
+ *   'perm' = NULL berarti tidak perlu cek permission (selalu tampil jika login)
  */
 class Rbac
 {
@@ -83,14 +106,21 @@ class Rbac
             ['key'=>'dashboard',  'url'=>'dashboard',       'label'=>'Dashboard',    'icon'=>'layout-dashboard', 'perm'=>'dashboard.view'],
             ['key'=>'pekerjaan',  'url'=>'pekerjaan',       'label'=>'Pekerjaan',    'icon'=>'file-text',        'perm'=>'pekerjaan.view'],
             ['key'=>'reviu',      'url'=>'reviu',           'label'=>'Reviu',        'icon'=>'clipboard-check',  'perm'=>'reviu.view'],
-            ['key'=>'verif_kab',  'url'=>'verifikasi/kab',  'label'=>'Verifikasi',   'icon'=>'shield-check',     'perm'=>'verif_kab.view'],
-            ['key'=>'verif_prov', 'url'=>'verifikasi/prov', 'label'=>'Penyaluran',   'icon'=>'cash',             'perm'=>'verif_prov.view'],
-            ['key'=>'capaian',    'url'=>'capaian',         'label'=>'Capaian',      'icon'=>'chart-bar',        'perm'=>'capaian.view'],
+            ['key'=>'verif_kab',        'url'=>'verifikasi/kab',  'label'=>'Verifikasi',   'icon'=>'shield-check',     'perm'=>'verif_kab.view'],
+            ['key'=>'permohonan',       'url'=>'permohonan',      'label'=>'Permohonan',   'icon'=>'send',             'perm'=>'permohonan.view'],
+            ['key'=>'penyaluran_kab',   'url'=>'penyaluran-kab',  'label'=>'Penyaluran',   'icon'=>'cash',             'perm'=>'penyaluran_kab.view', 'kabkota_only'=>TRUE],
+            ['key'=>'verif_prov',       'url'=>'verifikasi/prov', 'label'=>'Penyaluran',   'icon'=>'cash',             'perm'=>'verif_prov.view', 'provinsi_only'=>TRUE],
+            ['key'=>'capaian',          'url'=>'capaian',         'label'=>'Capaian',      'icon'=>'chart-bar',        'perm'=>'capaian.view'],
             ['key'=>'laporan',    'url'=>'laporan',         'label'=>'Laporan',      'icon'=>'report',           'perm'=>'laporan.view'],
             ['key'=>'parameter',  'url'=>'parameter',       'label'=>'Parameter',    'icon'=>'adjustments-horizontal','perm'=>'parameter.view'],
             ['key'=>'admin',      'url'=>'admin/users',     'label'=>'Pengaturan',   'icon'=>'settings',         'perm'=>'admin.view'],
         ];
-        return array_values(array_filter($all, fn($m) => $this->can($m['perm'])));
+        return array_values(array_filter($all, function($m) {
+            if (!$this->can($m['perm'])) return FALSE;
+            if (!empty($m['kabkota_only'])  && !$this->isKabkota())  return FALSE;
+            if (!empty($m['provinsi_only']) && !$this->isProvinsi()) return FALSE;
+            return TRUE;
+        }));
     }
 
     /** Sub-menu Parameter berdasarkan permission */
@@ -101,20 +131,32 @@ class Rbac
             ['key'=>'batas_waktu', 'url'=>'parameter/batas-waktu',  'label'=>'Batas Waktu',         'icon'=>'calendar-time', 'perm'=>'parameter.batas_waktu.view'],
             ['key'=>'bkp',         'url'=>'parameter/bkp',          'label'=>'Data BKP',            'icon'=>'database',      'perm'=>'parameter.bkp.view'],
             ['key'=>'pemda',       'url'=>'parameter/pemda',        'label'=>'Data Umum Pemda',     'icon'=>'building-community','perm'=>'parameter.pemda.view'],
+            ['key'=>'pejabat_prov','url'=>'parameter/pejabat-provinsi','label'=>'Pejabat BKAD Provinsi','icon'=>'user-star', 'perm'=>'parameter.pemda.view','provinsi_only'=>TRUE],
             ['key'=>'landing',     'url'=>'parameter/landing',      'label'=>'Tampilan Landing',    'icon'=>'photo',         'perm'=>'parameter.landing.view'],
+            ['key'=>'logo',        'url'=>'parameter/logo',         'label'=>'Logo Provinsi',       'icon'=>'trademark',     'perm'=>'parameter.view',       'provinsi_only'=>TRUE],
             ['key'=>'log',         'url'=>'parameter/log',          'label'=>'Log Perubahan',       'icon'=>'history',       'perm'=>'parameter.tahun.view'],
         ];
-        return array_values(array_filter($sub, fn($s) => $this->can($s['perm'])));
+        return array_values(array_filter($sub, function($s) {
+            if (!$this->can($s['perm'])) return FALSE;
+            if (!empty($s['provinsi_only']) && !$this->isProvinsi()) return FALSE;
+            return TRUE;
+        }));
     }
 
-    /** Sub-menu Pengaturan */
+    /** Sub-menu Pengaturan — difilter berdasarkan permission + role */
     public function getSubPengaturan()
     {
-        return [
-            ['key'=>'users',    'url'=>'admin/users',    'label'=>'Manajemen User',   'icon'=>'users'],
-            ['key'=>'roles',    'url'=>'admin/roles',    'label'=>'Role & Hak Akses', 'icon'=>'shield-lock'],
-            ['key'=>'telegram', 'url'=>'admin/telegram', 'label'=>'Notif Telegram',   'icon'=>'brand-telegram'],
+        $sub = [
+            ['key'=>'users',    'url'=>'admin/users',    'label'=>'Manajemen User',   'icon'=>'users',         'perm'=>'admin.user.view', 'provinsi_only'=>FALSE],
+            ['key'=>'roles',    'url'=>'admin/roles',    'label'=>'Role & Hak Akses', 'icon'=>'shield-lock',   'perm'=>'admin.role.view', 'provinsi_only'=>FALSE],
+            ['key'=>'telegram', 'url'=>'admin/telegram', 'label'=>'Notif Telegram',   'icon'=>'brand-telegram','perm'=>'admin.view',      'provinsi_only'=>TRUE],
+            ['key'=>'logs',     'url'=>'admin/logs',     'label'=>'Log Aktivitas',    'icon'=>'history',       'perm'=>'admin.logs.view', 'provinsi_only'=>TRUE],
         ];
+        return array_values(array_filter($sub, function($s) {
+            if (!$this->can($s['perm'])) return FALSE;
+            if (!empty($s['provinsi_only']) && !$this->isProvinsi()) return FALSE;
+            return TRUE;
+        }));
     }
 
     // Helpers role
@@ -141,10 +183,12 @@ class Rbac
             'parameter' => ['label' => 'Parameter',            'icon' => 'adjustments-horizontal'],
             'pekerjaan' => ['label' => 'Input Pekerjaan',      'icon' => 'file-text'],
             'reviu'     => ['label' => 'Reviu Inspektorat',    'icon' => 'clipboard-check'],
-            'verif_kab' => ['label' => 'Verifikasi Kab/Kota',  'icon' => 'shield-check'],
-            'verif_prov'=> ['label' => 'Verifikasi Provinsi',  'icon' => 'cash'],
-            'capaian'   => ['label' => 'Capaian Output',       'icon' => 'chart-bar'],
-            'penyaluran'=> ['label' => 'Penyaluran Dana',      'icon' => 'transfer'],
+            'verif_kab'   => ['label' => 'Verifikasi Kab/Kota',  'icon' => 'shield-check'],
+            'permohonan'  => ['label' => 'Permohonan Pencairan','icon' => 'send'],
+            'verif_prov'  => ['label' => 'Verifikasi Provinsi', 'icon' => 'cash'],
+            'capaian'        => ['label' => 'Capaian Output',            'icon' => 'chart-bar'],
+            'penyaluran_kab' => ['label' => 'Penyaluran Dana (Kab)',  'icon' => 'cash'],
+            'penyaluran'     => ['label' => 'Penyaluran Dana (Prov)', 'icon' => 'transfer'],
             'laporan'   => ['label' => 'Laporan & Cetak',      'icon' => 'report'],
             'admin'     => ['label' => 'Pengaturan & RBAC',    'icon' => 'settings'],
         ];

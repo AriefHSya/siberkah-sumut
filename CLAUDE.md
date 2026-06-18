@@ -21,13 +21,19 @@ SIBERKAH adalah platform kolaborasi multi-role untuk mengelola penyaluran dana B
 ```
 OPD Teknis → input form 17 field + pin lokasi + upload dokumen
     ↓ (cek batas waktu dari ref_batas_waktu)
-Inspektorat → reviu 21-item checklist otomatis + upload LHR
+Inspektorat → reviu 22-item checklist otomatis + upload LHR
     ↓
-SKPKD Kab/Kota → verifikasi + upload permohonan pencairan
+SKPKD Kab/Kota → verifikasi kegiatan individual (menu: Verifikasi)
     ↓
-Admin Provinsi → verifikasi final + input SP2D + konfirmasi transfer
+SKPKD Kab/Kota → buat Permohonan bundel kegiatan + ajukan (menu: Permohonan)
     ↓
-SKPKD Kab/Kota → konfirmasi penerimaan dana (upload bukti RKUD)
+Admin Provinsi → verifikasi per-tahapan + cetak Nota Kabid/Kabadan/Ringkasan
+    ↓
+Admin Provinsi → input SP2D per-permohonan (menu: Penyaluran)
+    ↓
+SKPKD Kab/Kota → konfirmasi RKUD: kode transaksi + nilai + tanggal (menu: Penyaluran)
+    ↓ (jika Tahap I bertahap)
+OPD Teknis → input Capaian Output Fisik (menu: Capaian)
 ```
 
 Satu BKP = satu pekerjaan. Jenis penyaluran: `bertahap` (2 tahap), `sekaligus`, `khusus_mendesak`, `khusus_bencana`.
@@ -56,38 +62,51 @@ application/
 ├── models/
 │   ├── User_model.php
 │   ├── Role_model.php
-│   ├── Parameter_model.php     # ref_tahun, ref_bkp, ref_batas_waktu, ref_pemda
+│   ├── Parameter_model.php     # ref_tahun, ref_bkp, ref_batas_waktu, ref_pemda, ref_pejabat_bkad_prov
 │   ├── Notifikasi_model.php
 │   ├── Pekerjaan_model.php     # trx_pekerjaan, trx_tahapan, trx_dokumen
 │   ├── Reviu_model.php         # trx_reviu_inspektorat, trx_checklist_reviu
 │   ├── Verifikasi_kab_model.php
-│   ├── Verifikasi_prov_model.php
-│   └── Laporan_model.php       # statistik, funnel, rekap per bidang/kab
+│   ├── Verifikasi_prov_model.php  # trx_verifikasi_skpkd_prov, trx_penyaluran_dana
+│   ├── Permohonan_model.php    # trx_permohonan, trx_permohonan_item
+│   ├── Penyaluran_kab_model.php   # konfirmasi RKUD oleh SKPKD Kab/Kota
+│   ├── Capaian_model.php       # trx_capaian_output
+│   ├── Laporan_model.php       # statistik, funnel, rekap per bidang/kab
+│   └── Admin_logs_model.php    # user_logs + trx_status_history (read-only)
 │
 ├── controllers/
 │   ├── Auth.php            # login, logout — extends Guest_Controller
+│   ├── Akun.php            # ganti password sendiri — extends Auth_Controller
+│   ├── Berkas.php          # unduhan file privat — RBAC + scope check, path dari DB
 │   ├── Dashboard.php       # stats, funnel, antrian aksi per role
-│   ├── Parameter.php       # tahun, batas_waktu, bkp, pemda, log
+│   ├── Parameter.php       # tahun, batas_waktu, bkp, pemda, pejabat_prov, log
 │   ├── Pekerjaan.php       # input, edit, detail, submit, upload_dok, cetak
 │   ├── Reviu.php           # form reviu, simpan_checklist, upload_lhr, putuskan
-│   ├── Verif_kab.php       # verifikasi kab, upload_dok, konfirmasi dana
-│   ├── Verif_prov.php      # verifikasi prov, simpan_sp2d, konfirmasi_transfer
-│   ├── Laporan.php         # rekap_bkp, rekap_penyaluran, export CSV
+│   ├── Verif_kab.php       # verifikasi kab individual, upload_dok, putuskan
+│   ├── Permohonan.php      # buat bundel permohonan, ajukan ke provinsi
+│   ├── Verif_prov.php      # verifikasi prov, cetak nota, simpan_sp2d
+│   ├── Penyaluran_kab.php  # konfirmasi RKUD oleh SKPKD Kab/Kota
+│   ├── Capaian.php         # input capaian output fisik (setelah Tahap I dikonfirmasi)
+│   ├── Laporan.php         # rekap_bkp, rekap_penyaluran, export CSV/XLSX
 │   ├── Admin_users.php     # CRUD user dengan role-level guard
 │   ├── Admin_roles.php     # CRUD role, save_permissions, logs
+│   ├── Admin_logs.php      # log aktivitas (user_logs) + riwayat status (trx_status_history) — read-only
 │   └── Welcome.php         # landing page
 │
 └── views/
     ├── layouts/main.php    # layout utama: sidebar RBAC-driven, topbar, flash
     ├── auth/               # login.php
     ├── dashboard/          # index.php, pilih_tahun.php
-    ├── parameter/          # tahun, batas_waktu, bkp, pemda, log
+    ├── parameter/          # tahun, batas_waktu, bkp, pemda, pejabat_provinsi, log
     ├── pekerjaan/          # index, form (17 field + Leaflet), detail, cetak
     ├── reviu/              # index, form (checklist), cetak_kertas_kerja, cetak_rekap
     ├── verif_kab/          # index, form, cetak_rekap
-    ├── verif_prov/         # index, form (SP2D), cetak_rekap_penyaluran
+    ├── permohonan/         # index, detail (bundel kegiatan)
+    ├── verif_prov/         # index, detail_permohonan, form, cetak_nota_*, cetak_rekap_penyaluran
+    ├── penyaluran_kab/     # index (daftar permohonan + konfirmasi RKUD)
+    ├── capaian/            # index, form (capaian output fisik)
     ├── laporan/            # rekap_bkp, rekap_penyaluran, cetak_rekap_bkp
-    └── admin/              # users/ & roles/
+    └── admin/              # users/, roles/ & logs/ (log aktivitas + riwayat status)
 
 assets/
 ├── css/siberkah.css        # design system lengkap (CSS variables, komponen)
@@ -97,6 +116,11 @@ uploads/                    # file upload user — jangan commit ke git
 ├── dokumen/
 ├── lhr/
 ├── permohonan/
+├── capaian/
+├── logo/
+├── landing/
+│   ├── pejabat/
+│   └── slideshow/
 └── temp/
 ```
 
@@ -112,9 +136,13 @@ uploads/                    # file upload user — jangan commit ke git
 | `ref_bidang` | 12 bidang kegiatan |
 | `ref_bkp` | Data BKP per tahun per kab/kota |
 | `ref_batas_waktu` | **Kunci**: batas pengajuan per jenis per tahun — mengontrol submit OPD |
-| `ref_checklist_item` | 21 item checklist statis (CK-01 s/d CK-21) |
+| `ref_checklist_item` | 22 item checklist statis (CK-01 s/d CK-22); CK-22 khusus Tahap II bertahap |
 | `ref_pemda_pejabat` | KDH, Kepala BKAD, Inspektur per kab per tahun |
 | `ref_pemda_dokumen` | Perda/Pergub/Perkada per kab per tahun |
+| `ref_pejabat_bkad_prov` | Kepala Badan, Kabid Anggaran, Bendahara BKAD Provinsi (untuk TTD nota) |
+| `ref_app_setting` | Konfigurasi aplikasi: `logo_provinsi` (path file), SMTP, dll |
+| `ref_landing_pejabat` | Foto pejabat Provinsi untuk landing page |
+| `ref_landing_slideshow` | Foto slideshow landing page |
 
 ### Tabel RBAC
 | Tabel | Isi |
@@ -207,6 +235,7 @@ parameter.view, parameter.tahun.view, parameter.tahun.manage
 parameter.bkp.view, parameter.bkp.manage
 parameter.pemda.view, parameter.pemda.manage
 parameter.batas_waktu.view, parameter.batas_waktu.manage
+parameter.landing.view, parameter.landing.manage
 pekerjaan.view, pekerjaan.view_all, pekerjaan.input, pekerjaan.edit
 pekerjaan.upload_dok, pekerjaan.download_dok, pekerjaan.submit
 pekerjaan.cetak_permohonan
@@ -216,12 +245,26 @@ verif_kab.view, verif_kab.input, verif_kab.approve
 verif_kab.konfirmasi, verif_kab.cetak_rekap
 verif_prov.view, verif_prov.approve
 penyaluran.view, penyaluran.input_sp2d
+penyaluran_kab.view, penyaluran_kab.konfirmasi
 capaian.view, capaian.input
 laporan.view, laporan.cetak_rekap_bkp, laporan.cetak_rekap_penyaluran, laporan.export
 admin.view, admin.user.view, admin.user.create, admin.user.edit
 admin.user.delete, admin.user.toggle, admin.user.reset_pw
 admin.role.view, admin.role.create, admin.role.edit
 admin.role.delete, admin.role.permission
+admin.logs.view
+```
+
+### Catatan Sidebar Menu (Rbac::getMenus)
+
+Menu "Penyaluran" muncul **satu** per user tapi tujuan URL berbeda berdasarkan role:
+- **Provinsi** (`superadmin`, `admin_provinsi`) → `verifikasi/prov` — dengan flag `provinsi_only => TRUE`
+- **Kabkota** (`skpkd_kabkota`, dll.) → `penyaluran-kab` — dengan flag `kabkota_only => TRUE`
+
+Gunakan flag yang sama saat menambah menu baru yang scope-nya spesifik:
+```php
+['key'=>'...',  'url'=>'...', ..., 'provinsi_only'=>TRUE]  // hanya muncul untuk role provinsi
+['key'=>'...',  'url'=>'...', ..., 'kabkota_only'=>TRUE]   // hanya muncul untuk role kabkota
 ```
 
 ---
@@ -243,6 +286,7 @@ $this->session->userdata('kabkota_nama')    // string|NULL
 $this->session->userdata('instansi_jenis')  // enum: bkad_provinsi|skpkd_kabkota|inspektorat|opd_teknis|lainnya
 $this->session->userdata('opd_nama')        // string|NULL
 $this->session->userdata('tahun_anggaran')  // year string: '2026'
+$this->session->userdata('must_change_password') // int 0|1 — paksa redirect ke ganti-password jika 1
 ```
 
 Di `Auth_Controller`, shortcut:
@@ -386,16 +430,18 @@ if (!$cek['ok']) {
 }
 ```
 
-### 2. Nilai Kontrak — Bertahap wajib > 200 juta
+### 2. Nilai Kontrak — Bertahap wajib > 400 juta
 ```php
-if ($jenis === 'bertahap' && $nilai_kontrak <= 200000000) {
+if ($jenis === 'bertahap' && $nilai_kontrak <= 400000000) {
     // Tolak dengan error
 }
 ```
 
 ### 3. Belanja Pendukung — Maks 5% dari nilai BKP
 ```php
-if ($jenis === 'bertahap' && $nilai_pendukung > ($bkp->nilai * 0.05)) {
+// Gunakan perbandingan integer (x20), BUKAN ($bkp->nilai * 0.05),
+// agar tidak ada masalah presisi float pada nilai miliaran
+if ($jenis === 'bertahap' && ($nilai_pendukung * 20) > $bkp->nilai) {
     // Tolak dengan error
 }
 ```
@@ -414,6 +460,93 @@ if (in_array($hasil, ['ditolak','perlu_perbaikan']) && empty($catatan)) {
 }
 ```
 
+### 6. Wajib Ganti Password — HARD BLOCK
+```php
+// Di Auth_Controller::__construct() — semua controller terproteksi
+if ($this->session->userdata('must_change_password')) {
+    // redirect paksa ke ganti-password, kecuali controller Akun sendiri
+    redirect('ganti-password'); exit;
+}
+```
+Di-set `1` saat: admin reset password user (`Admin_users::reset_pw`) atau admin
+membuat user baru (`Admin_users::simpan`). Direset ke `0` setelah user berhasil
+ganti password via `Akun::update_password`.
+
+### 7. Transisi Status & Scoping Kab/Kota — Guard di method `putuskan()`/keputusan
+
+Setiap method yang mengambil keputusan atas suatu tahapan (`Reviu::putuskan`,
+`Verif_kab::putuskan`, `Verif_prov::putuskan`, `Verif_prov::konfirmasi_transfer`,
+`Verif_prov::simpan_sp2d_permohonan`) **wajib** memvalidasi:
+
+1. **Scoping kabkota (anti-IDOR)** — untuk role kabkota (`inspektorat`,
+   `skpkd_kabkota`), `$pekerjaan->kabkota_id` harus sama dengan
+   `$this->kabkota_id` sebelum mengubah data tahapan/pekerjaan milik
+   kab/kota lain.
+   ```php
+   if ($this->role_kode === 'inspektorat'
+       && $pekerjaan->kabkota_id != $this->kabkota_id) {
+       $this->session->set_flashdata('error', 'Akses ditolak.');
+       redirect('reviu'); return;
+   }
+   ```
+
+2. **Status sebelumnya (anti re-submit/IDOR transisi)** — `$tahapan->status`
+   harus berada di status "aktif menunggu keputusan" untuk tahap ini.
+   Mapping status aktif per modul:
+   | Modul | Status aktif yang valid untuk `putuskan()` |
+   |---|---|
+   | `Reviu::putuskan` | `inspektorat_reviu` |
+   | `Verif_kab::putuskan` | `skpkd_kab_verif` |
+   | `Verif_prov::putuskan` | `skpkd_prov_verif` **dan** `verif_prov->hasil_verifikasi !== 'disetujui'` (karena status tetap `skpkd_prov_verif` setelah disetujui, menunggu SP2D) |
+   ```php
+   if ($tahapan->status !== 'inspektorat_reviu') {
+       $this->session->set_flashdata('error', 'Tahapan ini tidak dalam status menunggu keputusan reviu.');
+       redirect('reviu/form/' . $reviu->tahapan_id); return;
+   }
+   ```
+
+3. **Idempotensi aksi penyaluran** — `Verif_prov::konfirmasi_transfer` dan
+   `Verif_prov::simpan_sp2d_permohonan` harus menolak pemrosesan ulang jika
+   `status_transfer`/`status_sp2d` sudah `'selesai'`, agar notifikasi/Telegram
+   dan `set_status()` tidak terkirim/terpanggil ganda.
+
+### 8. Formula Nilai Pengajuan Tahap II — Tidak Dikurangi Pendukung
+
+```php
+// Tahap II (bertahap): nilai_diajukan sudah = persen_nilai/100 × nilai_kontrak
+// Pendukung (belanja operasional) HANYA masuk di Tahap I total, TIDAK di Tahap II
+// Tahap I total = nilai_diajukan + nilai_belanja_pendukung  (misal 50%NK + pendukung)
+// Tahap II total = nilai_diajukan saja               (misal 50%NK, tanpa pendukung)
+
+// Pola wajib di semua view dan model yang menghitung total permohonan:
+$is_t2 = ($pm->jenis_penyaluran === 'bertahap' && $pm->kode_tahap === 'tahap_2');
+$nilai = $is_t2
+    ? ($item->nilai_diajukan ?? 0)
+    : ($item->nilai_diajukan ?? 0) + ($item->nilai_belanja_pendukung ?? 0);
+
+// Di SQL subquery (model):
+// CASE WHEN pm.jenis_penyaluran = 'bertahap' AND pm.kode_tahap = 'tahap_2'
+//      THEN tp.nilai_diajukan
+//      ELSE tp.nilai_diajukan + IFNULL(pk.nilai_belanja_pendukung, 0)
+// END
+```
+
+Berlaku di: `Permohonan_model::get_all()`, `get_kelompok_tersedia()`, `Verifikasi_prov_model::get_permohonan_list()`,
+view `permohonan/detail.php`, `permohonan/cetak_rekap.php`, `verif_prov/detail_permohonan.php`,
+`verif_prov/cetak_nota_kabid.php`, `verif_prov/cetak_ringkasan.php`, `laporan/rekap_tahap2.php`,
+`laporan/cetak_rekap_tahap2.php`.
+
+### 9. Race Condition Upsert 1:1 per Tahapan
+
+Pola `buat_atau_ambil($tahapan_id)` (cek-lalu-insert tanpa transaksi) di
+`Reviu_model`, `Verifikasi_kab_model`, `Verifikasi_prov_model` mengandalkan
+`UNIQUE KEY (tahapan_id)` di tabel `trx_reviu_inspektorat`,
+`trx_verifikasi_skpkd_kab`, `trx_verifikasi_skpkd_prov`, dan
+`trx_penyaluran_dana` sebagai jaring pengaman terakhir terhadap duplikasi
+record saat dua request bersamaan. `schema.sql` sudah mendefinisikan
+constraint ini; untuk database lama jalankan
+`database/upsert_unique_migration.sql`.
+
 ---
 
 ## FITUR YANG BELUM SELESAI (STUB)
@@ -422,16 +555,30 @@ Fitur-fitur ini ada dalam blueprint tapi belum diimplementasi — **prioritas un
 
 | Fitur | File Terkait | Keterangan |
 |---|---|---|
-| **Import Excel BKP** | `views/parameter/bkp_import.php` | View sudah ada tapi isinya stub. Butuh: PhpSpreadsheet, controller `bkp_proses_import`, `bkp_preview_import`, validasi duplikat |
-| **Capaian Output** | Belum ada controller/view | Tabel `trx_capaian_output` sudah ada di DB. Diperlukan setelah Tahap I dikonfirmasi |
-| **Export Excel (XLSX)** | `Laporan.php` | Saat ini hanya CSV. Perlu PhpSpreadsheet untuk format XLSX proper |
 | **Notifikasi Email** | `Notifikasi_model.php` | Hanya in-app. Perlu tambah SMTP / PHPMailer |
-| **Reset Password via Email** | `Admin_users.php` | Tombol reset sudah ada, tapi hanya reset ke 'password123' |
-| **Foto Dokumentasi** | `trx_capaian_output.foto_path` | Field ada di DB, belum ada UI upload foto capaian |
-| **Peta Overview Provinsi** | `Dashboard.php` | Dashboard sudah ada tabel per kab, tapi belum ada peta Leaflet cluster semua kab |
-| **Pagination** | Semua index view | Tabel tanpa pagination — bisa jadi lambat jika data besar |
-| **API JSON** | — | Tidak ada endpoint API. Perlu jika akan ada integrasi sistem lain |
-| **Notif Realtime** | — | Saat ini notif hanya muncul saat page refresh |
+| **Reset Password via Email** | `Admin_users.php` | Reset sudah generate password acak 12 karakter (ditampilkan sekali via flashdata + `must_change_password=1`), tapi belum dikirim ke email user |
+| **API JSON** | — | Tidak ada endpoint API. Perlu jika integrasi dengan sistem e-budgeting daerah |
+| **Notif Realtime** | — | Notifikasi hanya muncul saat page refresh |
+
+**Fitur SELESAI** (sebelumnya tercatat sebagai stub, kini sudah diimplementasi):
+- ✅ **Capaian Output** — `Capaian.php` + `Capaian_model.php` + `capaian/index.php` + `capaian/form.php`
+- ✅ **Export XLSX** — `Laporan.php` menggunakan `XlsxWriter` library (tanpa Composer)
+- ✅ **Pagination** — `Admin_users`, `Parameter BKP` sudah ada pagination
+- ✅ **Penyaluran Kab** — `Penyaluran_kab.php` + konfirmasi RKUD (kode transaksi, nilai, tanggal)
+- ✅ **Permohonan bundel** — SKPKD Kab buat bundel kegiatan dalam satu permohonan
+- ✅ **Nota Dinas cetak** — `cetak_nota_kabid.php`, `cetak_nota_kabadan.php`, `cetak_ringkasan.php`
+- ✅ **Pejabat BKAD Provinsi** — `ref_pejabat_bkad_prov` + parameter UI (`parameter/pejabat-provinsi`)
+- ✅ **Logo Provinsi** — upload via `parameter/logo`, disimpan ke `uploads/logo/` + ditampilkan di login & landing
+- ✅ **Laporan Akhir Kab/Kota** — `laporan_akhir_kab()` + `cetak_laporan_akhir_kab()` di `Laporan.php`
+- ✅ **Tampilan Landing Page** — slideshow + foto pejabat Provinsi via `parameter/landing`
+- ✅ **Import Excel BKP** — `parameter/bkp/import` (2 langkah: upload → preview+validasi → konfirmasi). Parser native via `XlsxReader.php` (xlsx) atau CSV. Validasi: kabkota tidak dikenal, bidang tidak dikenal (fuzzy+alias), nilai bukan angka, duplikat (tahun+kabkota+uraian) dengan opsi update/skip per baris. Template unduhan: XLSX (`bkp/import/template-xlsx`, via `XlsxWriter`) dan CSV (`bkp/import/template`)
+- ✅ **Peta Cluster Leaflet (Dashboard)** — `dashboard/index.php` + `Dashboard::peta_data()` (endpoint `dashboard/peta-data`). Marker cluster (Leaflet.markercluster via CDN), warna marker per status, popup ringkas (kode BKP, uraian, kab/kota, nilai kontrak, badge status, link detail). Hanya tampil untuk role provinsi (`superadmin`/`admin_provinsi`) dan `pengawas`
+- ✅ **Dashboard Chart Per Bidang** — card "Distribusi Pekerjaan Per Bidang" menggunakan Chart.js 4.4.0 (CDN). Setiap bidang mendapat warna unik dari palette 12 warna (PHP → JSON). Legenda warna digenerate di bawah chart. `generateLabels` override agar tooltip generic (bukan per-bidang).
+- ✅ **Rekap Pengajuan Tahap II** — `Laporan.php::rekap_tahap2()` + `cetak_rekap_tahap2()`. Daftar kegiatan bertahap yang sudah memasuki Tahap II, dengan nilai salur T1 dan pengajuan T2 (50%NK masing-masing). Route: `laporan/rekap-tahap2`, `laporan/cetak-rekap-tahap2`.
+- ✅ **Checklist Reviu Tahap II** — CK-21 (cek capaian output) dan CK-22 (cek BA Kemajuan) ditambahkan ke `ref_checklist_items` khusus untuk `jenis_penyaluran='bertahap'` + `kode_tahap='tahap_2'`. Form reviu Tahap II otomatis menampilkan data capaian OPD untuk cross-check.
+- ✅ **Capaian Upload BA** — form `capaian/form.php` mendukung upload Berita Acara Kemajuan Pekerjaan (file PDF/JPG) di samping foto dokumentasi fisik. Unduhan via `berkas/unduh/capaian-ba/{pekerjaan_id}`.
+- ✅ **Nota Kabid: status selesai & label jenis** — `Verif_prov::_get_pm_for_cetak()` mengizinkan `status='selesai'` (sebelumnya hanya `diajukan`), sehingga nota dapat dicetak ulang setelah RKUD dikonfirmasi. Field "Hal" menyertakan label jenis penyaluran dalam kurung, mis. `"Pencairan Bantuan Keuangan untuk Kab. X (Tahap I)"`.
+- ✅ **Verif Prov: tampilkan permohonan selesai** — `Verifikasi_prov_model::_build_pm_query()` menggunakan `WHERE pm.status IN ('diajukan','selesai')`. Permohonan selesai tampil dengan badge hijau "Selesai" dan tombol "Lihat" (view-only), permohonan diajukan tetap "Proses".
 
 ---
 
@@ -580,18 +727,67 @@ var(--abu-light)    /* #F1EFE8 */
 ## ENVIRONMENT & DEPENDENCIES
 
 ```
-PHP          : 7.4+ (target), 8.x (direkomendasikan)
+PHP          : 7.4+ (target), 8.x (direkomendasikan) — Railway: PHP 8.2
 CodeIgniter  : 3.1.13
 MySQL        : 5.7+ / MariaDB 10.3+
 Leaflet.js   : 1.9.4 (CDN)
 Tabler Icons : 2.44.0 (CDN)
 OpenStreetMap: tile server (CDN)
+XlsxWriter   : application/libraries/XlsxWriter.php (native, tanpa Composer)
 
 # Tidak ada Composer — semua dependency via CDN atau manual
-# Jika ingin tambah library PHP (misal PhpSpreadsheet):
-#   → Simpan di application/libraries/ atau application/third_party/
-#   → Load manual di controller/autoload
+# Jika ingin tambah library PHP: simpan di application/libraries/ atau application/third_party/
 ```
+
+### Deployment Railway
+
+Aplikasi di-deploy ke Railway menggunakan **Dockerfile** (`debian:bookworm-slim` + Apache + PHP 8.2).
+
+| File | Fungsi |
+|---|---|
+| `Dockerfile` | Build image: install Apache+PHP, setup VirtualHost, copy kode, buat folder runtime |
+| `docker-entrypoint.sh` | Startup: set PORT Railway, buat semua subfolder `uploads/`, set permission |
+| `.htaccess` | URL rewriting CI3 + blokir akses ke `application/`, `system/`, dan subfolder upload privat |
+
+**Penting — Railway Volume:**
+- Railway menggunakan ephemeral filesystem. Semua file yang diupload user **akan hilang** saat redeploy.
+- Solusi: mount Railway Volume ke `/var/www/html/uploads` di Railway Dashboard.
+- `docker-entrypoint.sh` membuat semua subfolder uploads saat startup — ini diperlukan karena Volume mount mengganti isi direktori.
+
+**Variabel environment wajib di Railway:**
+```
+APP_ENV=production
+APP_URL=https://domain.up.railway.app/
+ENCRYPTION_KEY=<64-char hex dari php -r "echo bin2hex(random_bytes(32));">
+DB_HOST=<host MySQL>
+DB_USER=<user>
+DB_PASS=<password>
+DB_NAME=siberkah_sumut
+```
+
+**Catatan .htaccess:**
+- Subfolder upload **privat** diblokir akses langsung: `uploads/dokumen/`, `uploads/lhr/`, `uploads/permohonan/`, `uploads/capaian/`, `uploads/temp/`
+- Subfolder upload **publik** tetap bisa diakses via URL: `uploads/logo/`, `uploads/landing/`
+- Semua unduhan file privat harus melalui `Berkas.php` controller (`berkas/unduh/...`)
+- `application/` dan `system/` tetap diblokir
+
+**Pola unduhan file privat (wajib gunakan controller Berkas):**
+```
+berkas/unduh/dok/{id}                  → trx_dokumen_persyaratan by ID
+berkas/unduh/lhr/{reviu_id}            → trx_reviu_inspektorat LHR
+berkas/unduh/capaian/{pekerjaan_id}    → trx_capaian_output foto dokumentasi
+berkas/unduh/capaian-ba/{pekerjaan_id} → trx_capaian_output file Berita Acara Kemajuan
+berkas/unduh/draft/{pekerjaan_id}/{spk|spmk|bast}  → trx_pekerjaan draft docs
+berkas/unduh/pm/{permohonan_id}/{jenis}             → trx_permohonan surat
+```
+Setiap unduhan: cek RBAC + scope kabkota + log aktivitas.
+
+**Upload file privat — konvensi:**
+- Nama file disimpan sebagai `bin2hex(random_bytes(16)).<ext>` (tidak dapat ditebak)
+- Nama file asli disimpan di kolom `nama_asli` / `nama_lhr_asli` / `nama_foto_asli` / `nama_{jenis}` untuk ditampilkan ke user
+- Validasi MIME dengan `finfo` (bukan hanya ekstensi) menggunakan `_mime_valid()` di MY_Controller
+- Nama file acak dibuat dengan `_random_filename($ext)` di MY_Controller
+- Migration: `database/secure_uploads_migration.sql`
 
 ---
 
@@ -633,29 +829,112 @@ $db['default']['database'] // 'siberkah_sumut'
 
 ---
 
+## MIGRASI DATABASE (wajib dijalankan manual)
+
+Jalankan SQL berikut jika belum ada di database:
+
+```sql
+-- Tabel pejabat BKAD Provinsi (untuk TTD Nota Dinas)
+CREATE TABLE IF NOT EXISTS ref_pejabat_bkad_prov (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  tahun YEAR NOT NULL,
+  jenis ENUM('kepala_badan','kabid_anggaran','bendahara_pengeluaran') NOT NULL,
+  nama VARCHAR(200) NOT NULL,
+  nip VARCHAR(50) NULL,
+  jabatan VARCHAR(200) NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_pejabat_bkad (tahun, jenis)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Kolom bundel permohonan + SP2D + RKUD di trx_permohonan
+ALTER TABLE trx_permohonan
+  ADD COLUMN IF NOT EXISTS nota_kabid_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS nota_kabadan_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS ringkasan_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS no_sp2d VARCHAR(100) NULL,
+  ADD COLUMN IF NOT EXISTS tgl_sp2d DATE NULL,
+  ADD COLUMN IF NOT EXISTS nilai_sp2d BIGINT UNSIGNED NULL,
+  ADD COLUMN IF NOT EXISTS rek_asal VARCHAR(100) NULL,
+  ADD COLUMN IF NOT EXISTS nama_bank_asal VARCHAR(100) NULL,
+  ADD COLUMN IF NOT EXISTS rek_tujuan VARCHAR(100) NULL,
+  ADD COLUMN IF NOT EXISTS nama_bank_tujuan VARCHAR(100) NULL,
+  ADD COLUMN IF NOT EXISTS status_sp2d ENUM('proses','selesai','gagal') NULL,
+  ADD COLUMN IF NOT EXISTS kode_transaksi_rkud VARCHAR(100) NULL,
+  ADD COLUMN IF NOT EXISTS nilai_rkud BIGINT UNSIGNED NULL,
+  ADD COLUMN IF NOT EXISTS tgl_rkud DATE NULL,
+  ADD COLUMN IF NOT EXISTS tgl_konfirmasi_rkud DATETIME NULL;
+
+-- Permission baru untuk Penyaluran Kab/Kota
+INSERT IGNORE INTO permissions (kode, nama, modul, jenis) VALUES
+('penyaluran_kab.view',       'Lihat Penyaluran Kab',       'penyaluran_kab', 'menu'),
+('penyaluran_kab.konfirmasi', 'Konfirmasi RKUD',            'penyaluran_kab', 'aksi');
+
+-- Assign ke role skpkd_kabkota (sesuaikan role_id)
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r, permissions p
+WHERE r.kode = 'skpkd_kabkota'
+  AND p.kode IN ('penyaluran_kab.view','penyaluran_kab.konfirmasi');
+
+-- Flag wajib ganti password (reset oleh admin / akun baru)
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS must_change_password TINYINT(1) NOT NULL DEFAULT 0
+    COMMENT 'Wajib ganti password saat login berikutnya (1=ya)'
+    AFTER password;
+
+-- Defensif: UNIQUE KEY tahapan_id pada tabel upsert 1:1 (jika DB lama belum punya)
+-- Lihat database/upsert_unique_migration.sql
+ALTER TABLE trx_reviu_inspektorat
+  ADD UNIQUE IF NOT EXISTS uq_reviu_tahapan (tahapan_id);
+ALTER TABLE trx_verifikasi_skpkd_kab
+  ADD UNIQUE IF NOT EXISTS uq_verif_kab_tahapan (tahapan_id);
+ALTER TABLE trx_verifikasi_skpkd_prov
+  ADD UNIQUE IF NOT EXISTS uq_verif_prov_tahapan (tahapan_id);
+ALTER TABLE trx_penyaluran_dana
+  ADD UNIQUE IF NOT EXISTS uq_penyaluran_tahapan (tahapan_id);
+
+-- Permission baru untuk modul Log Aktivitas (Admin_logs.php)
+INSERT IGNORE INTO permissions (kode, nama, modul, jenis) VALUES
+('admin.logs.view', 'Lihat Log Aktivitas', 'admin', 'menu');
+
+-- Assign default ke superadmin & admin_provinsi
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r, permissions p
+WHERE r.kode IN ('superadmin','admin_provinsi')
+  AND p.kode = 'admin.logs.view';
+```
+
+### File migration lain di luar `railway_migration_2026-06.sql`
+
+Tiga file berikut **TIDAK** termasuk dalam konsolidasi
+`database/railway_migration_2026-06.sql` karena merupakan migrasi *upgrade-only*
+untuk database lama yang dibuat sebelum kolom/permission terkait masuk ke
+`schema.sql`/`seed_data.sql`. Untuk instalasi baru (fresh install dari
+`schema.sql` + `seed_data.sql`) file-file ini **tidak perlu dijalankan** —
+kolom dan permission terkait sudah ada di sana. Untuk database existing yang
+dibuat sebelum kolom/permission ini ditambahkan, jalankan sekali:
+
+| File | Isi | Sudah ada di `schema.sql`/`seed_data.sql`? |
+|---|---|---|
+| `database/permissions_migration.sql` | Permission `capaian.view`, `capaian.input`, `parameter.landing.view`, `parameter.landing.manage` + assignment role | ✅ Ya (idempotent via `INSERT IGNORE`) |
+| `database/reviu_checklist_lock_migration.sql` | Kolom `trx_reviu_inspektorat.checklist_confirmed_at` | ✅ Ya |
+| `database/reviu_reviewer_migration.sql` | Kolom `trx_reviu_inspektorat.reviewer_nama`, `reviewer_nip`, `reviewer_jabatan` | ✅ Ya |
+
+---
+
 ## ROADMAP PENGEMBANGAN
 
-### Prioritas Tinggi
-1. **Import Excel BKP** — paling sering dibutuhkan operator, data bisa ratusan baris
-2. **Capaian Output fisik** — wajib untuk Tahap II pada jenis bertahap
-3. **Pagination** — tabel bisa >200 row jika semua kab/kota aktif
-4. **Validasi form sisi klien** — saat ini hanya validasi server-side
-
 ### Prioritas Menengah
-5. **Export XLSX** — lebih rapi dari CSV untuk laporan ke pimpinan
-6. **Peta cluster Leaflet** — visualisasi lokasi semua pekerjaan di satu peta provinsi
-7. **Notifikasi email** — SMTP untuk notif penting (batas waktu mendekati, dll)
-8. **Print to PDF langsung** — saat ini pakai browser print; bisa upgrade ke wkhtmltopdf/DomPDF
+1. **Notifikasi email** — SMTP untuk notif penting (batas waktu mendekati, SP2D diterbitkan)
+2. **Reset Password via Email** — link reset ke email user (sekarang hanya generate password baru via flashdata)
 
 ### Prioritas Rendah
-9. **Dashboard chart interaktif** — Chart.js/ApexCharts untuk grafik realisasi
-10. **API JSON endpoint** — untuk integrasi dengan sistem e-budgeting daerah
-11. **Audit log UI** — tampilkan `user_logs` lengkap dengan filter di menu admin
-12. **Multi-bahasa** — saat ini hanya Bahasa Indonesia
-13. **Dark mode** — CSS variables sudah siap, tinggal tambah theme toggle
+3. **API JSON endpoint** — untuk integrasi dengan sistem e-budgeting daerah
+4. **Multi-bahasa** — saat ini hanya Bahasa Indonesia
+5. **Dark mode** — CSS variables sudah siap, tinggal tambah theme toggle
 
 ---
 
 *File ini adalah konteks utama untuk Claude Code.*
 *Update file ini setiap kali ada perubahan arsitektur, konvensi, atau fitur baru.*
-*Terakhir diupdate: Mei 2026 — Sprint 1-6 selesai*
+*Terakhir diupdate: Juni 2026 — Sprint 8 selesai (formula Tahap II, checklist CK-22, chart per bidang, rekap Tahap II, nota kabid fix, verif prov tampilkan selesai)*

@@ -2,8 +2,29 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Verifikasi_kab_model — Sprint 4
- * Mengelola trx_verifikasi_skpkd_kab, konfirmasi penerimaan (trx_bukti_transfer)
+ * Verifikasi_kab_model.php — Model Verifikasi SKPKD Kab/Kota
+ *
+ * Akses data verifikasi oleh SKPKD Kab/Kota dan konfirmasi penerimaan dana.
+ *
+ * TABEL UTAMA:
+ *   trx_verifikasi_skpkd_kab — record verifikasi per tahapan (UNIQUE)
+ *   trx_dokumen_persyaratan  — dokumen permohonan yang diupload SKPKD Kab
+ *   trx_penyaluran_dana      — data SP2D (dibaca saja dari model ini)
+ *
+ * POLA UPSERT:
+ *   buat_atau_ambil($tahapan_id) — sama dengan Reviu_model,
+ *   mencegah duplikat verifikasi untuk tahapan yang sama.
+ *
+ * METHOD UTAMA:
+ *   get_antrian($filters)            — daftar tahapan perlu diverifikasi kab
+ *   count_filtered($filters)         — hitung untuk pagination
+ *   get_by_tahapan($tahapan_id)      — detail verifikasi satu tahapan
+ *   buat_atau_ambil($tahapan_id)     — upsert record verifikasi
+ *   update($id, $data)               — update hasil verifikasi
+ *   get_dokumen($tahapan_id)         — daftar dokumen yang diupload
+ *   get_penyaluran($tahapan_id)      — data SP2D terkait (jika sudah ada)
+ *   count_by_status()                — untuk statistik dashboard
+ *   rekap_nilai()                    — total nilai yang sudah diverifikasi kab
  */
 class Verifikasi_kab_model extends CI_Model
 {
@@ -113,13 +134,14 @@ class Verifikasi_kab_model extends CI_Model
 
     // ─── DOKUMEN PERMOHONAN ───────────────────────────────────
 
-    /** Semua dokumen tahapan (termasuk yang diupload OPD & SKPKD) */
+    /** Semua dokumen tahapan — include role uploader untuk filtering di view */
     public function get_dokumen($tahapan_id)
     {
         return $this->db
-            ->select('d.*, u.nama as nama_uploader')
+            ->select('d.*, u.nama as nama_uploader, r.kode as role_uploader')
             ->from('trx_dokumen_persyaratan d')
             ->join('users u', 'u.id = d.user_upload', 'left')
+            ->join('roles r', 'r.id = u.role_id', 'left')
             ->where('d.tahapan_id', $tahapan_id)
             ->order_by('d.created_at', 'ASC')
             ->get()->result();
@@ -130,32 +152,10 @@ class Verifikasi_kab_model extends CI_Model
     public function get_penyaluran($tahapan_id)
     {
         return $this->db
-            ->select('pd.*, bt.id as bukti_id, bt.file_path as bukti_path,
-                      bt.nama_file as bukti_nama, bt.keterangan as bukti_ket')
+            ->select('pd.*')
             ->from('trx_penyaluran_dana pd')
-            ->join('trx_bukti_transfer bt', 'bt.penyaluran_id = pd.id', 'left')
             ->where('pd.tahapan_id', $tahapan_id)
             ->get()->row();
-    }
-
-    public function simpan_bukti_transfer($penyaluran_id, $file_path, $nama_file, $keterangan, $user_id)
-    {
-        // Hapus bukti lama jika ada
-        $lama = $this->db->get_where('trx_bukti_transfer', ['penyaluran_id' => $penyaluran_id])->row();
-        if ($lama && $lama->file_path && file_exists(FCPATH . $lama->file_path)) {
-            unlink(FCPATH . $lama->file_path);
-        }
-        $this->db->delete('trx_bukti_transfer', ['penyaluran_id' => $penyaluran_id]);
-
-        $this->db->insert('trx_bukti_transfer', [
-            'penyaluran_id' => $penyaluran_id,
-            'file_path'     => $file_path,
-            'nama_file'     => $nama_file,
-            'keterangan'    => $keterangan,
-            'user_upload'   => $user_id,
-            'created_at'    => date('Y-m-d H:i:s'),
-        ]);
-        return $this->db->insert_id();
     }
 
     // ─── STATISTIK ────────────────────────────────────────────

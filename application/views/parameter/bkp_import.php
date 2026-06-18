@@ -72,7 +72,10 @@
         <li>Nilai cukup angka tanpa titik atau Rp (mis: <code>1000000000</code>)</li>
         <li>Duplikat dideteksi berdasarkan Tahun + Kab/Kota + Uraian yang sama</li>
       </ul>
-      <div style="margin-top:14px">
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+        <a href="<?= site_url('parameter/bkp/import/template-xlsx') ?>" class="btn btn-outline btn-sm">
+          <i class="ti ti-file-spreadsheet"></i> Download Template XLSX
+        </a>
         <a href="<?= site_url('parameter/bkp/import/template') ?>" class="btn btn-outline btn-sm">
           <i class="ti ti-download"></i> Download Template CSV
         </a>
@@ -286,20 +289,6 @@
 
 <?php endif; ?>
 
-<style>
-.drop-zone {
-  border: 2px dashed var(--biru);
-  border-radius: 8px;
-  padding: 32px 20px;
-  text-align: center;
-  cursor: pointer;
-  background: var(--biru-light);
-  transition: background .15s, border-color .15s;
-}
-.drop-zone:hover, .drop-zone.over { background: #cde4f5; border-color: var(--biru-dark); }
-.tr-error   td { background: var(--merah-light)  !important; }
-.tr-warning td { background: #fffbe6 !important; }
-</style>
 
 <script>
 // Drag & drop

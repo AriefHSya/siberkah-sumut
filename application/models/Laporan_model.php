@@ -2,8 +2,31 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Laporan_model — Sprint 6
- * Statistik dashboard lengkap + rekap BKP + rekap penyaluran
+ * Laporan_model.php — Model Laporan & Statistik
+ *
+ * Query kompleks untuk dashboard, rekap BKP, dan rekap penyaluran.
+ * Semua method menerima $tahun dan opsional $kabkota_id
+ * (NULL = semua kabkota, berlaku untuk role provinsi).
+ *
+ * TABEL YANG DI-JOIN:
+ *   trx_pekerjaan, trx_tahapan_penyaluran, trx_penyaluran_dana,
+ *   ref_bkp, ref_kabkota, ref_bidang
+ *
+ * METHOD UTAMA:
+ *   get_stats_provinsi($tahun)              — ringkasan total untuk admin provinsi
+ *   get_stats_kabkota($tahun, $kabkota_id)  — ringkasan untuk role kabkota
+ *   get_per_bidang($tahun, $kabkota_id)     — breakdown per bidang kegiatan
+ *   get_per_kabkota($tahun)                 — tabel per kab/kota (hanya provinsi)
+ *   get_funnel($tahun, $kabkota_id)         — jumlah per status (progress pipeline)
+ *   get_rekap_bkp($tahun, $kabkota_id)      — rekap BKP untuk halaman laporan
+ *   get_rekap_summary($tahun, $kabkota_id)  — total summary untuk cetak
+ *   get_laporan_akhir_kab($tahun, $kabkota_id) — laporan akhir komprehensif per kab
+ *   get_summary_laporan_kab($tahun, $kabkota_id) — summary untuk header laporan akhir
+ *
+ * CATATAN TEKNIS:
+ *   Query funnel menggunakan SUM(CASE WHEN) untuk hitung per-status dalam satu query.
+ *   get_laporan_akhir_kab menggunakan subquery persen_nilai (bukan porsi_persen) —
+ *   sesuai schema trx_tahapan_penyaluran.persen_nilai.
  */
 class Laporan_model extends CI_Model
 {
@@ -26,17 +49,14 @@ class Laporan_model extends CI_Model
         $pek_status = [];
         foreach ($pek_rows as $r) $pek_status[$r->status] = (int)$r->total;
 
-        // SP2D & realisasi
-        $sp2d = $this->db
-            ->select('COUNT(*) as total_sp2d,
-                      SUM(pd.nilai_transfer) as total_transfer,
-                      COUNT(CASE WHEN pd.status_transfer="selesai" THEN 1 END) as selesai')
-            ->from('trx_penyaluran_dana pd')
-            ->join('trx_tahapan_penyaluran t', 't.id = pd.tahapan_id')
-            ->join('trx_pekerjaan p', 'p.id = t.pekerjaan_id')
-            ->join('ref_bkp b', 'b.id = p.bkp_id')
-            ->where('b.tahun', $tahun)
-            ->get()->row();
+        // SP2D & realisasi — baca dari trx_permohonan (sumber data SP2D)
+        $sp2d = $this->db->query("
+            SELECT COUNT(*) as total_sp2d,
+                   COALESCE(SUM(nilai_sp2d), 0) as total_transfer,
+                   COUNT(CASE WHEN status_sp2d = 'selesai' THEN 1 END) as selesai
+            FROM trx_permohonan
+            WHERE tahun = ? AND no_sp2d IS NOT NULL
+        ", [$tahun])->row();
 
         // Kab/kota yang sudah punya pekerjaan
         $kab_aktif = $this->db
@@ -69,14 +89,12 @@ class Laporan_model extends CI_Model
         $pek_status = [];
         foreach ($pek_rows as $r) $pek_status[$r->status] = (int)$r->total;
 
-        $sp2d = $this->db
-            ->select('COUNT(*) as total_sp2d, SUM(pd.nilai_transfer) as total_transfer')
-            ->from('trx_penyaluran_dana pd')
-            ->join('trx_tahapan_penyaluran t', 't.id = pd.tahapan_id')
-            ->join('trx_pekerjaan p', 'p.id = t.pekerjaan_id')
-            ->join('ref_bkp b', 'b.id = p.bkp_id')
-            ->where(['b.tahun'=>$tahun, 'b.kabkota_id'=>$kabkota_id])
-            ->get()->row();
+        $sp2d = $this->db->query("
+            SELECT COUNT(*) as total_sp2d,
+                   COALESCE(SUM(nilai_sp2d), 0) as total_transfer
+            FROM trx_permohonan
+            WHERE tahun = ? AND kabkota_id = ? AND no_sp2d IS NOT NULL
+        ", [$tahun, $kabkota_id])->row();
 
         return ['bkp'=>$bkp, 'pek_status'=>$pek_status, 'sp2d'=>$sp2d];
     }
@@ -96,18 +114,20 @@ class Laporan_model extends CI_Model
     /** Distribusi per kabkota (untuk peta/chart provinsi) */
     public function get_per_kabkota($tahun)
     {
+        $t = $this->db->escape($tahun);
         return $this->db
-            ->select('k.nama, k.id as kabkota_id,
+            ->select("k.nama, k.id as kabkota_id,
                       COUNT(DISTINCT b.id) as total_bkp,
+                      SUM(b.nilai) as total_nilai_bkp,
                       COUNT(DISTINCT p.id) as total_pekerjaan,
                       SUM(p.nilai_kontrak) as total_kontrak,
-                      SUM(pd.nilai_transfer) as total_disalurkan,
-                      COUNT(DISTINCT pd.id) as total_sp2d')
+                      (SELECT COALESCE(SUM(pm.nilai_sp2d),0) FROM trx_permohonan pm
+                       WHERE pm.kabkota_id = k.id AND pm.tahun = $t AND pm.no_sp2d IS NOT NULL) as total_disalurkan,
+                      (SELECT COUNT(*) FROM trx_permohonan pm
+                       WHERE pm.kabkota_id = k.id AND pm.tahun = $t AND pm.no_sp2d IS NOT NULL) as total_sp2d", FALSE)
             ->from('ref_kabkota k')
-            ->join('ref_bkp b',   'b.kabkota_id = k.id AND b.tahun = '.$this->db->escape($tahun).' AND b.is_active = 1', 'left')
+            ->join('ref_bkp b',       'b.kabkota_id = k.id AND b.tahun = '.$t.' AND b.is_active = 1', 'left')
             ->join('trx_pekerjaan p', 'p.bkp_id = b.id', 'left')
-            ->join('trx_tahapan_penyaluran t', 't.pekerjaan_id = p.id', 'left')
-            ->join('trx_penyaluran_dana pd', 'pd.tahapan_id = t.id', 'left')
             ->where('k.is_active', 1)
             ->group_by('k.id')
             ->order_by('total_disalurkan', 'DESC')
@@ -249,6 +269,40 @@ class Laporan_model extends CI_Model
         unset($bkp);
 
         return $bkp_list;
+    }
+
+    // ─── REKAP TAHAP II ───────────────────────────────────────
+
+    /**
+     * Daftar pekerjaan bertahap yang sudah memasuki proses Tahap II.
+     * Nilai Salur Tahap I dan Nilai Pengajuan Tahap II dihitung di view.
+     *
+     * Filter: jenis_penyaluran='bertahap' AND t2.status != 'belum'
+     */
+    public function get_rekap_tahap2($tahun, $kabkota_id = NULL)
+    {
+        $this->db
+            ->select('b.kode_bkp, b.uraian_bkp,
+                      k.nama as nama_kabkota,
+                      p.id as pekerjaan_id, p.status, p.nama_kegiatan_dok,
+                      p.nilai_kontrak, p.nilai_belanja_pendukung, p.lokasi_deskripsi,
+                      t1.persen_nilai as persen_tahap1,
+                      t2.persen_nilai as persen_tahap2, t2.status as status_tahap2')
+            ->from('ref_bkp b')
+            ->join('ref_kabkota k',  'k.id = b.kabkota_id')
+            ->join('trx_pekerjaan p', 'p.bkp_id = b.id')
+            ->join('trx_tahapan_penyaluran t1',
+                   "t1.pekerjaan_id = p.id AND t1.kode_tahap = 'tahap_1'")
+            ->join('trx_tahapan_penyaluran t2',
+                   "t2.pekerjaan_id = p.id AND t2.kode_tahap = 'tahap_2'")
+            ->where('b.tahun', $tahun)
+            ->where('p.jenis_penyaluran', 'bertahap')
+            ->where('t2.status !=', 'belum');
+        if ($kabkota_id) $this->db->where('b.kabkota_id', $kabkota_id);
+        return $this->db
+            ->order_by('k.nama', 'ASC')
+            ->order_by('b.kode_bkp', 'ASC')
+            ->get()->result();
     }
 
     /** Summary statistik untuk header laporan akhir kab */

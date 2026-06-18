@@ -23,8 +23,14 @@
     </div>
     <?php endforeach; ?>
   </div>
-  <div class="card"><div class="card-title"><i class="ti ti-file-certificate"></i> Perda/Pergub TA <?= $tahun_sel ?></div>
-    <?php $dk_map=['perda_apbd'=>'Perda APBD','perda_apbd_p'=>'Perda APBD-P','perkada_bkp'=>'Perkada BKP','pergub_bkp'=>'Pergub BKP','lainnya'=>'Lainnya']; ?>
+  <div class="card"><div class="card-title"><i class="ti ti-file-certificate"></i> Perda Perbup/Perwal TA <?= $tahun_sel ?></div>
+    <?php $dk_map=[
+      'perda_apbd'         => 'PERDA APBD',
+      'perkada_apbd'       => 'PERKADA APBD',
+      'perkada_pergeseran' => 'PERKADA PERGESERAN',
+      'perda_p_apbd'       => 'PERDA P APBD',
+      'perkada_p_apbd'     => 'PERKADA P APBD',
+    ]; ?>
     <?php if (!empty($dokumen)): foreach ($dokumen as $d): ?>
     <div style="padding:10px;background:var(--bg);border-radius:var(--radius);margin-bottom:6px">
       <div class="text-xs text-muted"><?= $dk_map[$d->jenis]??$d->jenis ?></div>
@@ -58,7 +64,7 @@
 <!-- Modal Dokumen -->
 <div id="modalDok" class="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:999;align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:12px;padding:24px;width:480px;max-width:95vw">
-    <div class="card-title"><i class="ti ti-plus-circle"></i> Tambah Dokumen Perda/Pergub</div>
+    <div class="card-title"><i class="ti ti-plus-circle"></i> Tambah Perda Perbup/Perwal</div>
     <?= form_open(site_url('parameter/pemda/simpan-dokumen')) ?>
     <?= form_hidden($this->security->get_csrf_token_name(),$this->security->get_csrf_hash()) ?>
     <input type="hidden" name="kabkota_id" value="<?= $kabkota_sel ?>"><input type="hidden" name="tahun" value="<?= $tahun_sel ?>">

@@ -24,7 +24,8 @@
       <select name="status" class="form-control-sm">
         <option value="">Semua</option>
         <option value="dikonfirmasi_tahap1" <?= ($filters['status']==='dikonfirmasi_tahap1')?'selected':'' ?>>Belum Input Capaian</option>
-        <option value="opd_capaian_tahap1"  <?= ($filters['status']==='opd_capaian_tahap1') ?'selected':'' ?>>Sudah Input Capaian</option>
+        <option value="opd_capaian_tahap1"  <?= ($filters['status']==='opd_capaian_tahap1') ?'selected':'' ?>>Sudah Input — Belum Ajukan Tahap II</option>
+        <option value="opd_submitted"       <?= ($filters['status']==='opd_submitted')       ?'selected':'' ?>>Tahap II Sudah Diajukan</option>
       </select>
     </div>
     <div class="filter-group">
@@ -100,20 +101,38 @@
     <td>
       <?php if ($row->status === 'dikonfirmasi_tahap1'): ?>
         <span class="badge badge-kuning">Perlu Input</span>
+      <?php elseif ($row->status === 'opd_capaian_tahap1'): ?>
+        <span class="badge badge-biru">Menunggu Ajukan Tahap II</span>
+      <?php elseif ($row->status === 'inspektorat_revisi'): ?>
+        <span class="badge badge-merah">Perlu Perbaikan</span>
       <?php else: ?>
-        <span class="badge badge-hijau">Selesai</span>
+        <span class="badge badge-hijau">Sudah Diproses</span>
       <?php endif; ?>
     </td>
     <td>
-      <?php if ($this->rbac->can('capaian.input')): ?>
-      <a href="<?= site_url('capaian/form/'.$row->pekerjaan_id) ?>"
-         class="btn btn-sm <?= $row->capaian_id ? 'btn-outline' : 'btn-primary' ?> btn-icon"
-         title="<?= $row->capaian_id ? 'Edit Capaian' : 'Input Capaian' ?>">
-        <i class="ti ti-<?= $row->capaian_id ? 'edit' : 'plus' ?>"></i>
-      </a>
-      <?php else: ?>
-      <a href="<?= site_url('capaian/form/'.$row->pekerjaan_id) ?>" class="btn btn-sm btn-outline btn-icon" title="Lihat"><i class="ti ti-eye"></i></a>
-      <?php endif; ?>
+      <?php
+      // Edit hanya boleh saat: belum input (dikonfirmasi), belum submit Tahap II (opd_capaian),
+      // atau ada permintaan perbaikan dari Inspektorat (inspektorat_revisi)
+      $status_boleh_edit = in_array($row->status, [
+          'dikonfirmasi_tahap1', 'opd_capaian_tahap1', 'inspektorat_revisi'
+      ]);
+      ?>
+      <div class="aksi-row">
+        <?php if ($row->capaian_id): ?>
+        <a href="<?= site_url('capaian/form/'.$row->pekerjaan_id) ?>"
+           class="btn btn-outline btn-sm" title="Lihat Data Capaian">
+          <i class="ti ti-eye"></i> Lihat
+        </a>
+        <?php endif; ?>
+        <?php if ($this->rbac->can('capaian.input') && $status_boleh_edit): ?>
+        <a href="<?= site_url('capaian/form/'.$row->pekerjaan_id) ?>"
+           class="btn btn-sm <?= $row->capaian_id ? 'btn-outline' : 'btn-primary' ?>"
+           title="<?= $row->capaian_id ? 'Edit Capaian' : 'Input Capaian' ?>">
+          <i class="ti ti-<?= $row->capaian_id ? 'edit' : 'plus' ?>"></i>
+          <?= $row->capaian_id ? 'Edit' : 'Input' ?>
+        </a>
+        <?php endif; ?>
+      </div>
     </td>
   </tr>
   <?php endforeach; else: ?>

@@ -25,19 +25,35 @@ $config['log_file_permissions']= 0644;
 $config['log_date_format']     = 'Y-m-d H:i:s';
 $config['cache_path']          = '';
 $config['cache_query_string']  = FALSE;
-$config['encryption_key']      = 'siberkah_sumut_2026_s3cr3t_k3y!!';
-$config['sess_driver']         = 'files';
-$config['sess_cookie_name']    = 'siberkah_sess';
-$config['sess_expiration']     = 7200;
-$config['sess_save_path']      = APPPATH.'cache/sessions';
-$config['sess_match_ip']       = FALSE;
-$config['sess_time_to_update'] = 300;
+
+$_is_prod = (getenv('APP_ENV') === 'production');
+
+// Encryption key — WAJIB di-set via env var ENCRYPTION_KEY di production.
+// Generate: php -r "echo bin2hex(random_bytes(32));"
+// Fallback dev-only — JANGAN pakai nilai ini di production.
+if ($_is_prod && !getenv('ENCRYPTION_KEY')) {
+    header('HTTP/1.1 500 Internal Server Error', TRUE, 500);
+    exit('Konfigurasi tidak lengkap: ENCRYPTION_KEY wajib di-set di environment production.');
+}
+$config['encryption_key'] = getenv('ENCRYPTION_KEY') ?: 'siberkah_dev_only_key_not4prod!!';
+
+// Session: database di production (lebih aman & scalable), files di development.
+// Tabel ci_sessions harus dibuat dulu — lihat database/ci_sessions.sql
+$config['sess_driver']   = $_is_prod ? 'database' : 'files';
+$config['sess_save_path']= $_is_prod ? 'ci_sessions' : APPPATH.'cache/sessions';
+
+$config['sess_cookie_name']        = 'siberkah_sess';
+$config['sess_expiration']         = 7200;
+$config['sess_match_ip']           = FALSE;
+$config['sess_time_to_update']     = 300;
 $config['sess_regenerate_destroy'] = FALSE;
-$config['cookie_prefix']       = 'siberkah_';
-$config['cookie_domain']       = '';
-$config['cookie_path']         = '/';
-$config['cookie_secure']       = FALSE;
-$config['cookie_httponly']     = FALSE;
+
+$config['cookie_prefix']   = 'siberkah_';
+$config['cookie_domain']   = '';
+$config['cookie_path']     = '/';
+// Cookie aman hanya via HTTPS & tidak bisa diakses JavaScript — wajib TRUE di production
+$config['cookie_secure']   = $_is_prod ? TRUE : FALSE;
+$config['cookie_httponly']  = $_is_prod ? TRUE : FALSE;
 $config['standardize_newlines']= FALSE;
 $config['global_xss_filtering']= FALSE;
 $config['csrf_protection']     = TRUE;

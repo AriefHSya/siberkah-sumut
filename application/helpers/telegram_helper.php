@@ -68,3 +68,31 @@ function telegram_notif_admin_prov($message)
         telegram_send($token, $admin->telegram_chat_id, $message);
     }
 }
+
+/**
+ * Kirim notifikasi Telegram ke semua user SKPKD Kab/Kota pada kabkota tertentu
+ * yang punya telegram_chat_id
+ */
+function telegram_notif_kabkota($kabkota_id, $message)
+{
+    $CI =& get_instance();
+
+    $setting = $CI->db->get_where('ref_app_setting', ['kode' => 'telegram_bot_token'])->row();
+    $token   = $setting ? trim($setting->nilai) : '';
+    if (empty($token)) return;
+
+    $users = $CI->db
+        ->select('u.telegram_chat_id')
+        ->from('users u')
+        ->join('roles r', 'r.id = u.role_id')
+        ->where('r.kode', 'skpkd_kabkota')
+        ->where('u.kabkota_id', (int)$kabkota_id)
+        ->where('u.is_active', 1)
+        ->where('u.telegram_chat_id IS NOT NULL', NULL, FALSE)
+        ->where('u.telegram_chat_id !=', '')
+        ->get()->result();
+
+    foreach ($users as $u) {
+        telegram_send($token, $u->telegram_chat_id, $message);
+    }
+}

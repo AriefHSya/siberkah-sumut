@@ -63,13 +63,21 @@
           <td class="text-xs"><?= label_instansi($u->instansi_jenis??'') ?><?= $u->opd_nama?'<br><span class="text-muted">'.htmlspecialchars($u->opd_nama).'</span>':'' ?></td>
           <td class="text-sm"><?= htmlspecialchars($u->nama_kabkota??'–') ?></td>
           <td class="text-xs text-muted"><?= $u->last_login ? tgl_short($u->last_login) : 'Belum pernah' ?></td>
-          <td class="text-center"><?= $u->is_active ? '<span class="badge badge-hijau">Aktif</span>' : '<span class="badge badge-abu">Nonaktif</span>' ?></td>
+          <td class="text-center">
+            <?= $u->is_active ? '<span class="badge badge-hijau">Aktif</span>' : '<span class="badge badge-abu">Nonaktif</span>' ?>
+            <?php if (!empty($u->locked_at)): ?>
+            <br><span class="badge badge-merah" title="Terkunci sejak <?= htmlspecialchars($u->locked_at) ?>">Terkunci</span>
+            <?php endif; ?>
+          </td>
           <td><div class="flex-gap" style="justify-content:center">
             <?php if ($this->rbac->canManageUser($u->role_level??99)): ?>
             <a href="<?= site_url('admin/users/edit/'.$u->id) ?>" class="btn-icon" title="Edit"><i class="ti ti-edit"></i></a>
             <?php if ($u->id != $this->session->userdata('user_id')): ?>
             <a href="<?= site_url('admin/users/toggle/'.$u->id) ?>" class="btn-icon" title="<?= $u->is_active?'Nonaktifkan':'Aktifkan' ?>" data-confirm="<?= $u->is_active?'Nonaktifkan':'Aktifkan' ?> user <?= $u->username ?>?"><i class="ti ti-<?= $u->is_active?'user-off':'user-check' ?>"></i></a>
             <a href="<?= site_url('admin/users/reset-password/'.$u->id) ?>" class="btn-icon" title="Reset Password" data-confirm="Reset password <?= $u->username ?> ke password123?"><i class="ti ti-key"></i></a>
+            <?php if ($this->rbac->can('admin.user.unlock') && !empty($u->locked_at)): ?>
+            <a href="<?= site_url('admin/users/unlock/'.$u->id) ?>" class="btn-icon" title="Buka Akun Terkunci" data-confirm="Buka kembali akun <?= $u->username ?> yang terkunci?"><i class="ti ti-lock-open"></i></a>
+            <?php endif; ?>
             <?php endif; ?>
             <?php endif; ?>
           </div></td>
@@ -78,4 +86,5 @@
       </tbody>
     </table>
   </div>
+  <?php $this->load->view('partials/pagination', ['paging' => $paging, 'filters' => $filters]); ?>
 </div>

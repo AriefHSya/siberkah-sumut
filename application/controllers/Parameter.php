@@ -1,4 +1,36 @@
 <?php
+/**
+ * Parameter.php — Controller Manajemen Data Referensi & Konfigurasi
+ *
+ * Controller terbesar — mengelola semua data referensi yang diperlukan
+ * sistem: tahun anggaran, batas waktu pengajuan, data BKP, data pemda
+ * pejabat, dan tampilan landing page.
+ *
+ * SECTION:
+ *   A. Tahun Anggaran   — CRUD tahun, set aktif
+ *   B. Batas Waktu      — kelola deadline per jenis penyaluran per tahun
+ *   C. Data BKP         — CRUD BKP, import Excel/CSV, cetak rekap
+ *   D. Data Pemda       — pejabat KDH & dokumen Perda per kab/kota
+ *   E. Tampilan Landing — foto pejabat + slideshow kinerja
+ *   F. Log              — log perubahan parameter
+ *
+ * ROUTES (lihat config/routes.php untuk mapping lengkap):
+ *   /parameter/tahun           → CRUD tahun anggaran
+ *   /parameter/batas-waktu     → kelola deadline
+ *   /parameter/bkp             → CRUD + import BKP
+ *   /parameter/pemda           → pejabat & dokumen pemda
+ *   /parameter/landing         → tampilan landing page
+ *   /parameter/log             → log aktivitas
+ *
+ * IMPORT BKP:
+ *   Upload .xlsx atau .csv → preview validasi → konfirmasi → proses import
+ *   Duplikat dapat di-skip atau di-update per baris
+ *   Library: application/libraries/XlsxReader.php (native, tanpa Composer)
+ *
+ * UPLOAD FOTO:
+ *   Foto pejabat → uploads/landing/pejabat/{jenis}.jpg
+ *   Foto slideshow → uploads/landing/slideshow/{timestamp}.jpg
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Parameter extends Auth_Controller
@@ -134,28 +166,39 @@ class Parameter extends Auth_Controller
     // ─── BKP ──────────────────────────────────────────────────
     public function bkp() {
         $this->requirePerm('parameter.bkp.view');
+        $per_page      = 30;
+        $page          = max(1, (int)$this->input->get('page'));
+        $force_kabkota = $this->rbac->isKabkota() ? (int)$this->kabkota_id : NULL;
         $filters = [
             'tahun'      => $this->input->get('tahun') ?? $this->tahun,
-            'kabkota_id' => $this->input->get('kabkota_id'),
+            'kabkota_id' => $force_kabkota ?? $this->input->get('kabkota_id'),
             'bidang_id'  => $this->input->get('bidang_id'),
             'q'          => $this->input->get('q'),
         ];
+        $total  = $this->Parameter_model->count_bkp($filters);
+        $offset = ($page - 1) * $per_page;
         $d = $this->_d('Data Referensi BKP','bkp');
-        $d['list']         = $this->Parameter_model->get_bkp($filters);
-        $d['rekap']        = $this->Parameter_model->rekap_bkp($filters['tahun'], $filters['kabkota_id']);
-        $d['kabkota_list'] = $this->Parameter_model->get_kabkota();
-        $d['bidang_list']  = $this->Parameter_model->get_bidang();
-        $d['filters']      = $filters;
+        $d['list']          = $this->Parameter_model->get_bkp($filters, $per_page, $offset);
+        $d['rekap']         = $this->Parameter_model->rekap_bkp($filters['tahun'], $filters['kabkota_id']);
+        $d['kabkota_list']  = $this->rbac->isProvinsi() ? $this->Parameter_model->get_kabkota() : [];
+        $d['bidang_list']   = $this->Parameter_model->get_bidang();
+        $d['filters']       = $filters;
+        $d['is_provinsi']   = $this->rbac->isProvinsi();
+        $d['paging']        = ['total'=>$total,'per_page'=>$per_page,'page'=>$page,'base_url'=>'parameter/bkp'];
         $this->render('parameter/bkp', $d);
     }
 
     public function bkp_simpan() {
         $this->requirePerm('parameter.bkp.manage');
         $nilai = (int)str_replace(['.','Rp',' ',','],'',$this->input->post('nilai'));
+        // Role kab/kota tidak boleh pilih kabkota lain — paksa pakai kabkota sendiri
+        $kabkota_id = $this->rbac->isKabkota()
+            ? (int)$this->kabkota_id
+            : (int)$this->input->post('kabkota_id', TRUE);
         $data = [
             'kode_bkp'   => strtoupper(trim($this->input->post('kode_bkp',TRUE))),
             'tahun'      => $this->input->post('tahun',TRUE),
-            'kabkota_id' => $this->input->post('kabkota_id',TRUE),
+            'kabkota_id' => $kabkota_id,
             'bidang_id'  => $this->input->post('bidang_id',TRUE),
             'uraian_bkp' => $this->input->post('uraian_bkp',TRUE),
             'nilai'      => $nilai,
@@ -173,11 +216,16 @@ class Parameter extends Auth_Controller
 
     public function bkp_update($id) {
         $this->requirePerm('parameter.bkp.manage');
+        // Guard IDOR: kab/kota tidak bisa edit BKP milik kab/kota lain
+        if ($this->rbac->isKabkota()) {
+            $bkp_cek = $this->Parameter_model->get_bkp_by_id($id);
+            if (!$bkp_cek || (int)$bkp_cek->kabkota_id !== (int)$this->kabkota_id) {
+                $this->session->set_flashdata('error','Anda tidak berwenang mengubah data BKP ini.');
+                redirect('parameter/bkp'); return;
+            }
+        }
         $nilai = (int)str_replace(['.','Rp',' ',','],'',$this->input->post('nilai'));
-        $data = [
-            'uraian_bkp' => $this->input->post('uraian_bkp',TRUE),
-            'nilai'      => $nilai,
-        ];
+        $data  = ['uraian_bkp' => $this->input->post('uraian_bkp',TRUE), 'nilai' => $nilai];
         $this->Parameter_model->update_bkp($id, $data, $this->user_id);
         $this->log_aktivitas('parameter.bkp.edit','Edit BKP id='.$id);
         $this->session->set_flashdata('success','Data BKP berhasil diperbarui.');
@@ -188,7 +236,13 @@ class Parameter extends Auth_Controller
     public function bkp_hapus($id) {
         $this->requirePerm('parameter.bkp.manage');
         $bkp = $this->Parameter_model->get_bkp_by_id($id);
-        // Cek apakah BKP sudah punya pekerjaan
+        // Guard IDOR: kab/kota tidak bisa hapus BKP milik kab/kota lain
+        if ($this->rbac->isKabkota()) {
+            if (!$bkp || (int)$bkp->kabkota_id !== (int)$this->kabkota_id) {
+                $this->session->set_flashdata('error','Anda tidak berwenang menghapus data BKP ini.');
+                redirect('parameter/bkp'); return;
+            }
+        }
         $punya_pekerjaan = $this->db->where('bkp_id',$id)->count_all_results('trx_pekerjaan');
         if ($punya_pekerjaan) {
             $this->session->set_flashdata('error','BKP ini sudah memiliki data pekerjaan dan tidak dapat dihapus.'); redirect('parameter/bkp'); return;
@@ -289,7 +343,14 @@ class Parameter extends Auth_Controller
             $bidang_warning = $bidang_result['warning']; // peringatan jika pakai fuzzy
             if (!$bidang) $row_errors[] = 'Bidang "' . htmlspecialchars($nama_bid) . '" tidak dikenali';
 
-            $nilai = (int)preg_replace('/[^0-9]/', '', $nilai_raw);
+            // Validasi nilai harus angka — bersihkan format umum (Rp, titik, koma, spasi)
+            $nilai_bersih = str_replace(['Rp', '.', ',', ' '], '', $nilai_raw);
+            if ($nilai_bersih !== '' && !is_numeric($nilai_bersih)) {
+                $row_errors[] = 'Nilai "' . htmlspecialchars($nilai_raw) . '" bukan angka';
+                $nilai = 0;
+            } else {
+                $nilai = (int)$nilai_bersih;
+            }
 
             // Cek duplikat berdasarkan (tahun + kabkota_id + uraian)
             $existing = NULL;
@@ -453,6 +514,32 @@ class Parameter extends Auth_Controller
         exit;
     }
 
+    /** Download template XLSX sesuai format yang diharapkan */
+    public function bkp_template_xlsx() {
+        $this->requirePerm('parameter.bkp.manage');
+
+        require_once APPPATH . 'libraries/XlsxWriter.php';
+        $headers = [
+            ['label'=>'No Urut',          'format'=>'number'],
+            ['label'=>'Tahun',            'format'=>'number'],
+            ['label'=>'Kab/Kota',         'format'=>'string'],
+            ['label'=>'Bidang Pekerjaan', 'format'=>'string'],
+            ['label'=>'Uraian',           'format'=>'string'],
+            ['label'=>'Nilai',            'format'=>'number'],
+        ];
+        $rows = [
+            [1, 2026, 'Kota Medan',        'Infrastruktur', 'Pembangunan Jalan Lingkungan Kec. Medan Kota', 1500000000],
+            [2, 2026, 'Kota Medan',        'Pendidikan',    'Pengadaan Sarana Pendidikan Dasar Kota Medan', 800000000],
+            [3, 2026, 'Kota Binjai',       'Kesehatan',     'Peningkatan Fasilitas Puskesmas Kota Binjai',  600000000],
+            [4, 2026, 'Kab. Deli Serdang', 'Pertanian',     'Pengembangan Irigasi Teknis Deli Serdang',     450000000],
+            [5, 2026, 'Kab. Karo',         'Pariwisata',    'Pengembangan Destinasi Wisata Berastagi',      350000000],
+        ];
+
+        $writer = new XlsxWriter();
+        $writer->writeSheet('Template Import BKP', $rows, $headers);
+        $writer->download('template_import_bkp.xlsx');
+    }
+
     // ─── PRIVATE HELPERS ─────────────────────────────────────────
 
     /** Cocokkan nama Kab/Kota ke referensi: exact → strip prefix → partial */
@@ -578,7 +665,7 @@ class Parameter extends Auth_Controller
 
         // Ambil sekuens terakhir dari DB + cache batch ini
         if (!isset($seq_cache[$cache_key])) {
-            $pattern  = 'BKP-' . $tahun . '-' . $abbrev . '-%';
+            $pattern  = 'BKP-' . $tahun . '-' . $abbrev . '-';
             $last_row = $this->db
                 ->select_max('kode_bkp')
                 ->like('kode_bkp', $pattern, 'after')
@@ -651,6 +738,47 @@ class Parameter extends Auth_Controller
         $this->render_plain('parameter/bkp_cetak',['list'=>$list,'rekap'=>$rekap,'tahun'=>$tahun,'kab'=>$kab,'tgl_cetak'=>tgl_indo(date('Y-m-d')),'user_nama'=>$this->data['current_user']->nama]);
     }
 
+    /**
+     * AJAX: Generate preview kode BKP berikutnya
+     * GET parameter/bkp/generate-kode?tahun=2026&kabkota_id=5
+     * Return JSON: { kode: "BKP-2026-MED-001" }
+     */
+    public function bkp_generate_kode() {
+        $this->requirePerm('parameter.bkp.manage');
+        $tahun      = (int)$this->input->get('tahun');
+        $kabkota_id = (int)$this->input->get('kabkota_id');
+
+        if (!$tahun || !$kabkota_id) {
+            $this->json(['kode' => '']);
+            return;
+        }
+
+        $kabkota = $this->db->get_where('ref_kabkota', ['id' => $kabkota_id])->row();
+        if (!$kabkota) { $this->json(['kode' => '']); return; }
+
+        // Gunakan logika yang sama dengan _generate_kode_bkp
+        $nama    = preg_replace('/^(Kab\.|Kota|Kabupaten)\s+/i', '', $kabkota->nama);
+        $letters = preg_replace('/[^a-zA-Z]/', '', $nama);
+        $abbrev  = strtoupper(substr($letters, 0, 3));
+        if (strlen($abbrev) < 3) $abbrev = str_pad($abbrev, 3, 'X');
+
+        $pattern  = 'BKP-' . $tahun . '-' . $abbrev . '-';
+        $last_row = $this->db
+            ->select_max('kode_bkp')
+            ->like('kode_bkp', $pattern, 'after')
+            ->where('tahun', $tahun)
+            ->get('ref_bkp')->row();
+
+        $last_seq = 0;
+        if ($last_row && $last_row->kode_bkp) {
+            $parts    = explode('-', $last_row->kode_bkp);
+            $last_seq = (int)end($parts);
+        }
+
+        $kode = 'BKP-' . $tahun . '-' . $abbrev . '-' . str_pad($last_seq + 1, 3, '0', STR_PAD_LEFT);
+        $this->json(['kode' => $kode]);
+    }
+
     // ─── PEMDA ────────────────────────────────────────────────
     public function pemda() {
         $this->requirePerm('parameter.pemda.view');
@@ -705,14 +833,143 @@ class Parameter extends Auth_Controller
         redirect('parameter/pemda'.($dok ? '?tahun='.$dok->tahun.'&kabkota_id='.$dok->kabkota_id : ''));
     }
 
+    // ─── PEJABAT BKAD PROVINSI ───────────────────────────────
+
+    public function pejabat_provinsi()
+    {
+        $this->requirePerm('parameter.pemda.view');
+        if (!$this->rbac->isProvinsi()) {
+            $this->session->set_flashdata('error', 'Akses hanya untuk Admin Provinsi.');
+            redirect('parameter'); return;
+        }
+        $tahun = $this->input->get('tahun') ?: $this->tahun;
+        $d = $this->_d('Pejabat BKAD Provinsi', 'parameter');
+        $d['tahun_sel']  = $tahun;
+        $d['tahun_list'] = $this->Parameter_model->get_all_tahun();
+        $d['pejabat']    = $this->Parameter_model->get_pejabat_bkad_prov($tahun);
+        $this->render('parameter/pejabat_provinsi', $d);
+    }
+
+    public function pejabat_provinsi_simpan()
+    {
+        $this->requirePerm('parameter.pemda.manage');
+        if (!$this->rbac->isProvinsi()) { show_404(); return; }
+
+        $tahun = $this->input->post('tahun', TRUE);
+        $jenis_list = ['kepala_badan', 'kabid_anggaran', 'bendahara_pengeluaran'];
+        foreach ($jenis_list as $jenis) {
+            $nama = $this->input->post('nama_'.$jenis, TRUE);
+            if ($nama === NULL) continue;
+            $this->Parameter_model->simpan_pejabat_bkad_prov([
+                'tahun'   => $tahun,
+                'jenis'   => $jenis,
+                'nama'    => $nama,
+                'nip'     => $this->input->post('nip_'.$jenis, TRUE),
+                'jabatan' => $this->input->post('jabatan_'.$jenis, TRUE),
+            ]);
+        }
+        $this->log_aktivitas('parameter.pejabat_provinsi', 'Simpan pejabat BKAD provinsi tahun='.$tahun);
+        $this->session->set_flashdata('success', 'Data pejabat BKAD Provinsi berhasil disimpan.');
+        redirect('parameter/pejabat-provinsi?tahun='.$tahun);
+    }
+
+    // ─── LOGO PROVINSI ────────────────────────────────────────
+    // Hanya superadmin dan admin_provinsi yang bisa upload
+
+    public function logo_provinsi() {
+        if (!$this->rbac->isProvinsi()) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('parameter'); return;
+        }
+        $d = $this->_d('Logo Provinsi', 'logo');
+        $current = $this->db->get_where('ref_app_setting', ['kode' => 'logo_provinsi'])->row();
+        $d['logo_path'] = $current ? $current->nilai : NULL;
+        $this->render('parameter/logo_provinsi', $d);
+    }
+
+    public function logo_provinsi_upload() {
+        if (!$this->rbac->isProvinsi()) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('parameter/logo'); return;
+        }
+        if ($_FILES['file_logo']['error'] !== UPLOAD_ERR_OK) {
+            $this->session->set_flashdata('error', 'Pilih file logo terlebih dahulu.');
+            redirect('parameter/logo'); return;
+        }
+        $dir = FCPATH . 'uploads/logo/';
+        if (!is_dir($dir)) mkdir($dir, 0755, TRUE);
+
+        $this->load->library('upload');
+        $this->upload->initialize([
+            'upload_path'   => $dir,
+            'allowed_types' => 'jpg|jpeg|png|webp',
+            'max_size'      => 2048,
+            'file_name'     => 'logo_provinsi_' . time(),
+        ]);
+        if (!$this->upload->do_upload('file_logo')) {
+            $this->session->set_flashdata('error', 'Upload gagal: ' . $this->upload->display_errors('', ''));
+            redirect('parameter/logo'); return;
+        }
+        $info     = $this->upload->data();
+        $new_path = 'uploads/logo/' . $info['file_name'];
+
+        // Hapus file lama jika ada
+        $current = $this->db->get_where('ref_app_setting', ['kode' => 'logo_provinsi'])->row();
+        if ($current && $current->nilai) {
+            @unlink(FCPATH . $current->nilai);
+        }
+
+        // Upsert: update jika row ada, insert jika belum ada
+        if ($current) {
+            $this->db->where('kode', 'logo_provinsi')->update('ref_app_setting', [
+                'nilai'      => $new_path,
+                'updated_by' => $this->user_id,
+            ]);
+        } else {
+            $this->db->insert('ref_app_setting', [
+                'kode'       => 'logo_provinsi',
+                'nilai'      => $new_path,
+                'keterangan' => 'Path file logo Pemerintah Provinsi',
+                'updated_by' => $this->user_id,
+            ]);
+        }
+        $this->log_aktivitas('parameter.logo.upload', 'Upload logo provinsi');
+        $this->session->set_flashdata('success', 'Logo provinsi berhasil diupload.');
+        redirect('parameter/logo');
+    }
+
+    public function logo_provinsi_hapus() {
+        if (!$this->rbac->isProvinsi()) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('parameter/logo'); return;
+        }
+        $current = $this->db->get_where('ref_app_setting', ['kode' => 'logo_provinsi'])->row();
+        if ($current && $current->nilai) {
+            @unlink(FCPATH . $current->nilai);
+        }
+        if ($current) {
+            $this->db->where('kode', 'logo_provinsi')->update('ref_app_setting', [
+                'nilai'      => '',
+                'updated_by' => $this->user_id,
+            ]);
+        }
+        $this->session->set_flashdata('success', 'Logo provinsi dihapus.');
+        redirect('parameter/logo');
+    }
+
     // ─── LOG ──────────────────────────────────────────────────
     public function log() {
-        $tahun = $this->input->get('tahun') ?? $this->tahun;
+        $tahun    = $this->input->get('tahun') ?? $this->tahun;
+        $per_page = 50;
+        $page     = max(1, (int)$this->input->get('page'));
+        $offset   = ($page - 1) * $per_page;
+        $total    = $this->Parameter_model->count_log_bkp($tahun);
         $d = $this->_d('Log Perubahan Parameter','log');
-        $d['log_bkp']   = $this->Parameter_model->get_log_bkp($tahun, 100);
-        $d['log_pemda']  = $this->Parameter_model->get_log_pemda($tahun, 50);
-        $d['log_bw']     = $this->Parameter_model->get_log_batas_waktu(50);
-        $d['tahun']      = $tahun;
+        $d['log_bkp']  = $this->Parameter_model->get_log_bkp($tahun, $per_page, $offset);
+        $d['log_pemda'] = $this->Parameter_model->get_log_pemda($tahun, 50);
+        $d['log_bw']    = $this->Parameter_model->get_log_batas_waktu(50);
+        $d['tahun']     = $tahun;
+        $d['paging']    = ['total'=>$total,'per_page'=>$per_page,'page'=>$page,'base_url'=>'parameter/log'];
         $this->render('parameter/log', $d);
     }
 

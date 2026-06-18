@@ -27,15 +27,21 @@ CI_Controller
     │   ├── Dashboard
     │   ├── Pekerjaan
     │   ├── Reviu
-    │   ├── Verif_kab
-    │   ├── Verif_prov
+    │   ├── Verif_kab        → verifikasi kegiatan individual oleh SKPKD Kab
+    │   ├── Permohonan       → bundel kegiatan → ajukan ke Provinsi
+    │   ├── Verif_prov       → verifikasi provinsi + cetak nota + input SP2D
+    │   ├── Penyaluran_kab   → konfirmasi RKUD oleh SKPKD Kab (menu Penyaluran)
+    │   ├── Capaian          → input capaian output fisik (OPD, setelah Tahap I dikonfirmasi)
     │   ├── Laporan
     │   ├── Parameter
     │   ├── Admin_users
-    │   └── Admin_roles
+    │   ├── Admin_roles
+    │   ├── Admin_logs       → log aktivitas (user_logs) + riwayat status (read-only)
+    │   └── Akun             → ganti password sendiri
     └── Guest_Controller   → redirect ke dashboard jika sudah login
         ├── Auth
-        └── Welcome
+        ├── Welcome
+        └── Berkas           → unduhan file privat (RBAC + scope check)
 ```
 
 **Pola request flow:**
@@ -227,21 +233,30 @@ Untuk halaman yang tidak butuh login (login page, landing). Otomatis redirect ke
 
 **Class:** `Verif_prov extends Auth_Controller`  
 **Guard constructor:** `verif_prov.view`  
-**Models:** `Verifikasi_prov_model`, `Pekerjaan_model`, `Notifikasi_model`
+**Models:** `Verifikasi_prov_model`, `Verifikasi_kab_model`, `Pekerjaan_model`, `Parameter_model`, `Permohonan_model`
 
 | Method | HTTP | Permission | Fungsi |
 |--------|------|-----------|--------|
-| `index()` | GET | `verif_prov.view` | Daftar antrian + rekap penyaluran |
-| `form($tahapan_id)` | GET | `verif_prov.view` | Form verifikasi + input SP2D |
-| `putuskan($verif_id)` | POST | `verif_prov.approve` | Keputusan verifikasi prov |
-| `simpan_sp2d($tahapan_id)` | POST | `penyaluran.input_sp2d` | Input SP2D; jika `status_transfer=selesai` → langsung disalurkan |
-| `konfirmasi_transfer($penyaluran_id)` | POST | `penyaluran.input_sp2d` | Konfirmasi transfer selesai → set status `disalurkan` |
-| `_set_disalurkan()` | — | private | Helper: update status, log, kirim notif ke SKPKD Kab + OPD |
-| `cetak_rekap()` | GET | `laporan.cetak_rekap_penyaluran` | Cetak rekap SP2D (tanpa layout) |
+| `index()` | GET | `verif_prov.view` | Daftar permohonan masuk + rekap penyaluran (per-permohonan) |
+| `detail_permohonan($id)` | GET | `verif_prov.view` | Detail bundel permohonan: kegiatan, dokumen, SP2D form |
+| `form($tahapan_id)` | GET | `verif_prov.view` | Form verifikasi tahapan individual |
+| `putuskan($verif_id)` | POST | `verif_prov.approve` | Keputusan verifikasi: disetujui / perlu_perbaikan / ditolak |
+| `simpan_sp2d_permohonan($pm_id)` | POST | `penyaluran.input_sp2d` | Input SP2D per-permohonan ke `trx_permohonan`; sync ke `trx_penyaluran_dana` |
+| `_get_logo_prov()` | — | private | Ambil path logo Provinsi dari `ref_app_setting` untuk cetak |
+| `cetak_nota_kabid($pm_id)` | GET | `verif_prov.view` | Cetak Nota Kabid Anggaran → Kepala BKAD (tanpa layout) |
+| `cetak_nota_kabadan($pm_id)` | GET | `verif_prov.view` | Cetak Nota Kepala BKAD → Bendahara Pengeluaran (tanpa layout) |
+| `cetak_ringkasan($pm_id)` | GET | `verif_prov.view` | Cetak Ringkasan rekapitulasi permohonan (tanpa layout) |
+| `cetak_rekap()` | GET | `laporan.cetak_rekap_penyaluran` | Cetak rekap SP2D per tahun (tanpa layout) |
 
-**Catatan penting:**  
-- Guard `penyaluran.input_sp2d` di method SP2D (bukan di constructor)
-- Auto-create record verif prov saat pertama akses `form()`
+**Catatan penting:**
+- SP2D disimpan di `trx_permohonan` (sumber kebenaran), bukan di `trx_tahapan_penyaluran`
+- Guard `penyaluran.input_sp2d` di method `simpan_sp2d_permohonan()` (bukan di constructor)
+- Ketiga nota cetak harus dibuka sebelum SP2D dapat diinput (timestamp `nota_*_at` dicatat di DB)
+- Auto-create record verif prov saat pertama akses `form()` per tahapan
+- `_get_pm_for_cetak()` mengizinkan `status IN ('diajukan','selesai')` — permohonan yang sudah dikonfirmasi RKUD tetap dapat dicetak notanya
+- `index()` menampilkan permohonan berstatus `diajukan` (tombol "Proses") dan `selesai` (tombol "Lihat", view-only)
+- Field "Hal" pada Nota Kabid menyertakan label jenis penyaluran dalam kurung: `(Tahap I)`, `(Tahap II)`, `(Sekaligus)`, `(Mendesak)`, `(Bencana)`
+- Nilai Tahap II di semua nota/rekap = `nilai_diajukan` saja (tidak ditambah/dikurangi pendukung)
 
 ---
 
@@ -255,10 +270,16 @@ Untuk halaman yang tidak butuh login (login page, landing). Otomatis redirect ke
 |--------|------|-----------|--------|
 | `index()` | GET | `laporan.view` | Redirect ke `laporan/rekap-bkp` |
 | `rekap_bkp()` | GET | `laporan.cetak_rekap_bkp` | View rekap BKP; filter tahun/kabkota/bidang |
-| `cetak_rekap_bkp()` | GET | `laporan.cetak_rekap_bkp` | Cetak rekap BKP (tanpa layout, HTML to PDF) |
+| `cetak_rekap_bkp()` | GET | `laporan.cetak_rekap_bkp` | Cetak rekap BKP (tanpa layout) |
 | `rekap_penyaluran()` | GET | `laporan.cetak_rekap_penyaluran` | View rekap SP2D/penyaluran |
 | `export_bkp()` | GET | `laporan.export` | Download CSV daftar BKP (UTF-8 BOM) |
 | `export_penyaluran()` | GET | `laporan.export` | Download CSV daftar SP2D (UTF-8 BOM) |
+| `export_bkp_xlsx()` | GET | `laporan.export` | Download XLSX daftar BKP (via XlsxWriter) |
+| `export_penyaluran_xlsx()` | GET | `laporan.export` | Download XLSX daftar SP2D (via XlsxWriter) |
+| `laporan_akhir_kab()` | GET | `laporan.view` | View laporan akhir komprehensif per Kab/Kota |
+| `cetak_laporan_akhir_kab()` | GET | `laporan.view` | Cetak laporan akhir (tanpa layout, ber-KOP) |
+| `rekap_tahap2()` | GET | `laporan.cetak_rekap_penyaluran` | Daftar kegiatan bertahap yang sudah memasuki Tahap II; nilai salur T1 + pengajuan T2 |
+| `cetak_rekap_tahap2()` | GET | `laporan.cetak_rekap_penyaluran` | Cetak rekap Tahap II (tanpa layout) |
 
 ---
 
@@ -306,6 +327,28 @@ Untuk halaman yang tidak butuh login (login page, landing). Otomatis redirect ke
 | `pemda_simpan_dokumen()` | POST | `parameter.pemda.manage` | Insert/update dokumen (Perda, Perkada, Pergub) |
 | `pemda_hapus_dokumen($id)` | GET | `parameter.pemda.manage` | Hapus dokumen |
 
+#### Sub-modul: Pejabat BKAD Provinsi
+
+| Method | HTTP | Permission | Fungsi |
+|--------|------|-----------|--------|
+| `pejabat_provinsi()` | GET | `parameter.pemda.view` | View pejabat BKAD Provinsi per tahun |
+| `pejabat_provinsi_simpan()` | POST | `parameter.pemda.manage` | Upsert Kepala Badan / Kabid Anggaran / Bendahara |
+
+#### Sub-modul: Logo Provinsi
+
+| Method | HTTP | Permission | Fungsi |
+|--------|------|-----------|--------|
+| `logo_provinsi()` | GET | `parameter.view` | View upload logo + preview |
+| `logo_provinsi_upload()` | POST | `parameter.view` | Upload logo ke `uploads/logo/`; path disimpan di `ref_app_setting` |
+| `logo_provinsi_hapus()` | GET | `parameter.view` | Hapus logo (bersihkan `ref_app_setting`) |
+
+#### Sub-modul: Tampilan Landing Page
+
+| Method | HTTP | Permission | Fungsi |
+|--------|------|-----------|--------|
+| `landing()` | GET | `parameter.landing.view` | View manajemen foto pejabat + slideshow |
+| `landing_*()` | POST | `parameter.landing.manage` | Upload/hapus foto pejabat provinsi dan slideshow |
+
 #### Sub-modul: Log Perubahan
 
 | Method | HTTP | Permission | Fungsi |
@@ -329,10 +372,57 @@ Untuk halaman yang tidak butuh login (login page, landing). Otomatis redirect ke
 | `update($id)` | POST | `admin.user.edit` | Update data user; hash password jika diisi |
 | `toggle($id)` | GET | `admin.user.toggle` | Toggle `is_active` (tidak bisa self-toggle) |
 | `hapus($id)` | GET | `admin.user.delete` | Hapus user (tidak bisa hapus diri sendiri) |
-| `reset_pw($id)` | GET | `admin.user.reset_pw` | Reset password ke `password123` (stub) |
+| `reset_pw($id)` | GET | `admin.user.reset_pw` | Reset password ke string acak 12 karakter; set `must_change_password=1`; tampil sekali via flashdata |
 
 **Guard bisnis:**  
 Tidak dapat membuat/mengelola user dengan `role_level` lebih rendah atau sama dengan level user saat ini (`canManageUser()`).
+
+---
+
+### `Akun.php` — Ganti Password Sendiri
+
+**Class:** `Akun extends Auth_Controller`  
+**Routes:** `ganti-password`, `ganti-password/proses`
+
+| Method | HTTP | Permission | Fungsi |
+|--------|------|-----------|--------|
+| `index()` | GET | (logged in) | Form ganti password; bypass must_change_password redirect |
+| `update_password()` | POST | (logged in) | Validasi old password, hash + simpan new password, reset `must_change_password=0` |
+
+> Satu-satunya controller yang dikecualikan dari redirect paksa `must_change_password`.
+
+---
+
+### `Berkas.php` — Unduhan File Privat
+
+**Class:** `Berkas extends Auth_Controller`  
+**Guard:** RBAC + scope kabkota per jenis berkas
+
+| Method | HTTP | Fungsi |
+|--------|------|--------|
+| `unduh_dok($id)` | GET | Unduh dokumen persyaratan (`trx_dokumen_persyaratan`) |
+| `unduh_lhr($reviu_id)` | GET | Unduh LHR inspektorat (`trx_reviu_inspektorat`) |
+| `unduh_capaian($pekerjaan_id)` | GET | Unduh foto capaian output |
+| `unduh_capaian_ba($pekerjaan_id)` | GET | Unduh Berita Acara Kemajuan Pekerjaan |
+| `unduh_draft($id, $jenis)` | GET | Unduh draft dokumen pekerjaan (spk/spmk/bast) |
+| `unduh_pm($pm_id, $jenis)` | GET | Unduh surat permohonan bundel |
+
+Setiap unduhan: cek RBAC → cek scope kabkota → stream file → log aktivitas.
+
+---
+
+### `Admin_logs.php` — Log Aktivitas & Riwayat Status
+
+**Class:** `Admin_logs extends Auth_Controller`  
+**Guard constructor:** `admin.logs.view`  
+**Models:** `Admin_logs_model`
+
+| Method | HTTP | Permission | Fungsi |
+|--------|------|-----------|--------|
+| `index()` | GET | `admin.logs.view` | Daftar log aktivitas user (`user_logs`); filter user/aksi/tanggal |
+| `status_history()` | GET | `admin.logs.view` | Riwayat perubahan status pekerjaan (`trx_status_history`) |
+
+> Read-only. Tidak ada method write/delete.
 
 ---
 
@@ -489,8 +579,12 @@ Model utama untuk transaksi pekerjaan.
 | `get_count_tahapan` | `get_count_tahapan($pekerjaan_id)` | int | Count tahapan |
 
 **Logika `buat_tahapan()`:**
-- `bertahap` → 2 tahapan (Tahap I: 70%, Tahap II: 30%)
-- `sekaligus` / `khusus_mendesak` / `khusus_bencana` → 1 tahapan (100%)
+- `bertahap` → 2 tahapan (Tahap I: 50% NK + belanja pendukung, Tahap II: 50% NK)
+- `sekaligus` / `khusus_mendesak` / `khusus_bencana` → 1 tahapan (100%, `kode_tahap='khusus'`)
+
+**Formula nilai pengajuan per tahapan:**
+- Tahap I total = `nilai_diajukan` + `nilai_belanja_pendukung`
+- Tahap II total = `nilai_diajukan` saja (pendukung sudah dibayar di Tahap I, tidak dikurangi lagi)
 
 #### Dokumen Persyaratan
 
@@ -521,7 +615,7 @@ Model utama untuk transaksi pekerjaan.
 | `get_by_id` | `get_by_id($id)` | object | Get by ID |
 | `buat_atau_ambil` | `buat_atau_ambil($tahapan_id, $user_id)` | int | Insert jika belum ada; return `reviu_id` |
 | `update` | `update($id, $data)` | bool | Update + `updated_at` |
-| `get_checklist_items` | `get_checklist_items($jenis_penyaluran, $kode_tahap)` | array | Item checklist (CK-01 s/d CK-21) per jenis/tahap |
+| `get_checklist_items` | `get_checklist_items($jenis_penyaluran, $kode_tahap)` | array | Item checklist (CK-01 s/d CK-22) per jenis/tahap; CK-21 & CK-22 hanya untuk Tahap II bertahap |
 | `get_isian` | `get_isian($reviu_id)` | array | Isian checklist per reviu, keyed by `item_id` |
 | `simpan_checklist` | `simpan_checklist($reviu_id, $isian)` | void | Upsert isian checklist |
 | `hitung_checklist` | `hitung_checklist($reviu_id)` | object | `total`, `terisi`, `percentage` |
@@ -551,21 +645,35 @@ Model utama untuk transaksi pekerjaan.
 
 ### `Verifikasi_prov_model.php`
 
-**Tabel:** `trx_verifikasi_skpkd_prov`, `trx_penyaluran_dana`
+**Tabel:** `trx_verifikasi_skpkd_prov`, `trx_penyaluran_dana`, `trx_permohonan`
 
 | Method | Signature | Return | Fungsi |
 |--------|-----------|--------|--------|
-| `get_antrian` | `get_antrian($filters=[])` | array | Antrian verif prov |
+| `get_permohonan_list` | `get_permohonan_list($filters, $limit, $offset)` | array | Daftar permohonan masuk |
+| `get_permohonan_by_id` | `get_permohonan_by_id($id)` | object | Detail permohonan |
+| `get_permohonan_items_for_prov` | `get_permohonan_items_for_prov($pm_id)` | array | Kegiatan dalam permohonan |
+| `get_antrian` | `get_antrian($filters=[])` | array | Antrian tahapan individual siap verif prov |
 | `get_verif_by_tahapan` | `get_verif_by_tahapan($tahapan_id)` | object | Verif prov record |
-| `get_verif_by_id` | `get_verif_by_id($id)` | object | Get by ID |
 | `buat_atau_ambil_verif` | `buat_atau_ambil_verif($tahapan_id, $user_id)` | int | Insert jika belum ada; return ID |
 | `update_verif` | `update_verif($id, $data)` | bool | Update |
-| `get_penyaluran` | `get_penyaluran($tahapan_id)` | object | SP2D data |
-| `simpan_sp2d` | `simpan_sp2d($tahapan_id, $data, $user_id)` | int | Insert SP2D; return `penyaluran_id` |
-| `update_status_transfer` | `update_status_transfer($penyaluran_id, $status)` | void | Update kolom `status_transfer` |
-| `get_daftar_sp2d` | `get_daftar_sp2d($tahun, $kabkota_id=NULL)` | array | Daftar SP2D + join pekerjaan/kabkota |
-| `rekap_penyaluran` | `rekap_penyaluran($tahun)` | object | Sum total transfer per tahun |
-| `count_by_status` | `count_by_status($tahun)` | array | Count per status (dashboard) |
+| `simpan_sp2d` | `simpan_sp2d($tahapan_id, $data, $user_id)` | int | Upsert SP2D per-tahapan; return ID |
+| `get_daftar_sp2d` | `get_daftar_sp2d($tahun, $kabkota_id=NULL)` | array | Daftar SP2D per-permohonan |
+| `rekap_penyaluran` | `rekap_penyaluran($tahun)` | object | Sum total transfer dari `trx_permohonan` |
+
+---
+
+### `Penyaluran_kab_model.php` *(baru)*
+
+**Tabel:** `trx_permohonan`, `trx_permohonan_item`, `trx_tahapan_penyaluran`
+
+| Method | Signature | Return | Fungsi |
+|--------|-----------|--------|--------|
+| `get_list` | `get_list($kabkota_id, $tahun, $filters, $limit, $offset)` | array | Daftar permohonan SKPKD Kab untuk tampilan Penyaluran |
+| `count_list` | `count_list($kabkota_id, $tahun, $filters)` | int | Count untuk paginasi |
+| `get_by_id` | `get_by_id($pm_id)` | object | Detail satu permohonan |
+| `get_items` | `get_items($pm_id)` | array | Kegiatan (tahapan) dalam permohonan |
+| `simpan_konfirmasi` | `simpan_konfirmasi($pm_id, $data)` | bool | Simpan kode transaksi RKUD + nilai + tanggal |
+| `rekap` | `rekap($kabkota_id, $tahun)` | object | Stat cards: total permohonan, ada SP2D, dikonfirmasi, total RKUD |
 
 ---
 
@@ -587,7 +695,9 @@ Model utama untuk transaksi pekerjaan.
 
 ### `Laporan_model.php`
 
-**Tabel:** `ref_bkp`, `trx_pekerjaan`, `trx_tahapan_penyaluran`, `trx_penyaluran_dana`
+**Tabel:** `ref_bkp`, `trx_pekerjaan`, `trx_tahapan_penyaluran`, `trx_permohonan`
+
+> **Catatan sumber data SP2D:** Statistik SP2D (`total_sp2d`, `total_transfer`) dibaca dari `trx_permohonan` (bukan `trx_penyaluran_dana`), karena SP2D diinput per-permohonan. `trx_penyaluran_dana` adalah salinan sinkron untuk kompatibilitas laporan per-tahapan.
 
 #### Statistik Dashboard
 
@@ -605,6 +715,9 @@ Model utama untuk transaksi pekerjaan.
 | `get_funnel` | `get_funnel($tahun, $kabkota_id=NULL)` | array | Pekerjaan per tahapan status (pipeline view) |
 | `get_rekap_bkp` | `get_rekap_bkp($tahun, $kabkota_id=NULL, $bidang_id=NULL)` | array | Rekap BKP + status pekerjaan + nilai |
 | `get_rekap_summary` | `get_rekap_summary($tahun, $kabkota_id=NULL)` | object | Summary: total BKP, nilai, pekerjaan aktif |
+| `get_rekap_penyaluran` | `get_rekap_penyaluran($tahun, $kabkota_id=NULL)` | array | Rekap SP2D per-permohonan |
+| `get_laporan_akhir_kab` | `get_laporan_akhir_kab($tahun, $kabkota_id)` | array | Data komprehensif untuk laporan akhir |
+| `get_summary_laporan_kab` | `get_summary_laporan_kab($tahun, $kabkota_id)` | object | Summary header laporan akhir |
 
 ---
 
@@ -617,9 +730,9 @@ application/views/
 ├── layouts/
 │   └── main.php              ← layout utama (sidebar RBAC, topbar, flash)
 ├── auth/
-│   └── login.php
+│   └── login.php             ← tampilkan logo provinsi jika ada
 ├── landing/
-│   └── index.php
+│   └── index.php             ← slideshow + foto pejabat provinsi + logo
 ├── dashboard/
 │   ├── index.php             ← stats, funnel, per bidang/kabkota, antrian aksi
 │   └── pilih_tahun.php
@@ -631,6 +744,9 @@ application/views/
 │   ├── bkp_import.php        ← STUB, belum diimplementasi
 │   ├── bkp_cetak.php
 │   ├── pemda.php
+│   ├── pejabat_provinsi.php  ← pejabat BKAD Provinsi (Kepala Badan, Kabid, Bendahara)
+│   ├── logo_provinsi.php     ← upload logo Pemerintah Provinsi
+│   ├── landing.php           ← foto pejabat + slideshow kinerja Provinsi
 │   └── log.php
 ├── pekerjaan/
 │   ├── index.php
@@ -639,30 +755,50 @@ application/views/
 │   └── cetak_permohonan.php  ← tanpa layout
 ├── reviu/
 │   ├── index.php
-│   ├── form.php              ← form checklist CK-01 s/d CK-21
+│   ├── form.php              ← form checklist CK-01 s/d CK-21 + upload LHR
 │   ├── cetak_kertas_kerja.php
 │   └── cetak_rekap.php
 ├── verif_kab/
 │   ├── index.php
 │   ├── form.php
 │   └── cetak_rekap.php
+├── permohonan/
+│   ├── index.php             ← daftar bundel permohonan SKPKD Kab
+│   └── detail.php            ← detail permohonan + daftar kegiatan
 ├── verif_prov/
-│   ├── index.php
-│   ├── form.php              ← form verifikasi + input SP2D
-│   └── cetak_rekap_penyaluran.php
+│   ├── index.php             ← daftar bundel permohonan masuk dari kab
+│   ├── detail_permohonan.php ← detail + form SP2D input + cetak nota
+│   ├── form.php              ← form verifikasi tahapan individual
+│   ├── cetak_nota_kabid.php  ← tanpa layout
+│   ├── cetak_nota_kabadan.php← tanpa layout
+│   ├── cetak_ringkasan.php   ← tanpa layout
+│   └── cetak_rekap_penyaluran.php ← tanpa layout
+├── penyaluran_kab/
+│   └── index.php             ← daftar SP2D + konfirmasi RKUD (SKPKD Kab)
+├── capaian/
+│   ├── index.php             ← daftar pekerjaan yang bisa diisi capaian
+│   └── form.php              ← form capaian output fisik + foto
 ├── laporan/
 │   ├── rekap_bkp.php
 │   ├── rekap_penyaluran.php
-│   └── cetak_rekap_bkp.php
+│   ├── cetak_rekap_bkp.php
+│   ├── rekap_tahap2.php      ← kegiatan bertahap yang memasuki Tahap II
+│   ├── cetak_rekap_tahap2.php
+│   └── laporan_akhir_kab.php ← laporan akhir komprehensif per kab
+├── akun/
+│   └── ganti_password.php    ← form ganti password sendiri
 └── admin/
     ├── users/
     │   ├── index.php
     │   └── form.php
-    └── roles/
-        ├── index.php
-        ├── form.php
-        ├── permissions.php   ← matrix permission per modul
-        └── logs.php
+    ├── roles/
+    │   ├── index.php
+    │   ├── form.php
+    │   ├── permissions.php   ← matrix permission per modul
+    │   └── logs.php
+    └── logs/
+        ├── index.php         ← log aktivitas user (user_logs) + filter
+        └── status_history.php ← riwayat perubahan status pekerjaan
 ```
 
 ### Catatan Views
@@ -704,7 +840,7 @@ RBAC dinamis dari database. Di-load otomatis oleh `Auth_Controller`.
 
 | Method | Return | Fungsi |
 |--------|--------|--------|
-| `getMenus()` | array | Menu navigasi berdasarkan permission aktif |
+| `getMenus()` | array | Menu navigasi berdasarkan permission aktif + filter role |
 | `getSubParameter()` | array | Sub-menu modul Parameter |
 | `getSubPengaturan()` | array | Sub-menu modul Pengaturan (admin) |
 | `getModulMeta()` | array | Metadata modul untuk form matrix permission |
@@ -712,6 +848,13 @@ RBAC dinamis dari database. Di-load otomatis oleh `Auth_Controller`.
 | `resetCache()` | void | Clear cache permission per request |
 
 **Caching:** Permission di-cache dalam properti instance per request (tidak ke session/file).
+
+**Flag filter menu di `getMenus()`:**  
+Setiap item menu dapat memiliki flag opsional untuk membatasi kemunculan berdasarkan scope role:
+- `'provinsi_only' => TRUE` — hanya tampil untuk `superadmin`/`admin_provinsi`
+- `'kabkota_only' => TRUE` — hanya tampil untuk `skpkd_kabkota`/`inspektorat`/`opd_teknis`
+
+Contoh: Menu "Penyaluran" muncul satu kali per user tapi mengarah ke URL yang berbeda (`verifikasi/prov` untuk provinsi, `penyaluran-kab` untuk kabkota).
 
 ---
 
@@ -859,11 +1002,13 @@ draft → opd_submitted → inspektorat_reviu → inspektorat_revisi
 | `trx_checklist_reviu` | `id`, `reviu_id`, `item_id`, `nilai`, `catatan` | Isian checklist per item |
 | `trx_verifikasi_skpkd_kab` | `id`, `tahapan_id`, `user_id`, `hasil_verifikasi`, `catatan` | Verifikasi kab (UNIQUE per tahapan) |
 | `trx_verifikasi_skpkd_prov` | `id`, `tahapan_id`, `user_id`, `hasil_verifikasi`, `catatan` | Verifikasi prov (UNIQUE per tahapan) |
-| `trx_penyaluran_dana` | `id`, `tahapan_id`, `no_sp2d`, `tgl_sp2d`, `nilai_transfer`, `status_transfer` | Data SP2D (UNIQUE per tahapan) |
+| `trx_permohonan` | `id`, `kabkota_id`, `tahun`, `no_permohonan`, `jenis_penyaluran`, `kode_tahap`, `status`, `no_sp2d`, `tgl_sp2d`, `nilai_sp2d`, `status_sp2d`, `kode_transaksi_rkud`, `nilai_rkud`, `tgl_rkud`, `tgl_konfirmasi_rkud`, `nota_kabid_at`, `nota_kabadan_at`, `ringkasan_at` | Bundel permohonan pencairan + data SP2D + konfirmasi RKUD |
+| `trx_permohonan_item` | `id`, `permohonan_id`, `tahapan_id` | Relasi permohonan ↔ tahapan |
+| `trx_penyaluran_dana` | `id`, `tahapan_id`, `no_sp2d`, `tgl_sp2d`, `nilai_transfer`, `status_transfer` | SP2D per-tahapan (sync dari trx_permohonan untuk laporan) |
 | `trx_bukti_transfer` | `id`, `penyaluran_id`, `file_path`, `keterangan` | Bukti RKUD dari kab |
 | `trx_status_history` | `id`, `pekerjaan_id`, `status_lama`, `status_baru`, `user_id`, `catatan` | Audit trail status |
 | `trx_notifikasi` | `id`, `user_id`, `judul`, `pesan`, `jenis`, `url`, `is_read` | In-app notification |
-| `trx_capaian_output` | `id`, `tahapan_id`, `deskripsi`, `foto_path` | Capaian output fisik (tabel ada, UI belum) |
+| `trx_capaian_output` | `id`, `tahapan_id`, `persen_fisik`, `tgl_realisasi`, `no_ba_kemajuan`, `keterangan`, `foto_path`, `foto_nama_asli`, `ba_path`, `ba_nama_asli` | Capaian output fisik + foto dokumentasi + Berita Acara Kemajuan Pekerjaan |
 
 ### Tabel Log (`_log`)
 
@@ -896,18 +1041,22 @@ draft → opd_submitted → inspektorat_reviu → inspektorat_revisi
 | Modul | Permission Kode |
 |-------|-----------------|
 | Dashboard | `dashboard.view`, `dashboard.provinsi` |
-| Parameter | `parameter.view`, `parameter.tahun.view`, `parameter.tahun.manage`, `parameter.bkp.view`, `parameter.bkp.manage`, `parameter.pemda.view`, `parameter.pemda.manage`, `parameter.batas_waktu.view`, `parameter.batas_waktu.manage` |
+| Parameter | `parameter.view`, `parameter.tahun.view`, `parameter.tahun.manage`, `parameter.bkp.view`, `parameter.bkp.manage`, `parameter.pemda.view`, `parameter.pemda.manage`, `parameter.batas_waktu.view`, `parameter.batas_waktu.manage`, `parameter.landing.view`, `parameter.landing.manage` |
 | Pekerjaan | `pekerjaan.view`, `pekerjaan.view_all`, `pekerjaan.input`, `pekerjaan.edit`, `pekerjaan.upload_dok`, `pekerjaan.download_dok`, `pekerjaan.submit`, `pekerjaan.cetak_permohonan` |
 | Reviu | `reviu.view`, `reviu.input`, `reviu.approve`, `reviu.cetak_kertas_kerja`, `reviu.download_rekap` |
 | Verif Kab | `verif_kab.view`, `verif_kab.input`, `verif_kab.approve`, `verif_kab.konfirmasi`, `verif_kab.cetak_rekap` |
-| Verif Prov | `verif_prov.view`, `verif_prov.approve` |
-| Penyaluran | `penyaluran.view`, `penyaluran.input_sp2d` |
+| Verif Prov (Penyaluran Prov) | `verif_prov.view`, `verif_prov.approve`, `penyaluran.view`, `penyaluran.input_sp2d` |
+| Penyaluran Kab | `penyaluran_kab.view`, `penyaluran_kab.konfirmasi` |
 | Capaian | `capaian.view`, `capaian.input` |
 | Laporan | `laporan.view`, `laporan.cetak_rekap_bkp`, `laporan.cetak_rekap_penyaluran`, `laporan.export` |
 | Admin User | `admin.view`, `admin.user.view`, `admin.user.create`, `admin.user.edit`, `admin.user.delete`, `admin.user.toggle`, `admin.user.reset_pw` |
 | Admin Role | `admin.role.view`, `admin.role.create`, `admin.role.edit`, `admin.role.delete`, `admin.role.permission` |
+| Admin Logs | `admin.logs.view` |
 
 ---
 
-*Dokumen ini mencakup 11 controller, 9 model, 1 library (Rbac), 1 helper (siberkah_helper), dan 1 base controller (MY_Controller).*  
+---
+
+*Dokumen ini mencakup 16 controller, 10 model, 2 library (Rbac, XlsxWriter), 1 helper (siberkah_helper), dan 1 base controller (MY_Controller).*  
+*Terakhir diperbarui: Juni 2026 — Sprint 8 (formula Tahap II, CK-22, Admin_logs, Akun, Berkas, rekap Tahap II, nota kabid fix)*  
 *Update dokumen ini setiap kali ada penambahan controller, model, atau perubahan API method yang signifikan.*

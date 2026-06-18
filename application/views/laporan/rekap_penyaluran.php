@@ -2,6 +2,12 @@
   <div class="page-title"><i class="ti ti-cash"></i> Rekap Penyaluran Dana TA <?= $tahun ?></div>
   <div class="aksi-row">
     <?php $q = http_build_query(['tahun'=>$tahun,'kabkota_id'=>$kabkota_id]); ?>
+    <?php if ($this->rbac->can('laporan.cetak_rekap_penyaluran')): ?>
+    <a href="<?= site_url('laporan/rekap-tahap2?'.http_build_query(['tahun'=>$tahun,'kabkota_id'=>$kabkota_id])) ?>"
+       class="btn btn-outline btn-sm" style="color:var(--teal-mid)">
+      <i class="ti ti-cash-banknote"></i> Rekap Tahap II
+    </a>
+    <?php endif; ?>
     <a href="<?= site_url('verifikasi/prov/cetak-rekap?'.$q) ?>"
        target="_blank" class="btn btn-outline btn-sm">
       <i class="ti ti-printer"></i> Cetak Resmi
@@ -9,7 +15,11 @@
     <?php if ($this->rbac->can('laporan.export')): ?>
     <a href="<?= site_url('laporan/export-penyaluran?'.$q) ?>"
        class="btn btn-outline btn-sm">
-      <i class="ti ti-table-export"></i> Export CSV
+      <i class="ti ti-table-export"></i> CSV
+    </a>
+    <a href="<?= site_url('laporan/export-penyaluran-xlsx?'.$q) ?>"
+       class="btn btn-outline btn-sm" style="color:var(--hijau-mid)">
+      <i class="ti ti-file-spreadsheet"></i> Excel (XLSX)
     </a>
     <?php endif; ?>
   </div>

@@ -1,5 +1,14 @@
+<?php
+function label_kelompok_prov($jenis, $kode_tahap) {
+    if ($jenis === 'bertahap')
+        return 'Bertahap — ' . ($kode_tahap === 'tahap_2' ? 'Tahap II' : 'Tahap I');
+    $m = ['sekaligus'=>'Sekaligus','khusus_mendesak'=>'Khusus Mendesak','khusus_bencana'=>'Khusus Bencana'];
+    return $m[$jenis] ?? ucfirst($jenis);
+}
+?>
+
 <div class="page-header">
-  <div class="page-title"><i class="ti ti-cash"></i> Penyaluran Dana BKP TA <?= $tahun ?></div>
+  <div class="page-title"><i class="ti ti-inbox"></i> Permohonan Pencairan BKP TA <?= $tahun ?></div>
   <div class="aksi-row">
     <a href="<?= site_url('verifikasi/prov/cetak-rekap?tahun='.$tahun) ?>"
        target="_blank" class="btn btn-outline btn-sm">
@@ -8,14 +17,14 @@
   </div>
 </div>
 
-<!-- Statistik -->
+<!-- Stat Cards -->
 <div class="g4 mb-2">
   <div class="stat-card">
     <div class="stat-icon" style="background:var(--biru-light)">
-      <i class="ti ti-list" style="color:var(--biru)"></i>
+      <i class="ti ti-inbox" style="color:var(--biru)"></i>
     </div>
-    <div class="stat-val" style="color:var(--biru)"><?= count($list) ?></div>
-    <div class="stat-label">Total Antrian</div>
+    <div class="stat-val" style="color:var(--biru)"><?= $total ?></div>
+    <div class="stat-label">Permohonan Masuk</div>
   </div>
   <div class="stat-card">
     <div class="stat-icon" style="background:var(--kuning-light)">
@@ -42,57 +51,31 @@
   </div>
 </div>
 
-<?php
-$status_labels = [
-  'skpkd_kab_approved' => ['biru',  'Menunggu Verifikasi'],
-  'skpkd_prov_verif'   => ['kuning','Sedang Diverifikasi'],
-  'skpkd_prov_revisi'  => ['oranye','Dikembalikan ke Kab'],
-  'disalurkan'         => ['teal',  'Dana Disalurkan'],
-  'dikonfirmasi'       => ['hijau', 'Dikonfirmasi Kab'],
-];
-?>
-<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
-  <?php foreach ($status_labels as $st => [$cl,$lab]):
-    if (empty($count_status[$st])) continue; ?>
-  <div style="padding:5px 12px;background:var(--<?= $cl ?>-light);border-radius:12px;font-size:12px">
-    <span style="color:var(--<?= $cl ?>-mid,var(--biru));font-weight:600"><?= $count_status[$st] ?></span>
-    <span style="color:var(--text-muted)"> <?= $lab ?></span>
-  </div>
-  <?php endforeach; ?>
-</div>
-
 <!-- Filter -->
 <div class="card mb-2">
   <form method="get" class="filter-row">
     <div class="filter-group"><label>Cari</label>
-      <input type="text" name="q" value="<?= htmlspecialchars($filters['q']??'') ?>"
-             placeholder="Kode BKP / nama kegiatan / kab...">
+      <input type="text" name="q" value="<?= htmlspecialchars($filters['q'] ?? '') ?>"
+             placeholder="No. permohonan / kab/kota...">
     </div>
     <div class="filter-group"><label>Kab/Kota</label>
       <select name="kabkota_id">
         <option value="">Semua</option>
         <?php foreach ($kabkota_list as $k): ?>
         <option value="<?= $k->id ?>"
-          <?= ($k->id==$filters['kabkota_id'])?'selected':'' ?>><?= $k->nama ?></option>
+          <?= ($k->id == ($filters['kabkota_id'] ?? '')) ? 'selected' : '' ?>>
+          <?= htmlspecialchars($k->nama) ?>
+        </option>
         <?php endforeach; ?>
       </select>
     </div>
-    <div class="filter-group"><label>Status</label>
-      <select name="status">
-        <option value="">Semua</option>
-        <?php foreach ($status_labels as $kode => [$cl,$lab]): ?>
-        <option value="<?= $kode ?>"
-          <?= ($filters['status']===$kode)?'selected':'' ?>><?= $lab ?></option>
-        <?php endforeach; ?>
-      </select>
-    </div>
-    <div class="filter-group"><label>Jenis</label>
+    <div class="filter-group"><label>Kelompok</label>
       <select name="jenis">
         <option value="">Semua</option>
-        <option value="bertahap" <?= ($filters['jenis']==='bertahap')?'selected':'' ?>>Bertahap</option>
-        <option value="sekaligus" <?= ($filters['jenis']==='sekaligus')?'selected':'' ?>>Sekaligus</option>
-        <option value="khusus_mendesak" <?= ($filters['jenis']==='khusus_mendesak')?'selected':'' ?>>Mendesak</option>
-        <option value="khusus_bencana" <?= ($filters['jenis']==='khusus_bencana')?'selected':'' ?>>Bencana</option>
+        <option value="bertahap"        <?= (($filters['jenis']??'')==='bertahap')?'selected':'' ?>>Bertahap</option>
+        <option value="sekaligus"       <?= (($filters['jenis']??'')==='sekaligus')?'selected':'' ?>>Sekaligus</option>
+        <option value="khusus_mendesak" <?= (($filters['jenis']??'')==='khusus_mendesak')?'selected':'' ?>>Mendesak</option>
+        <option value="khusus_bencana"  <?= (($filters['jenis']??'')==='khusus_bencana')?'selected':'' ?>>Bencana</option>
       </select>
     </div>
     <button type="submit" class="btn btn-primary btn-sm">
@@ -102,79 +85,81 @@ $status_labels = [
   </form>
 </div>
 
+<!-- Tabel Permohonan -->
 <div class="card">
   <div class="table-wrap">
     <table class="tbl">
       <thead>
         <tr>
-          <th>Kode BKP</th>
-          <th>Kegiatan</th>
+          <th>No. Permohonan</th>
           <th>Kab/Kota</th>
-          <th>Tahapan</th>
-          <th style="text-align:right">Nilai Diajukan</th>
-          <th>No. SP2D</th>
-          <th>Tgl SP2D</th>
-          <th>Status</th>
+          <th>Kelompok</th>
+          <th style="text-align:center">Kegiatan</th>
+          <th style="text-align:right">Total Nilai Pengajuan</th>
+          <th style="text-align:center">Progress</th>
+          <th>Tanggal Masuk</th>
           <th>Aksi</th>
         </tr>
       </thead>
       <tbody>
-      <?php if (!empty($list)): foreach ($list as $row): ?>
+      <?php if (!empty($list)): foreach ($list as $row):
+            $jml     = (int)($row->jumlah_item ?? 0);
+            $selesai = (int)($row->item_disalurkan ?? 0);
+            $pct     = $jml > 0 ? round($selesai / $jml * 100) : 0;
+      ?>
       <tr>
         <td>
-          <div class="mono fw-500"><?= htmlspecialchars($row->kode_bkp) ?></div>
-          <div class="text-xs"><?= badge_jenis($row->jenis_penyaluran) ?></div>
+          <div class="mono fw-500"><?= htmlspecialchars($row->no_permohonan ?: '—') ?></div>
+          <div class="text-xs text-muted">ID #<?= $row->id ?></div>
         </td>
-        <td>
-          <div class="text-sm fw-500">
-            <?= htmlspecialchars($row->nama_kegiatan_dok ?: $row->uraian_bkp) ?>
+        <td class="fw-500 text-sm"><?= htmlspecialchars($row->nama_kabkota) ?></td>
+        <td><?= badge_jenis($row->jenis_penyaluran) ?>
+          <div class="text-xs text-muted mt-1">
+            <?= label_kelompok_prov($row->jenis_penyaluran, $row->kode_tahap) ?>
           </div>
-          <div class="text-xs text-muted"><?= htmlspecialchars($row->nama_bidang) ?></div>
-        </td>
-        <td class="text-sm"><?= htmlspecialchars($row->nama_kabkota) ?></td>
-        <td class="text-sm"><?= htmlspecialchars($row->label_tahap) ?>
-          <?php if ($row->no_lhr): ?>
-          <div class="text-xs text-muted">LHR: <?= htmlspecialchars($row->no_lhr) ?></div>
+          <?php if ($row->status === 'selesai'): ?>
+          <div class="mt-1"><span class="badge badge-hijau">Selesai</span></div>
           <?php endif; ?>
         </td>
-        <td class="fw-500 text-sm" style="text-align:right">
-          <?= rupiah($row->nilai_diajukan) ?>
+        <td class="text-center fw-500"><?= $jml ?> kegiatan</td>
+        <td class="fw-500 text-sm" style="text-align:right;color:var(--biru)">
+          <?= rupiah($row->total_nilai ?? 0) ?>
         </td>
-        <td>
-          <?php if ($row->no_sp2d): ?>
-          <div class="mono text-sm fw-500"><?= htmlspecialchars($row->no_sp2d) ?></div>
-          <?php if ($row->nilai_transfer): ?>
-          <div class="text-xs text-hijau"><?= rupiah($row->nilai_transfer) ?></div>
-          <?php endif; ?>
+        <td style="text-align:center;min-width:110px">
+          <?php if ($jml > 0): ?>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">
+            <?= $selesai ?>/<?= $jml ?> disalurkan
+          </div>
+          <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
+            <div style="width:<?= $pct ?>%;height:100%;background:var(--teal-mid);transition:.3s"></div>
+          </div>
           <?php else: ?>
-          <span class="text-muted text-xs">Belum ada</span>
+          <span class="text-muted text-xs">—</span>
           <?php endif; ?>
         </td>
-        <td class="text-sm"><?= $row->tgl_sp2d ? tgl_short($row->tgl_sp2d) : '—' ?></td>
-        <td>
-          <?php $sl = $status_labels[$row->status] ?? ['abu',$row->status];
-          echo '<span class="badge badge-'.$sl[0].'">'.$sl[1].'</span>'; ?>
-          <?php if ($row->status_transfer === 'selesai'): ?>
-          <div class="text-xs text-hijau"><i class="ti ti-check"></i> Transfer selesai</div>
-          <?php elseif ($row->status_transfer === 'proses'): ?>
-          <div class="text-xs text-warning">Dalam proses</div>
-          <?php endif; ?>
-        </td>
+        <td class="text-sm"><?= tgl_indo($row->created_at) ?></td>
         <td>
           <div class="aksi-row">
-            <a href="<?= site_url('verifikasi/prov/form/'.$row->id) ?>"
-               class="btn <?= $this->rbac->can('verif_prov.approve') && $row->status !== 'dikonfirmasi' ? 'btn-primary' : 'btn-outline' ?> btn-xs">
-              <i class="ti ti-<?= $row->status === 'dikonfirmasi' ? 'eye' : 'shield-check' ?>"></i>
-              <?= $row->status === 'dikonfirmasi' ? 'Detail' : 'Proses' ?>
+            <?php if ($row->status === 'selesai'): ?>
+            <a href="<?= site_url('verifikasi/prov/permohonan/'.$row->id) ?>"
+               class="btn btn-outline btn-xs">
+              <i class="ti ti-eye"></i> Lihat
             </a>
+            <?php else: ?>
+            <a href="<?= site_url('verifikasi/prov/permohonan/'.$row->id) ?>"
+               class="btn btn-primary btn-xs">
+              <i class="ti ti-shield-check"></i> Proses
+            </a>
+            <?php endif; ?>
           </div>
         </td>
       </tr>
       <?php endforeach; else: ?>
       <tr>
-        <td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">
-          <div style="font-size:32px;margin-bottom:8px"><i class="ti ti-cash"></i></div>
-          Tidak ada antrian penyaluran saat ini.
+        <td colspan="8" style="text-align:center;padding:50px;color:var(--text-muted)">
+          <div style="font-size:36px;margin-bottom:8px"><i class="ti ti-inbox"></i></div>
+          <div class="fw-500">Tidak ada permohonan pencairan masuk.</div>
+          <div class="text-xs mt-1">Permohonan akan muncul di sini setelah SKPKD Kab/Kota mengajukan ke Provinsi.</div>
         </td>
       </tr>
       <?php endif; ?>

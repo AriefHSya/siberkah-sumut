@@ -2,8 +2,34 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Reviu_model — Sprint 3
- * Mengelola trx_reviu_inspektorat, trx_checklist_reviu
+ * Reviu_model.php — Model Reviu Inspektorat
+ *
+ * Akses data reviu oleh Inspektorat Kab/Kota.
+ * Setiap tahapan penyaluran memiliki satu record reviu (UNIQUE per tahapan).
+ *
+ * TABEL UTAMA:
+ *   trx_reviu_inspektorat  — record reviu per tahapan (1:1)
+ *   trx_checklist_reviu    — isian 21-item checklist per reviu
+ *   ref_checklist_item     — definisi item checklist (statis: CK-01 s/d CK-21)
+ *
+ * CHECKLIST:
+ *   21 item statis di ref_checklist_item — berbeda per jenis_penyaluran dan tahap.
+ *   Method get_checklist_items($jenis, $tahap) → filter item yang relevan.
+ *   Method hitung_checklist($reviu_id) → hitung % kelengkapan (ya/tidak/na).
+ *
+ * POLA UPSERT:
+ *   buat_atau_ambil($tahapan_id) — jika belum ada record reviu untuk tahapan ini,
+ *   buat record baru. Jika sudah ada, kembalikan yang existing.
+ *   Ini mencegah duplikat reviu untuk tahapan yang sama.
+ *
+ * METHOD UTAMA:
+ *   get_antrian($filters)              — daftar tahapan menunggu reviu
+ *   count_filtered($filters)           — hitung untuk pagination
+ *   get_checklist_items($jenis, $tahap)— item checklist yang relevan
+ *   get_isian($reviu_id)               — isian checklist per reviu
+ *   simpan_checklist($reviu_id, $data) — bulk insert/update checklist
+ *   hitung_checklist($reviu_id)        — skor kelengkapan
+ *   update_lhr($reviu_id, $path)       — simpan path file LHR
  */
 class Reviu_model extends CI_Model
 {
@@ -22,7 +48,7 @@ class Reviu_model extends CI_Model
                       bid.nama as nama_bidang,
                       r.id as reviu_id, r.hasil_reviu, r.no_lhr');
         $this->_filter_reviu($filters);
-        $this->db->order_by('t.created_at', 'ASC');
+        $this->db->order_by('t.tgl_pengajuan', 'DESC');
         if ($limit > 0) $this->db->limit($limit, $offset);
         return $this->db->get()->result();
     }
@@ -41,13 +67,21 @@ class Reviu_model extends CI_Model
             ->join('ref_kabkota k',           'k.id = b.kabkota_id')
             ->join('ref_bidang bid',          'bid.id = b.bidang_id')
             ->join('trx_reviu_inspektorat r', 'r.tahapan_id = t.id', 'left')
-            ->where_in('t.status', ['opd_input','inspektorat_reviu','inspektorat_revisi','inspektorat_approved']);
+            ->group_start()
+                ->where_in('t.status', ['opd_input','inspektorat_reviu','inspektorat_revisi','inspektorat_approved'])
+                ->or_where('r.hasil_reviu', 'disetujui')
+            ->group_end();
         if (!empty($filters['kabkota_id']))
             $this->db->where('b.kabkota_id', $filters['kabkota_id']);
         if (!empty($filters['tahun']))
             $this->db->where('b.tahun', $filters['tahun']);
-        if (!empty($filters['status']))
-            $this->db->where('t.status', $filters['status']);
+        if (!empty($filters['status'])) {
+            if ($filters['status'] === 'inspektorat_approved') {
+                $this->db->where('r.hasil_reviu', 'disetujui');
+            } else {
+                $this->db->where('t.status', $filters['status']);
+            }
+        }
         if (!empty($filters['jenis']))
             $this->db->where('p.jenis_penyaluran', $filters['jenis']);
         if (!empty($filters['q']))
@@ -114,15 +148,22 @@ class Reviu_model extends CI_Model
      */
     public function get_checklist_items($jenis_penyaluran, $kode_tahap)
     {
+        // Tahap II hanya menggunakan item khusus bertahap_tahap2 (CK-17 s/d CK-22)
+        // CK-01..CK-16 tidak diulang karena sudah diverifikasi di Tahap I
+        if ($jenis_penyaluran === 'bertahap' && $kode_tahap === 'tahap_2') {
+            return $this->db
+                ->where('is_active', 1)
+                ->where('jenis_penyaluran', 'bertahap_tahap2')
+                ->order_by('urutan', 'ASC')
+                ->get('ref_checklist_item')->result();
+        }
+
         $this->db->where('is_active', 1);
 
         // Bangun filter jenis yang berlaku
         $valid_jenis = [NULL]; // selalu masuk
         if ($jenis_penyaluran === 'bertahap') {
             $valid_jenis[] = 'bertahap';
-            if ($kode_tahap === 'tahap_2') {
-                $valid_jenis[] = 'bertahap_tahap2';
-            }
         } elseif ($jenis_penyaluran === 'sekaligus') {
             $valid_jenis[] = 'sekaligus';
         }
@@ -205,32 +246,49 @@ class Reviu_model extends CI_Model
 
     // ─── UPLOAD LHR ───────────────────────────────────────────
 
-    public function update_lhr($reviu_id, $no_lhr, $tgl_lhr, $file_path, $ref_inspektur_id)
+    public function update_lhr($reviu_id, $no_lhr, $tgl_lhr, $file_path, $ref_inspektur_id, $nama_lhr_asli = NULL)
     {
-        return $this->db->where('id', $reviu_id)->update('trx_reviu_inspektorat', [
+        $data = [
             'no_lhr'           => $no_lhr,
             'tgl_lhr'          => $tgl_lhr,
             'file_lhr_path'    => $file_path,
             'ref_inspektur_id' => $ref_inspektur_id ?: NULL,
             'updated_at'       => date('Y-m-d H:i:s'),
-        ]);
+        ];
+        if ($nama_lhr_asli !== NULL) {
+            $data['nama_lhr_asli'] = $nama_lhr_asli;
+        }
+        return $this->db->where('id', $reviu_id)->update('trx_reviu_inspektorat', $data);
     }
 
     // ─── STATISTIK ────────────────────────────────────────────
 
     public function count_by_status($tahun, $kabkota_id = NULL)
     {
+        // Hitung status aktif berdasarkan t.status
         $this->db
             ->select('t.status, COUNT(*) as total')
             ->from('trx_tahapan_penyaluran t')
             ->join('trx_pekerjaan p', 'p.id = t.pekerjaan_id')
             ->join('ref_bkp b',       'b.id = p.bkp_id')
             ->where('b.tahun', $tahun)
-            ->where_in('t.status', ['opd_input','inspektorat_reviu','inspektorat_revisi','inspektorat_approved']);
+            ->where_in('t.status', ['opd_input','inspektorat_reviu','inspektorat_revisi']);
         if ($kabkota_id) $this->db->where('b.kabkota_id', $kabkota_id);
         $rows = $this->db->group_by('t.status')->get()->result();
         $map  = [];
         foreach ($rows as $r) $map[$r->status] = (int)$r->total;
+
+        // Hitung reviu selesai dari r.hasil_reviu — terlepas dari t.status saat ini
+        $this->db
+            ->from('trx_reviu_inspektorat r')
+            ->join('trx_tahapan_penyaluran t', 't.id = r.tahapan_id')
+            ->join('trx_pekerjaan p',          'p.id = t.pekerjaan_id')
+            ->join('ref_bkp b',                'b.id = p.bkp_id')
+            ->where('b.tahun', $tahun)
+            ->where('r.hasil_reviu', 'disetujui');
+        if ($kabkota_id) $this->db->where('b.kabkota_id', $kabkota_id);
+        $map['inspektorat_approved'] = (int)$this->db->count_all_results();
+
         return $map;
     }
 }

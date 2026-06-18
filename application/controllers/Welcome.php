@@ -1,4 +1,17 @@
 <?php
+/**
+ * Welcome.php — Controller Landing Page Publik
+ *
+ * Halaman publik yang ditampilkan sebelum login.
+ * Extends Guest_Controller → redirect ke dashboard jika sudah login.
+ *
+ * Data yang diambil dari DB:
+ *   - ref_landing_pejabat  : foto 4 pejabat (gubernur, wakil, sekda, kepala bkad)
+ *   - ref_landing_slideshow: foto slideshow hasil kinerja Pemprovsu
+ *
+ * Foto dikelola admin via Parameter → Tampilan Landing.
+ * Jika belum ada foto, box pejabat dan slideshow tidak ditampilkan.
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Welcome extends Guest_Controller
@@ -16,9 +29,15 @@ class Welcome extends Guest_Controller
             ->order_by('urutan', 'ASC')
             ->get('ref_landing_slideshow')->result();
 
+        // Logo Pemerintah Provinsi
+        $setting_logo = $this->db->get_where('ref_app_setting', ['kode' => 'logo_provinsi'])->row();
+        $logo_prov = ($setting_logo && !empty($setting_logo->nilai))
+            ? base_url($setting_logo->nilai) : NULL;
+
         $this->load->view('landing/index', array_merge($this->data, [
-            'pejabat'   => $pejabat,
-            'slideshow' => $slideshow,
+            'pejabat'    => $pejabat,
+            'slideshow'  => $slideshow,
+            'logo_prov'  => $logo_prov,
         ]));
     }
 }

@@ -10,10 +10,15 @@ $route['login']            = 'auth/login';
 $route['login/proses']     = 'auth/proses';
 $route['logout']           = 'auth/logout';
 
+// ─── AKUN ─────────────────────────────────────────────────────
+$route['ganti-password']        = 'akun/ganti_password';
+$route['ganti-password/simpan'] = 'akun/update_password';
+
 // ─── DASHBOARD ────────────────────────────────────────────────
 $route['dashboard']              = 'dashboard/index';
 $route['dashboard/pilih-tahun']  = 'dashboard/pilih_tahun';
 $route['dashboard/set-tahun']    = 'dashboard/set_tahun';
+$route['dashboard/peta-data']    = 'dashboard/peta_data';
 
 // ─── PARAMETER ────────────────────────────────────────────────
 $route['parameter']                           = 'parameter/index';
@@ -33,7 +38,9 @@ $route['parameter/bkp/import']                = 'parameter/bkp_import';
 $route['parameter/bkp/import/preview']        = 'parameter/bkp_preview_import';
 $route['parameter/bkp/import/proses']         = 'parameter/bkp_proses_import';
 $route['parameter/bkp/import/template']       = 'parameter/bkp_template';
+$route['parameter/bkp/import/template-xlsx']  = 'parameter/bkp_template_xlsx';
 $route['parameter/bkp/cetak']                 = 'parameter/bkp_cetak';
+$route['parameter/bkp/generate-kode']         = 'parameter/bkp_generate_kode';
 $route['parameter/pemda']                     = 'parameter/pemda';
 $route['parameter/pemda/simpan-pejabat']      = 'parameter/pemda_simpan_pejabat';
 $route['parameter/pemda/simpan-dokumen']      = 'parameter/pemda_simpan_dokumen';
@@ -46,6 +53,11 @@ $route['parameter/landing/slideshow']              = 'parameter/landing_slidesho
 $route['parameter/landing/slideshow/tambah']       = 'parameter/landing_slideshow_tambah';
 $route['parameter/landing/slideshow/hapus/(:num)'] = 'parameter/landing_slideshow_hapus/$1';
 $route['parameter/landing/slideshow/urutan']       = 'parameter/landing_slideshow_urutan';
+$route['parameter/pejabat-provinsi']               = 'parameter/pejabat_provinsi';
+$route['parameter/pejabat-provinsi/simpan']        = 'parameter/pejabat_provinsi_simpan';
+$route['parameter/logo']                           = 'parameter/logo_provinsi';
+$route['parameter/logo/upload']                    = 'parameter/logo_provinsi_upload';
+$route['parameter/logo/hapus']                     = 'parameter/logo_provinsi_hapus';
 
 // ─── ADMIN / PENGATURAN ───────────────────────────────────────
 $route['admin']                               = 'admin_users/index';
@@ -57,6 +69,7 @@ $route['admin/users/update/(:num)']           = 'admin_users/update/$1';
 $route['admin/users/toggle/(:num)']           = 'admin_users/toggle/$1';
 $route['admin/users/hapus/(:num)']            = 'admin_users/hapus/$1';
 $route['admin/users/reset-pw/(:num)']         = 'admin_users/reset_pw/$1';
+$route['admin/users/unlock/(:num)']           = 'admin_users/unlock/$1';
 $route['admin/roles']                         = 'admin_roles/index';
 $route['admin/roles/tambah']                  = 'admin_roles/tambah';
 $route['admin/roles/simpan']                  = 'admin_roles/simpan';
@@ -69,6 +82,10 @@ $route['admin/roles/logs']                    = 'admin_roles/logs';
 $route['admin/telegram']                      = 'admin_telegram/index';
 $route['admin/telegram/simpan-token']         = 'admin_telegram/simpan_token';
 $route['admin/telegram/test/(:num)']          = 'admin_telegram/test/$1';
+$route['admin/logs']                          = 'admin_logs/index';
+$route['admin/logs/status']                   = 'admin_logs/status_history';
+$route['admin/logs/export']                   = 'admin_logs/export_aktivitas';
+$route['admin/logs/export-status']            = 'admin_logs/export_status';
 
 // ─── PEKERJAAN ────────────────────────────────────────────────
 $route['pekerjaan']                           = 'pekerjaan/index';
@@ -78,8 +95,12 @@ $route['pekerjaan/detail/(:num)']             = 'pekerjaan/detail/$1';
 $route['pekerjaan/edit/(:num)']               = 'pekerjaan/edit/$1';
 $route['pekerjaan/update/(:num)']             = 'pekerjaan/update/$1';
 $route['pekerjaan/submit/(:num)']             = 'pekerjaan/submit/$1';
-$route['pekerjaan/upload-dok/(:num)']         = 'pekerjaan/upload_dok/$1';
-$route['pekerjaan/hapus-dok/(:num)']          = 'pekerjaan/hapus_dok/$1';
+$route['pekerjaan/upload-dok/(:num)']              = 'pekerjaan/upload_dok/$1';
+$route['pekerjaan/hapus-dok/(:num)']               = 'pekerjaan/hapus_dok/$1';
+$route['pekerjaan/upload-dok-draft/(:num)/(:any)'] = 'pekerjaan/upload_dok_draft/$1/$2';
+$route['pekerjaan/hapus-dok-draft/(:num)/(:any)']  = 'pekerjaan/hapus_dok_draft/$1/$2';
+$route['pekerjaan/batal-submit/(:num)']            = 'pekerjaan/batal_submit/$1';
+$route['pekerjaan/kirim-revisi/(:num)']            = 'pekerjaan/kirim_revisi/$1';
 $route['pekerjaan/cetak-permohonan/(:num)']   = 'pekerjaan/cetak_permohonan/$1';
 
 // ─── REVIU INSPEKTORAT ────────────────────────────────────────
@@ -97,21 +118,46 @@ $route['verifikasi/kab/form/(:num)']          = 'verif_kab/form/$1';
 $route['verifikasi/kab/upload-dok/(:num)']    = 'verif_kab/upload_dok/$1';
 $route['verifikasi/kab/hapus-dok/(:num)']     = 'verif_kab/hapus_dok/$1';
 $route['verifikasi/kab/putuskan/(:num)']      = 'verif_kab/putuskan/$1';
-$route['verifikasi/kab/konfirmasi/(:num)']    = 'verif_kab/konfirmasi/$1';
 $route['verifikasi/kab/cetak-rekap/(:num)']   = 'verif_kab/cetak_rekap/$1';
 
 // ─── VERIFIKASI & PENYALURAN PROVINSI ────────────────────────
-$route['verifikasi/prov']                         = 'verif_prov/index';
-$route['verifikasi/prov/form/(:num)']             = 'verif_prov/form/$1';
-$route['verifikasi/prov/putuskan/(:num)']         = 'verif_prov/putuskan/$1';
-$route['verifikasi/prov/simpan-sp2d/(:num)']      = 'verif_prov/simpan_sp2d/$1';
+$route['verifikasi/prov']                                    = 'verif_prov/index';
+$route['verifikasi/prov/permohonan/(:num)']                  = 'verif_prov/detail_permohonan/$1';
+$route['verifikasi/prov/permohonan/nota-kabid/(:num)']       = 'verif_prov/cetak_nota_kabid/$1';
+$route['verifikasi/prov/permohonan/nota-kabadan/(:num)']     = 'verif_prov/cetak_nota_kabadan/$1';
+$route['verifikasi/prov/permohonan/ringkasan/(:num)']        = 'verif_prov/cetak_ringkasan/$1';
+$route['verifikasi/prov/permohonan/sp2d/(:num)']             = 'verif_prov/simpan_sp2d_permohonan/$1';
+$route['verifikasi/prov/permohonan/tolak/(:num)']            = 'verif_prov/tolak_permohonan/$1';
+$route['verifikasi/prov/form/(:num)']                        = 'verif_prov/form/$1';
+$route['verifikasi/prov/putuskan/(:num)']            = 'verif_prov/putuskan/$1';
+$route['verifikasi/prov/simpan-sp2d/(:num)']         = 'verif_prov/simpan_sp2d/$1';
 $route['verifikasi/prov/konfirmasi-transfer/(:num)'] = 'verif_prov/konfirmasi_transfer/$1';
-$route['verifikasi/prov/cetak-rekap']             = 'verif_prov/cetak_rekap';
+$route['verifikasi/prov/cetak-rekap']                = 'verif_prov/cetak_rekap';
+
+// ─── PERMOHONAN PENCAIRAN (SKPKD KAB/KOTA) ───────────────────
+$route['permohonan']              = 'permohonan/index';
+$route['permohonan/buat']         = 'permohonan/buat';
+$route['permohonan/simpan']       = 'permohonan/simpan';
+$route['permohonan/detail/(:num)']= 'permohonan/detail/$1';
+$route['permohonan/batal/(:num)']                   = 'permohonan/batal/$1';
+$route['permohonan/ajukan-kembali/(:num)']          = 'permohonan/ajukan_kembali/$1';
+$route['permohonan/cetak/(:num)']                   = 'permohonan/cetak/$1';
+$route['permohonan/upload-dok/(:num)/(:any)']       = 'permohonan/upload_dok/$1/$2';
+$route['permohonan/hapus-dok/(:num)/(:any)']        = 'permohonan/hapus_dok/$1/$2';
+
+// ─── PENYALURAN KAB/KOTA (konfirmasi RKUD) ───────────────────
+$route['penyaluran-kab']                    = 'penyaluran_kab/index';
+$route['penyaluran-kab/konfirmasi/(:num)']  = 'penyaluran_kab/konfirmasi/$1';
 
 // ─── CAPAIAN OUTPUT ───────────────────────────────────────────
 $route['capaian']                    = 'capaian/index';
 $route['capaian/form/(:num)']        = 'capaian/form/$1';
 $route['capaian/simpan/(:num)']      = 'capaian/simpan/$1';
+$route['capaian/ajukan-tahap2/(:num)'] = 'capaian/ajukan_tahap2/$1';
+
+// ─── BERKAS (unduhan file privat via controller) ─────────────
+$route['berkas/unduh/(:any)/(:num)/(:any)'] = 'berkas/unduh_sub/$1/$2/$3';
+$route['berkas/unduh/(:any)/(:num)']        = 'berkas/unduh/$1/$2';
 
 // ─── LAPORAN ──────────────────────────────────────────────────
 $route['laporan']                           = 'laporan/index';
@@ -119,6 +165,10 @@ $route['laporan/rekap-bkp']                 = 'laporan/rekap_bkp';
 $route['laporan/cetak-rekap-bkp']           = 'laporan/cetak_rekap_bkp';
 $route['laporan/rekap-penyaluran']          = 'laporan/rekap_penyaluran';
 $route['laporan/export-bkp']                = 'laporan/export_bkp';
+$route['laporan/export-bkp-xlsx']           = 'laporan/export_bkp_xlsx';
 $route['laporan/export-penyaluran']         = 'laporan/export_penyaluran';
+$route['laporan/export-penyaluran-xlsx']    = 'laporan/export_penyaluran_xlsx';
 $route['laporan/laporan-akhir-kab']         = 'laporan/laporan_akhir_kab';
 $route['laporan/cetak-laporan-akhir-kab']   = 'laporan/cetak_laporan_akhir_kab';
+$route['laporan/rekap-tahap2']              = 'laporan/rekap_tahap2';
+$route['laporan/cetak-rekap-tahap2']        = 'laporan/cetak_rekap_tahap2';

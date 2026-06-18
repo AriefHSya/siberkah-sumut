@@ -1,9 +1,36 @@
 <?php
+/**
+ * User_model.php — Model Data User
+ *
+ * CRUD user dengan filter dan join ke tabel roles + ref_kabkota.
+ * Password di-hash bcrypt — JANGAN simpan password plain text.
+ *
+ * TABEL: users
+ * JOIN  : roles (role_nama, role_kode, role_level), ref_kabkota (kabkota_nama)
+ *
+ * METHOD UTAMA:
+ *   get_all($filters)        — daftar user dengan filter role/kabkota/status/q
+ *   get_by_id($id)           — detail user + join roles + kabkota
+ *   get_by_username($username) — dipakai Auth::proses() untuk login
+ *   insert($data)            — tambah user baru (password sudah di-hash sebelumnya)
+ *   update($id, $data)       — update data user
+ *   toggle($id)              — toggle is_active 0/1
+ *   hapus($id)               — hapus user (cek dulu tidak ada data terkait)
+ *   update_last_login($id)   — update kolom last_login_at saat login berhasil
+ *   count_per_role()         — statistik jumlah user per role (untuk dashboard admin)
+ *
+ * LOCKOUT LOGIN:
+ *   get_for_login($username)     — ambil user untuk proses login (termasuk user nonaktif,
+ *                                   agar Auth::proses() bisa cek lockout/status secara konsisten)
+ *   catat_login_gagal($id, $n)   — set failed_login_attempts ke $n, dan locked_at jika $n >= 5
+ *   reset_login_gagal($id)       — reset failed_login_attempts=0 & locked_at=NULL (login sukses)
+ *   unlock($id)                  — buka kembali akun terkunci (oleh Admin Provinsi/SKPKD Kab/Kota)
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class User_model extends CI_Model
 {
-    public function get_all($filters = [])
+    private function _apply_filters($filters)
     {
         $this->db->select('u.*, r.nama as role_nama, r.kode as role_kode, r.level as role_level, k.nama as kabkota_nama')
             ->from('users u')
@@ -11,11 +38,24 @@ class User_model extends CI_Model
             ->join('ref_kabkota k', 'k.id = u.kabkota_id', 'left');
         if (!empty($filters['role_id']))    $this->db->where('u.role_id', $filters['role_id']);
         if (!empty($filters['kabkota_id'])) $this->db->where('u.kabkota_id', $filters['kabkota_id']);
-        if (!empty($filters['is_active']) && $filters['is_active'] !== '')
+        if (isset($filters['is_active']) && $filters['is_active'] !== '')
             $this->db->where('u.is_active', $filters['is_active']);
         if (!empty($filters['q']))
             $this->db->group_start()->like('u.nama', $filters['q'])->or_like('u.username', $filters['q'])->or_like('u.email', $filters['q'])->group_end();
-        return $this->db->order_by('r.level','ASC')->order_by('u.nama','ASC')->get()->result();
+    }
+
+    public function count_filtered($filters = [])
+    {
+        $this->_apply_filters($filters);
+        return $this->db->count_all_results();
+    }
+
+    public function get_all($filters = [], $limit = NULL, $offset = 0)
+    {
+        $this->_apply_filters($filters);
+        $this->db->order_by('r.level','ASC')->order_by('u.nama','ASC');
+        if ($limit !== NULL) $this->db->limit($limit, $offset);
+        return $this->db->get()->result();
     }
 
     public function get_by_id($id)
@@ -34,6 +74,43 @@ class User_model extends CI_Model
             ->join('roles r', 'r.id = u.role_id')
             ->join('ref_kabkota k', 'k.id = u.kabkota_id', 'left')
             ->where('u.username', $username)->where('u.is_active', 1)->get()->row();
+    }
+
+    public function get_for_login($username)
+    {
+        return $this->db->select('u.*, r.kode as role_kode, r.nama as role_nama, r.level as role_level, k.nama as kabkota_nama')
+            ->from('users u')
+            ->join('roles r', 'r.id = u.role_id')
+            ->join('ref_kabkota k', 'k.id = u.kabkota_id', 'left')
+            ->where('u.username', $username)->get()->row();
+    }
+
+    const MAX_LOGIN_ATTEMPTS = 5;
+
+    public function catat_login_gagal($id, $jumlah)
+    {
+        $data = ['failed_login_attempts' => $jumlah];
+        if ($jumlah >= self::MAX_LOGIN_ATTEMPTS) {
+            $data['locked_at'] = date('Y-m-d H:i:s');
+        }
+        return $this->db->where('id', $id)->update('users', $data);
+    }
+
+    public function reset_login_gagal($id)
+    {
+        return $this->db->where('id', $id)->update('users', [
+            'failed_login_attempts' => 0,
+            'locked_at'             => NULL,
+        ]);
+    }
+
+    public function unlock($id)
+    {
+        return $this->db->where('id', $id)->update('users', [
+            'failed_login_attempts' => 0,
+            'locked_at'             => NULL,
+            'updated_at'            => date('Y-m-d H:i:s'),
+        ]);
     }
 
     public function username_exists($username, $exclude_id = NULL)

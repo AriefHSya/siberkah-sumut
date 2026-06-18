@@ -2,9 +2,32 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Pekerjaan_model — Sprint 2
- * Mengelola trx_pekerjaan, trx_tahapan_penyaluran, trx_dokumen_persyaratan,
- * trx_pekerjaan_log, trx_status_history
+ * Pekerjaan_model.php — Model Pekerjaan BKP
+ *
+ * Akses data semua tabel transaksi pekerjaan. Satu pekerjaan
+ * terdiri dari: data induk (trx_pekerjaan) + 1-2 tahapan
+ * (trx_tahapan_penyaluran) + dokumen per tahapan (trx_dokumen_persyaratan).
+ *
+ * TABEL UTAMA:
+ *   trx_pekerjaan            — data induk (bkp_id, nilai_kontrak, status, dll.)
+ *   trx_tahapan_penyaluran   — 1 baris per tahap (tahap_1, tahap_2, sekaligus, dll.)
+ *   trx_dokumen_persyaratan  — file upload dokumen per tahapan
+ *   trx_status_history        — audit trail perubahan status
+ *
+ * POLA FILTER:
+ *   Semua query list menggunakan _filter_pekerjaan($filters) → DRY principle.
+ *   Method get_all() dan count_filtered() share filter yang sama.
+ *
+ * JENIS PENYALURAN:
+ *   bertahap         — 2 tahap (wajib nilai_kontrak > 400jt)
+ *   sekaligus        — 1 tahap
+ *   khusus_mendesak  — 1 tahap, tanpa checklist lengkap
+ *   khusus_bencana   — 1 tahap, tanpa checklist lengkap
+ *
+ * STATUS TAHAPAN (enum di trx_tahapan_penyaluran.status):
+ *   belum → opd_input → inspektorat_reviu → inspektorat_revisi
+ *   → inspektorat_approved → skpkd_kab_verif → skpkd_kab_revisi
+ *   → skpkd_kab_approved → skpkd_prov_verif → disalurkan → dikonfirmasi → ditolak
  */
 class Pekerjaan_model extends CI_Model
 {

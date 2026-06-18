@@ -62,6 +62,9 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
   <?php if ($reviu->tgl_reviu_selesai): ?>
   <span class="lbl">Tgl. Reviu Selesai</span><span>:</span><span><?= tgl_indo($reviu->tgl_reviu_selesai) ?></span>
   <?php endif; ?>
+  <?php if (!empty($reviewer['nama'])): ?>
+  <span class="lbl">Reviewer</span><span>:</span><span><?= htmlspecialchars($reviewer['nama']) ?><?= !empty($reviewer['nip']) ? ' (NIP. '.$reviewer['nip'].')' : '' ?></span>
+  <?php endif; ?>
 </div>
 
 <!-- Ringkasan Checklist -->
@@ -115,21 +118,17 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
 <?php endif; ?>
 
 <!-- TTD -->
-<div class="ttd">
-  <div class="ttd-blok">
-    <p>Pemeriksa,</p>
-    <div class="nama">.................................................</div>
-    <div class="nip">NIP. .......................................</div>
-  </div>
+<?php $rv = $reviewer ?? []; ?>
+<div class="ttd" style="justify-content:flex-end">
   <div class="ttd-blok">
     <p><?= htmlspecialchars($p->nama_kabkota) ?>, <?= $tgl_cetak ?></p>
-    <p><?= $inspektur ? htmlspecialchars($inspektur->jabatan ?? 'Inspektur') : 'Inspektur' ?></p>
-    <div class="nama"><?= $inspektur ? htmlspecialchars($inspektur->nama) : '.................................................' ?></div>
-    <?php if ($inspektur && $inspektur->nip): ?>
-    <div class="nip">NIP. <?= htmlspecialchars($inspektur->nip) ?></div>
-    <?php else: ?>
-    <div class="nip">NIP. .......................................</div>
-    <?php endif; ?>
+    <p><?= htmlspecialchars($rv['jabatan'] ?? ($inspektur->jabatan ?? 'Inspektur')) ?></p>
+    <div class="nama">
+      <?= !empty($rv['nama']) ? htmlspecialchars($rv['nama']) : '.................................................' ?>
+    </div>
+    <div class="nip">
+      NIP. <?= !empty($rv['nip']) ? htmlspecialchars($rv['nip']) : '.......................................' ?>
+    </div>
   </div>
 </div>
 

@@ -96,7 +96,6 @@ $status_labels = [
           <th>Tahapan</th>
           <th>Jenis</th>
           <th style="text-align:right">Nilai Diajukan</th>
-          <th>No. Surat Verif.</th>
           <th>Status</th>
           <th>Aksi</th>
         </tr>
@@ -115,8 +114,9 @@ $status_labels = [
         <td class="text-sm"><?= htmlspecialchars($row->nama_kabkota) ?></td>
         <td class="text-sm"><?= htmlspecialchars($row->label_tahap) ?></td>
         <td><?= badge_jenis($row->jenis_penyaluran) ?></td>
-        <td class="fw-500 text-sm" style="text-align:right"><?= rupiah($row->nilai_diajukan) ?></td>
-        <td class="mono text-xs"><?= htmlspecialchars($row->no_surat_verif ?? '—') ?></td>
+        <td class="fw-500 text-sm" style="text-align:right">
+          <?= rupiah(($row->nilai_diajukan ?? 0) + ($row->nilai_belanja_pendukung ?? 0)) ?>
+        </td>
         <td>
           <?php
           $sl = $status_labels[$row->status] ?? ['abu', $row->status];
@@ -152,7 +152,7 @@ $status_labels = [
       </tr>
       <?php endforeach; else: ?>
       <tr>
-        <td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">
+        <td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">
           <div style="font-size:32px;margin-bottom:8px"><i class="ti ti-shield"></i></div>
           Tidak ada antrian verifikasi saat ini.
         </td>

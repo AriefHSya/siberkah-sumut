@@ -2,9 +2,26 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Capaian_model
- * Schema DB: trx_tahapan_penyaluran.kode_tahap = 'tahap_1' (dengan underscore)
- *            kolom porsi: persen_nilai (bukan porsi_persen)
+ * Capaian_model.php — Model Capaian Output Fisik
+ *
+ * Akses data capaian realisasi output fisik pekerjaan.
+ * Capaian wajib diisi OPD setelah Tahap I dikonfirmasi,
+ * sebelum bisa mengajukan Tahap II (untuk jenis bertahap).
+ *
+ * TABEL UTAMA: trx_capaian_output
+ * JOIN       : trx_tahapan_penyaluran, trx_pekerjaan, ref_bkp
+ *
+ * SKEMA PENTING (jangan salah nama kolom):
+ *   trx_tahapan_penyaluran.kode_tahap = 'tahap_1' (DENGAN underscore, bukan 'tahap1')
+ *   trx_tahapan_penyaluran.persen_nilai (bukan porsi_persen)
+ *   Konstanta KODE_TAHAP1 = 'tahap_1' tersedia untuk referensi
+ *
+ * METHOD UTAMA:
+ *   get_list($filters)              — daftar pekerjaan perlu input capaian (paginated)
+ *   count_filtered($filters)        — hitung untuk pagination
+ *   get_detail($pekerjaan_id)       — detail pekerjaan + tahapan untuk form capaian
+ *   get_by_tahapan($tahapan_id)     — data capaian satu tahapan (jika sudah ada)
+ *   simpan($tahapan_id, $data)      — upsert capaian (insert atau update)
  */
 class Capaian_model extends CI_Model
 {
@@ -33,7 +50,11 @@ class Capaian_model extends CI_Model
                    't.pekerjaan_id = p.id AND t.kode_tahap = \'' . self::KODE_TAHAP1 . '\'')
             ->join('trx_penyaluran_dana pd',   'pd.tahapan_id = t.id', 'left')
             ->join('trx_capaian_output c',     'c.tahapan_id = t.id', 'left')
-            ->where_in('p.status', ['dikonfirmasi_tahap1', 'opd_capaian_tahap1']);
+            // Tampilkan: belum/sedang input capaian ATAU sudah ada capaian (Tahap II lanjut)
+            ->group_start()
+                ->where_in('p.status', ['dikonfirmasi_tahap1', 'opd_capaian_tahap1'])
+                ->or_where('c.id IS NOT NULL', NULL, FALSE)
+            ->group_end();
 
         if (!empty($filters['tahun']))
             $this->db->where('b.tahun', $filters['tahun']);
@@ -60,7 +81,11 @@ class Capaian_model extends CI_Model
             ->join('ref_kabkota k',            'k.id = b.kabkota_id')
             ->join('trx_tahapan_penyaluran t',
                    't.pekerjaan_id = p.id AND t.kode_tahap = \'' . self::KODE_TAHAP1 . '\'')
-            ->where_in('p.status', ['dikonfirmasi_tahap1', 'opd_capaian_tahap1']);
+            ->join('trx_capaian_output c',     'c.tahapan_id = t.id', 'left')
+            ->group_start()
+                ->where_in('p.status', ['dikonfirmasi_tahap1', 'opd_capaian_tahap1'])
+                ->or_where('c.id IS NOT NULL', NULL, FALSE)
+            ->group_end();
         if (!empty($filters['tahun']))      $this->db->where('b.tahun', $filters['tahun']);
         if (!empty($filters['kabkota_id'])) $this->db->where('b.kabkota_id', $filters['kabkota_id']);
         if (!empty($filters['status']))     $this->db->where('p.status', $filters['status']);
@@ -72,13 +97,14 @@ class Capaian_model extends CI_Model
     public function get_detail($pekerjaan_id)
     {
         return $this->db
-            ->select('p.*, b.kode_bkp, b.uraian_bkp, b.nilai as nilai_bkp, b.tahun,
+            ->select('p.*, p.id as pekerjaan_id, b.kode_bkp, b.uraian_bkp, b.nilai as nilai_bkp, b.tahun,
                       k.nama as nama_kabkota, k.id as kabkota_id,
                       bid.nama as nama_bidang,
                       t.id as tahapan_id, t.status as status_tahapan, t.persen_nilai,
                       pd.no_sp2d, pd.tgl_sp2d, pd.nilai_transfer,
                       c.id as capaian_id, c.persen_fisik, c.tgl_realisasi,
-                      c.no_ba_kemajuan, c.tgl_ba_kemajuan, c.keterangan, c.foto_path')
+                      c.no_ba_kemajuan, c.tgl_ba_kemajuan, c.keterangan, c.foto_path,
+                      c.nama_foto_asli, c.ba_path, c.nama_ba_asli')
             ->from('trx_pekerjaan p')
             ->join('ref_bkp b',                'b.id = p.bkp_id')
             ->join('ref_kabkota k',            'k.id = b.kabkota_id')
@@ -95,6 +121,17 @@ class Capaian_model extends CI_Model
     {
         return $this->db->get_where('trx_capaian_output',
             ['tahapan_id' => $tahapan_id])->row();
+    }
+
+    /**
+     * Ambil data tahapan Tahap II (untuk cek syarat % fisik & status pengajuan)
+     */
+    public function get_tahap2($pekerjaan_id)
+    {
+        return $this->db->get_where('trx_tahapan_penyaluran', [
+            'pekerjaan_id' => $pekerjaan_id,
+            'kode_tahap'   => 'tahap_2',
+        ])->row();
     }
 
     // ─── WRITE ────────────────────────────────────────────────

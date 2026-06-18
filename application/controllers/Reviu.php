@@ -2,9 +2,28 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Reviu Controller — Sprint 3
- * Handles: antrian reviu, form isian checklist, approve/tolak/revisi, upload LHR,
- *          cetak kertas kerja, cetak rekapitulasi hasil reviu
+ * Reviu.php — Controller Reviu Inspektorat
+ *
+ * Menangani proses reviu oleh Inspektorat Kab/Kota terhadap
+ * dokumen pekerjaan yang diajukan OPD Teknis.
+ *
+ * ALUR:
+ *   OPD submit → status 'opd_input' → Inspektorat buka form reviu
+ *   → isi 21-item checklist → upload LHR → putuskan (disetujui/ditolak/revisi)
+ *
+ * ROUTES:
+ *   GET  /reviu                      → index()            — antrian menunggu reviu
+ *   GET  /reviu/form/{tahapan_id}    → form()             — form checklist + upload LHR
+ *   POST /reviu/checklist/{reviu_id} → simpan_checklist() — simpan isian checklist
+ *   POST /reviu/lhr/{reviu_id}       → upload_lhr()       — upload file LHR
+ *   POST /reviu/putus/{reviu_id}     → putuskan()         — approve/tolak/minta revisi
+ *   GET  /reviu/kertas/{reviu_id}    → cetak_kertas_kerja() — cetak PDF kertas kerja
+ *   GET  /reviu/rekap/{reviu_id}     → cetak_rekap()      — cetak rekap hasil reviu
+ *
+ * AKSES:
+ *   - Inspektorat: akses penuh (reviu + putuskan)
+ *   - Role kabkota lain: view only (index, cetak)
+ *   - Guard IDOR: inspektorat hanya bisa reviu tahapan kabkota mereka
  */
 class Reviu extends Auth_Controller
 {
@@ -74,8 +93,11 @@ class Reviu extends Auth_Controller
             redirect('reviu'); return;
         }
 
-        // Cek status valid untuk direviu
-        if (!in_array($tahapan->status, ['opd_input','inspektorat_reviu','inspektorat_revisi'])) {
+        // Cek status valid untuk direviu atau lihat hasil reviu
+        $reviu_selesai = $this->Reviu_model->get_by_tahapan($tahapan_id);
+        $bisa_lihat    = $reviu_selesai && $reviu_selesai->hasil_reviu === 'disetujui';
+        if (!in_array($tahapan->status, ['opd_input','inspektorat_reviu','inspektorat_revisi','inspektorat_approved'])
+            && !$bisa_lihat) {
             $this->session->set_flashdata('error',
                 'Tahapan ini tidak dalam status yang dapat direviu.');
             redirect('reviu'); return;
@@ -114,6 +136,13 @@ class Reviu extends Auth_Controller
             'jenis'      => 'inspektur',
         ])->row();
 
+        // Untuk Tahap II: ambil data capaian output OPD Teknis
+        $capaian = NULL;
+        if ($tahapan->kode_tahap === 'tahap_2') {
+            $this->load->model('Capaian_model');
+            $capaian = $this->Capaian_model->get_detail($tahapan->pekerjaan_id);
+        }
+
         $this->render('reviu/form', array_merge($this->data, [
             'title'     => 'Reviu — ' . $pekerjaan->kode_bkp,
             'tahapan'   => $tahapan,
@@ -124,6 +153,7 @@ class Reviu extends Auth_Controller
             'stat'      => $stat,
             'dokumen'   => $dokumen,
             'pejabat'   => $pejabat,
+            'capaian'   => $capaian,
         ]));
     }
 
@@ -159,17 +189,39 @@ class Reviu extends Auth_Controller
         $this->Reviu_model->simpan_checklist($reviu_id, $isian);
         $stat = $this->Reviu_model->hitung_checklist($reviu_id);
 
+        // Simpan data reviewer jika dikirim
+        $reviewer_nama    = $this->input->post('reviewer_nama', TRUE);
+        $reviewer_nip     = $this->input->post('reviewer_nip',  TRUE);
+        $reviewer_jabatan = $this->input->post('reviewer_jabatan', TRUE);
+        if ($reviewer_nama || $reviewer_nip || $reviewer_jabatan) {
+            $upd = array_filter([
+                'reviewer_nama'    => $reviewer_nama    ?: NULL,
+                'reviewer_nip'     => $reviewer_nip     ?: NULL,
+                'reviewer_jabatan' => $reviewer_jabatan ?: NULL,
+            ], fn($v) => $v !== NULL);
+            if ($upd) $this->Reviu_model->update($reviu_id, $upd);
+        }
+
         // Jika dari AJAX return JSON
         if ($this->input->is_ajax_request()) {
             $this->json(['ok' => TRUE, 'stat' => $stat]);
             return;
         }
 
-        $this->session->set_flashdata('success', 'Checklist berhasil disimpan.');
+        // Aksi "kunci checklist" — tidak bisa dibuka lagi
+        $action = $this->input->post('action');
+        if ($action === 'confirm') {
+            $this->Reviu_model->update($reviu_id, [
+                'checklist_confirmed_at' => date('Y-m-d H:i:s'),
+            ]);
+            $this->log_aktivitas('reviu.kunci_checklist', 'Checklist reviu dikunci, reviu_id='.$reviu_id);
+            $this->session->set_flashdata('success',
+                'Checklist berhasil dikunci. Silakan cetak Kertas Kerja dan upload LHR.');
+        } else {
+            $this->session->set_flashdata('success', 'Checklist berhasil disimpan.');
+        }
 
-        // Redirect ke form reviu
-        $tahapan_id = $reviu->tahapan_id;
-        redirect('reviu/form/' . $tahapan_id);
+        redirect('reviu/form/' . $reviu->tahapan_id);
     }
 
     // ─── UPLOAD LHR ───────────────────────────────────────────
@@ -196,15 +248,27 @@ class Reviu extends Auth_Controller
         $dir = FCPATH . 'uploads/lhr/' . $pekerjaan->id . '/';
         if (!is_dir($dir)) mkdir($dir, 0755, TRUE);
 
-        $this->load->library('upload', [
-            'upload_path'   => $dir,
-            'allowed_types' => 'pdf|doc|docx',
-            'max_size'      => 10240,
-            'file_name'     => 'lhr_' . $reviu->tahapan_id . '_' . time(),
-        ]);
-
         $file_path = NULL;
-        if ($this->input->files('file_lhr')['name'] ?? '') {
+        $orig_lhr  = NULL;
+        if (!empty($_FILES['file_lhr']['name'])) {
+            $mime_ok = ['application/pdf','application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+            if (!$this->_mime_valid($_FILES['file_lhr']['tmp_name'], $mime_ok)) {
+                $this->session->set_flashdata('error',
+                    'Jenis file tidak diizinkan. LHR harus berformat PDF, DOC, atau DOCX.');
+                redirect('reviu/form/' . $reviu->tahapan_id); return;
+            }
+            $orig_lhr  = basename($_FILES['file_lhr']['name']);
+            $ext       = strtolower(pathinfo($orig_lhr, PATHINFO_EXTENSION));
+            $rand_name = $this->_random_filename($ext);
+
+            $this->load->library('upload', [
+                'upload_path'   => $dir,
+                'allowed_types' => 'pdf|doc|docx',
+                'max_size'      => 10240,
+                'file_name'     => $rand_name,
+            ]);
+
             if (!$this->upload->do_upload('file_lhr')) {
                 $this->session->set_flashdata('error',
                     'Upload LHR gagal: ' . $this->upload->display_errors('', ''));
@@ -223,7 +287,8 @@ class Reviu extends Auth_Controller
             $no_lhr,
             $tgl_lhr ?: NULL,
             $file_path ?? $reviu->file_lhr_path,
-            $ref_inspektur_id
+            $ref_inspektur_id,
+            $orig_lhr
         );
 
         // Juga simpan sebagai dokumen tahapan agar terlihat di tab dokumen
@@ -232,6 +297,7 @@ class Reviu extends Auth_Controller
                 'tahapan_id'    => $reviu->tahapan_id,
                 'jenis_dokumen' => 'laporan_reviu_inspektorat',
                 'nama_file'     => basename($file_path),
+                'nama_asli'     => $orig_lhr,
                 'file_path'     => $file_path,
                 'ukuran_kb'     => 0,
                 'keterangan'    => 'LHR No. ' . $no_lhr,
@@ -254,6 +320,20 @@ class Reviu extends Auth_Controller
 
         $tahapan   = $this->Pekerjaan_model->get_tahapan_by_id($reviu->tahapan_id);
         $pekerjaan = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
+
+        // Guard kabkota — inspektorat hanya bisa memutuskan reviu kabkota sendiri
+        if ($this->role_kode === 'inspektorat'
+            && $pekerjaan->kabkota_id != $this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('reviu'); return;
+        }
+
+        // Guard transisi status — hanya bisa diputuskan saat tahapan sedang direviu
+        if ($tahapan->status !== 'inspektorat_reviu') {
+            $this->session->set_flashdata('error',
+                'Tahapan ini tidak dalam status menunggu keputusan reviu.');
+            redirect('reviu/form/' . $reviu->tahapan_id); return;
+        }
 
         $hasil  = $this->input->post('hasil_reviu', TRUE);
         $catatan = $this->input->post('catatan', TRUE);
@@ -347,6 +427,15 @@ class Reviu extends Auth_Controller
                     $pekerjaan->id
                 );
             }
+
+            // Telegram ke Admin Provinsi — reviu selesai, siap verifikasi provinsi
+            telegram_notif_admin_prov(
+                "\xE2\x9C\x85 <b>Reviu Inspektorat Selesai</b>\n\n" .
+                "BKP: <b>" . htmlspecialchars($pekerjaan->kode_bkp) . "</b>\n" .
+                htmlspecialchars($pekerjaan->uraian_bkp) . "\n" .
+                "LHR: No. " . htmlspecialchars($reviu->no_lhr) . "\n\n" .
+                "Pekerjaan siap untuk verifikasi SKPKD Provinsi."
+            );
         }
 
         $pesan_flash = [
@@ -370,7 +459,9 @@ class Reviu extends Auth_Controller
         if (!$reviu) { show_404(); return; }
 
         $tahapan   = $this->Pekerjaan_model->get_tahapan_by_id($reviu->tahapan_id);
+        if (!$tahapan) { show_404(); return; }
         $pekerjaan = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
+        if (!$pekerjaan) { show_404(); return; }
         $items     = $this->Reviu_model->get_checklist_items(
                         $pekerjaan->jenis_penyaluran, $tahapan->kode_tahap);
         $isian     = $this->Reviu_model->get_isian($reviu->id);
@@ -384,15 +475,27 @@ class Reviu extends Auth_Controller
         ])->result();
         foreach ($rows as $p) $pejabat[$p->jenis] = $p;
 
+        // Prioritas reviewer: GET param → data tersimpan di DB → data pejabat
+        $insp = $pejabat['inspektur'] ?? NULL;
+        $reviewer = [
+            'nama'    => $this->input->get('nama',    TRUE)
+                      ?: ($reviu->reviewer_nama    ?? ($insp->nama    ?? '')),
+            'nip'     => $this->input->get('nip',     TRUE)
+                      ?: ($reviu->reviewer_nip     ?? ($insp->nip     ?? '')),
+            'jabatan' => $this->input->get('jabatan', TRUE)
+                      ?: ($reviu->reviewer_jabatan ?? 'Inspektur'),
+        ];
+
         $this->render_plain('reviu/cetak_kertas_kerja', [
-            'reviu'     => $reviu,
-            'tahapan'   => $tahapan,
-            'pekerjaan' => $pekerjaan,
-            'items'     => $items,
-            'isian'     => $isian,
-            'stat'      => $stat,
-            'pejabat'   => $pejabat,
-            'tgl_cetak' => tgl_indo(date('Y-m-d')),
+            'reviu'    => $reviu,
+            'tahapan'  => $tahapan,
+            'pekerjaan'=> $pekerjaan,
+            'items'    => $items,
+            'isian'    => $isian,
+            'stat'     => $stat,
+            'pejabat'  => $pejabat,
+            'reviewer' => $reviewer,
+            'tgl_cetak'=> tgl_indo(date('Y-m-d')),
         ]);
     }
 
@@ -406,7 +509,9 @@ class Reviu extends Auth_Controller
         if (!$reviu) { show_404(); return; }
 
         $tahapan   = $this->Pekerjaan_model->get_tahapan_by_id($reviu->tahapan_id);
+        if (!$tahapan) { show_404(); return; }
         $pekerjaan = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
+        if (!$pekerjaan) { show_404(); return; }
         $items     = $this->Reviu_model->get_checklist_items(
                         $pekerjaan->jenis_penyaluran, $tahapan->kode_tahap);
         $isian     = $this->Reviu_model->get_isian($reviu->id);

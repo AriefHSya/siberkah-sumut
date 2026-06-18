@@ -53,7 +53,10 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
   <span class="lbl">Jenis Penyaluran</span><span>:</span><span><?= ucfirst(str_replace('_',' ',$p->jenis_penyaluran)) ?></span>
   <span class="lbl">Nilai BKP</span><span>:</span><span><?= rupiah($p->nilai_bkp) ?></span>
   <span class="lbl">Nilai Kontrak</span><span>:</span><span><strong><?= rupiah($p->nilai_kontrak) ?></strong></span>
-  <span class="lbl">Nilai Diajukan</span><span>:</span><span><strong><?= rupiah($tahapan->nilai_diajukan) ?></strong></span>
+  <?php if (!empty($p->nilai_belanja_pendukung) && $p->nilai_belanja_pendukung > 0): ?>
+  <span class="lbl">Nilai Pendukung</span><span>:</span><span><?= rupiah($p->nilai_belanja_pendukung) ?></span>
+  <?php endif; ?>
+  <span class="lbl">Nilai Diajukan</span><span>:</span><span><strong><?= rupiah(($tahapan->nilai_diajukan ?? 0) + ($p->nilai_belanja_pendukung ?? 0)) ?></strong></span>
   <span class="lbl">Nama Penyedia</span><span>:</span><span><?= htmlspecialchars($p->nama_penyedia ?: '—') ?></span>
   <span class="lbl">No. Kontrak / MoU</span><span>:</span><span><?= htmlspecialchars($p->no_dok_pekerjaan ?: '—') ?></span>
   <span class="lbl">No. SPMK</span><span>:</span><span><?= htmlspecialchars($p->no_spmk ?: '—') ?></span>
@@ -63,13 +66,16 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
 </div>
 
 <!-- Tabel Dokumen Persyaratan -->
-<?php if (!empty($dokumen)): ?>
+<?php $dok_cetak = array_filter((array)$dokumen, function($d) {
+    return $d->jenis_dokumen !== 'laporan_reviu_inspektorat';
+}); ?>
+<?php if (!empty($dok_cetak)): ?>
 <table class="tbl">
   <thead>
     <tr><th style="width:40px">No.</th><th>Jenis Dokumen</th><th style="width:80px">Ada/Tidak</th><th>Keterangan</th></tr>
   </thead>
   <tbody>
-  <?php $no=1; foreach ($dokumen as $d): ?>
+  <?php $no=1; foreach ($dok_cetak as $d): ?>
   <tr>
     <td class="center"><?= $no++ ?></td>
     <td><?= label_jenis_dok($d->jenis_dokumen) ?></td>
@@ -99,7 +105,6 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
 <table class="tbl">
   <thead><tr><th colspan="2">HASIL VERIFIKASI SKPKD KAB/KOTA</th></tr></thead>
   <tbody>
-    <tr><td style="width:45%">No. Surat Verifikasi</td><td><?= htmlspecialchars($verif->no_surat_verif ?: '—') ?></td></tr>
     <tr><td>Tanggal Verifikasi</td><td><?= tgl_indo($verif->tgl_verifikasi) ?></td></tr>
     <tr><td>Hasil Verifikasi</td><td><strong><?= strtoupper(str_replace('_',' ',$verif->hasil_verifikasi ?: '—')) ?></strong></td></tr>
     <?php if ($verif->catatan): ?><tr><td>Catatan</td><td><?= htmlspecialchars($verif->catatan) ?></td></tr><?php endif; ?>
@@ -118,18 +123,12 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
     <tr><td>Nilai Transfer</td><td><strong><?= rupiah($penyaluran->nilai_transfer) ?></strong></td></tr>
     <tr><td>Rekening Tujuan (RKUD)</td><td><?= htmlspecialchars($penyaluran->rek_tujuan ?? '—') ?></td></tr>
     <tr><td>Status Transfer</td><td><strong><?= strtoupper($penyaluran->status_transfer) ?></strong></td></tr>
-    <?php if ($penyaluran->bukti_path): ?><tr><td>Bukti Transfer RKUD</td><td>Tersedia</td></tr><?php endif; ?>
   </tbody>
 </table>
 <?php endif; ?>
 
 <!-- TTD -->
-<div class="ttd-area">
-  <div class="ttd-blok">
-    <p><?= $kdh ? 'Bupati/Wali Kota '.htmlspecialchars($p->nama_kabkota) : 'Kepala Daerah' ?></p>
-    <div class="garis"><?= $kdh ? htmlspecialchars($kdh->nama) : '....................................' ?></div>
-    <?php if ($kdh && $kdh->nip): ?><div class="nip">NIP. <?= htmlspecialchars($kdh->nip) ?></div><?php else: ?><div class="nip">NIP. ..........................</div><?php endif; ?>
-  </div>
+<div class="ttd-area" style="justify-content:flex-end">
   <div class="ttd-blok">
     <p><?= htmlspecialchars($p->nama_kabkota) ?>, <?= $tgl_cetak ?></p>
     <p>Kepala BKAD / PPKD</p>
@@ -139,7 +138,7 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
 </div>
 
 <div class="footer">
-  Dicetak melalui SIBERKAH SUMUT · Berdasarkan SE Gubernur Sumut No. 900.1.1.3689 · <?= $tgl_cetak ?>
+  Dicetak melalui SIBERKAH SUMUT · <?= $tgl_cetak ?>
 </div>
 </body>
 </html>

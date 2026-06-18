@@ -15,6 +15,7 @@
   <td class="text-sm"><?= htmlspecialchars($l->nama_user??'-') ?></td></tr>
   <?php endforeach; else: ?><tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text-muted)">Belum ada log.</td></tr><?php endif; ?>
   </tbody></table>
+  <?php $this->load->view('partials/pagination', ['paging' => $paging, 'filters' => ['tahun' => $tahun]]); ?>
 </div>
 <div class="card mb-2">
   <div class="card-title"><i class="ti ti-calendar-time"></i> Log Perubahan Batas Waktu</div>

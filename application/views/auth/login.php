@@ -5,41 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Login — SIBERKAH SUMUT</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(135deg,#0d3f7a,#1A5EA8);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-.login-wrap{width:100%;max-width:440px}
-.login-header{text-align:center;margin-bottom:28px;color:#fff}
-.login-header h1{font-size:28px;font-weight:700;letter-spacing:1px}
-.login-header p{font-size:13px;opacity:0.7;margin-top:6px}
-.login-card{background:#fff;border-radius:14px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
-.alert{padding:12px 14px;border-radius:8px;margin-bottom:18px;font-size:13px;display:flex;align-items:center;gap:8px;background:#FCEBEB;color:#791F1F;border:1px solid #F7C1C1}
-.form-group{margin-bottom:16px}
-label{display:block;font-size:12px;font-weight:600;color:#4b5563;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.4px}
-input{width:100%;padding:10px 13px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;transition:border-color 0.15s}
-input:focus{outline:none;border-color:#1A5EA8;box-shadow:0 0 0 3px rgba(26,94,168,0.12)}
-.btn-login{width:100%;padding:12px;background:#1A5EA8;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px;transition:background 0.15s}
-.btn-login:hover{background:#134a8a}
-.login-footer{text-align:center;margin-top:24px;color:rgba(255,255,255,0.6);font-size:12px}
-.csrf{display:none}
-</style>
+<link rel="stylesheet" href="<?= base_url('assets/css/siberkah.css') ?>">
 </head>
-<body>
-<!-- Tombol kembali ke landing -->
-<a href="<?= site_url('/') ?>" style="
-  position:fixed;top:16px;left:16px;z-index:10;
-  display:inline-flex;align-items:center;gap:6px;
-  background:rgba(255,255,255,0.15);backdrop-filter:blur(4px);
-  border:1px solid rgba(255,255,255,0.3);border-radius:8px;
-  padding:8px 14px;font-size:13px;color:#fff;text-decoration:none;
-  transition:background 0.15s">
-  <i class="ti ti-arrow-left" style="font-size:16px"></i> Beranda
+<body class="login-body">
+<!-- Tombol kembali ke landing — class .back-to-landing di siberkah.css -->
+<a href="<?= site_url('/') ?>" class="back-to-landing">
+  <i class="ti ti-arrow-left"></i> Beranda
 </a>
 
 <div class="login-wrap">
   <div class="login-header">
-    <img src="<?= base_url('assets/img/logo-siberkah.png') ?>" alt="Logo SIBERKAH"
-         style="width:72px;height:72px;object-fit:contain;margin-bottom:10px">
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:4px">
+      <?php if (!empty($logo_prov)): ?>
+      <img src="<?= $logo_prov ?>" alt="Logo Provinsi"
+           style="height:90px;width:90px;object-fit:contain">
+      <?php endif; ?>
+      <img src="<?= base_url('assets/img/logo-siberkah.png') ?>" alt="Logo SIBERKAH"
+           class="login-logo" style="margin-bottom:0">
+    </div>
     <h1>SIBERKAH SUMUT</h1>
     <p>Platform Kolaborasi Bantuan Keuangan Provinsi dan Kab/Kota</p>
   </div>
@@ -63,8 +46,7 @@ input:focus{outline:none;border-color:#1A5EA8;box-shadow:0 0 0 3px rgba(26,94,16
     <?= form_close() ?>
   </div>
   <div class="login-footer">
-    <p>BKAD Provinsi Sumatera Utara &copy; <?= date('Y') ?></p>
-    <p style="margin-top:4px">Berdasarkan SE Gubernur No. 900.1.1.3689</p>
+    <p>BKAD Provinsi Sumatera Utara &copy; <?= date('Y') ?> &middot; SIBERKAH SUMUT v<?= htmlspecialchars($app_version) ?></p>
   </div>
 </div>
 </body>

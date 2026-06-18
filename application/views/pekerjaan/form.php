@@ -66,10 +66,21 @@ $v_rupiah = function($field) use ($p) {
 
   <div class="form-grid">
     <div class="form-group">
+      <label>4. Jenis Pekerjaan</label>
+      <select name="jenis_pekerjaan" id="jenis_pekerjaan" class="form-control" onchange="onJenisPekerjaanChange()">
+        <option value="">-- Pilih --</option>
+        <option value="pengadaan_barang" <?= ($val('jenis_pekerjaan')==='pengadaan_barang')?'selected':'' ?>>Pengadaan Barang</option>
+        <option value="konstruksi"       <?= ($val('jenis_pekerjaan')==='konstruksi')?'selected':'' ?>>Konstruksi</option>
+        <option value="jasa"             <?= ($val('jenis_pekerjaan')==='jasa')?'selected':'' ?>>Jasa</option>
+        <option value="lainnya"          <?= ($val('jenis_pekerjaan')==='lainnya')?'selected':'' ?>>Kegiatan Lainnya</option>
+      </select>
+    </div>
+
+    <div class="form-group">
       <label>Jenis Penyaluran <span class="req">*</span></label>
       <select name="jenis_penyaluran" id="jenis_penyaluran" class="form-control" required onchange="onJenisChange(this.value)">
         <option value="">-- Pilih --</option>
-        <option value="bertahap"        <?= ($val('jenis_penyaluran')==='bertahap')?'selected':'' ?>>Bertahap (nilai kontrak > Rp 200 jt)</option>
+        <option value="bertahap"        <?= ($val('jenis_penyaluran')==='bertahap')?'selected':'' ?>>Bertahap (nilai kontrak > Rp 400 jt)</option>
         <option value="sekaligus"       <?= ($val('jenis_penyaluran')==='sekaligus')?'selected':'' ?>>Sekaligus (100%)</option>
         <option value="khusus_mendesak" <?= ($val('jenis_penyaluran')==='khusus_mendesak')?'selected':'' ?>>Kondisi Mendesak (100%)</option>
         <option value="khusus_bencana"  <?= ($val('jenis_penyaluran')==='khusus_bencana')?'selected':'' ?>>Darurat Bencana (100%)</option>
@@ -81,6 +92,11 @@ $v_rupiah = function($field) use ($p) {
       <div style="font-weight:600;margin-bottom:4px"><i class="ti ti-calendar-time"></i> Batas Waktu TA <?= $tahun ?></div>
       <div id="bwContent" class="text-muted">Pilih jenis penyaluran untuk melihat batas waktu.</div>
     </div>
+  </div>
+
+  <div id="warnSekaligusBlokir" class="alert alert-warning mt-2" style="display:none">
+    <i class="ti ti-alert-triangle"></i>
+    Kegiatan <strong>Konstruksi</strong> dengan nilai BKP &gt; Rp 400.000.000 wajib menggunakan jenis penyaluran <strong>Bertahap</strong> — opsi Sekaligus tidak tersedia.
   </div>
 </div>
 
@@ -109,12 +125,6 @@ $v_rupiah = function($field) use ($p) {
       <input type="text" name="metode_pelaksanaan" class="form-control"
         value="<?= $val('metode_pelaksanaan') ?>"
         placeholder="Swakelola / Kontraktual">
-    </div>
-    <div class="form-group">
-      <label>4. Jenis Pekerjaan</label>
-      <input type="text" name="jenis_pekerjaan" class="form-control"
-        value="<?= $val('jenis_pekerjaan') ?>"
-        placeholder="Konstruksi / Pengadaan / Jasa">
     </div>
     <div class="form-group">
       <label>5. Jangka Waktu Pelaksanaan (hari)</label>
@@ -168,18 +178,19 @@ $v_rupiah = function($field) use ($p) {
     </div>
     <div class="form-group"><!-- spacer --></div>
 
-    <div class="form-group">
+    <!-- Field 12-13: BAST — hanya tampil jika jenis penyaluran = sekaligus -->
+    <div id="rowBastNo" class="form-group" style="display:none">
       <label>12. No. BAST <span class="text-xs text-muted">(jika sudah ada)</span></label>
-      <input type="text" name="no_bast" class="form-control"
+      <input type="text" name="no_bast" id="no_bast" class="form-control"
         value="<?= $val('no_bast') ?>"
         placeholder="Nomor BAST">
     </div>
-    <div class="form-group">
+    <div id="rowBastTgl" class="form-group" style="display:none">
       <label>13. Tanggal BAST</label>
-      <input type="date" name="tgl_bast" class="form-control"
+      <input type="date" name="tgl_bast" id="tgl_bast" class="form-control"
         value="<?= $val('tgl_bast') ?>">
     </div>
-    <div class="form-group"><!-- spacer --></div>
+    <div id="rowBastSpacer" class="form-group" style="display:none"><!-- spacer --></div>
   </div>
 
   <!-- Field 15-17: Nilai -->
@@ -190,22 +201,32 @@ $v_rupiah = function($field) use ($p) {
         class="form-control rupiah-input"
         value="<?= $v_rupiah('nilai_kontrak') ?>"
         placeholder="0" required>
-      <div class="form-hint" id="hint_nilai_kontrak">Untuk jenis Bertahap, minimal Rp 200.000.001</div>
+      <div class="form-hint" id="hint_nilai_kontrak">Untuk jenis Bertahap, minimal Rp 400.000.001</div>
     </div>
     <div class="form-group">
       <label>15. Nilai Belanja Pendukung (Rp)</label>
-      <input type="text" name="nilai_belanja_pendukung" id="nilai_belanja_pendukung"
-        class="form-control rupiah-input"
-        value="<?= $v_rupiah('nilai_belanja_pendukung') ?>"
-        placeholder="0">
-      <div class="form-hint" id="hint_pendukung">Maks. 5% dari nilai BKP (untuk jenis Bertahap)</div>
+      <div style="display:flex;gap:8px;align-items:stretch">
+        <input type="text" name="nilai_belanja_pendukung" id="nilai_belanja_pendukung"
+          class="form-control mono"
+          value="<?= $v_rupiah('nilai_belanja_pendukung') ?>"
+          placeholder="0" readonly
+          style="background:var(--biru-light);cursor:default;flex:1;font-weight:600">
+        <button type="button" onclick="openModalPendukung()"
+                class="btn btn-outline btn-sm" style="flex-shrink:0;white-space:nowrap">
+          <i class="ti ti-list-details"></i> Isi Rincian
+        </button>
+      </div>
+      <div class="form-hint" id="hint_pendukung">Maks. 5% dari nilai BKP — klik <strong>Isi Rincian</strong> untuk input detail</div>
+      <!-- Menyimpan rincian pendukung sebagai JSON agar bisa di-restore saat edit -->
+      <input type="hidden" name="belanja_pendukung_json" id="belanja_pendukung_json"
+             value="<?= htmlspecialchars($p->belanja_pendukung_json ?? '[]') ?>">
     </div>
   </div>
 
   <!-- Perda / Perkada -->
   <div class="form-grid mb-0">
     <div class="form-group">
-      <label>16. Perda APBD / APBD-P</label>
+      <label>16. Perda APBD / Perda P APBD</label>
       <select name="ref_perda_id" class="form-control">
         <option value="">-- Belum dipilih --</option>
         <?php foreach ($dokumen_perda as $d): ?>
@@ -219,7 +240,7 @@ $v_rupiah = function($field) use ($p) {
       <?php endif; ?>
     </div>
     <div class="form-group">
-      <label>17. Perkada / Pergub BKP</label>
+      <label>17. Perkada APBD / Pergeseran / P APBD</label>
       <select name="ref_perkada_id" class="form-control">
         <option value="">-- Belum dipilih --</option>
         <?php foreach ($dokumen_perkada as $d): ?>
@@ -235,7 +256,7 @@ $v_rupiah = function($field) use ($p) {
 <!-- ── BLOK C: LOKASI (LEAFLET) ──────────────────────────── -->
 <div class="card mb-2">
   <div class="card-title"><i class="ti ti-map-pin"></i> Lokasi Kegiatan
-    <span class="badge badge-abu" style="font-size:10px;margin-left:auto">OpenStreetMap — siap swap Google Maps API</span>
+    <span class="badge badge-abu" style="font-size:10px;margin-left:auto">OpenStreetMap</span>
   </div>
 
   <div class="form-group mb-2">
@@ -284,10 +305,83 @@ $v_rupiah = function($field) use ($p) {
 
 <?= form_close() ?>
 
+<!-- ══ MODAL RINCIAN BELANJA PENDUKUNG ═══════════════════════ -->
+<div id="modalPendukung" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);
+     z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:24px;width:680px;max-width:96vw;
+              max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+
+    <div class="card-title" style="margin-bottom:16px">
+      <i class="ti ti-list-details"></i> Rincian Belanja Pendukung
+      <button type="button" onclick="closeModalPendukung()"
+              style="margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted)">
+        <i class="ti ti-x"></i>
+      </button>
+    </div>
+
+    <!-- Tabel rincian -->
+    <div class="table-wrap mb-2">
+      <table class="tbl" id="tblPendukung">
+        <thead>
+          <tr>
+            <th style="width:40px">No.</th>
+            <th>Uraian Belanja Pendukung</th>
+            <th style="text-align:right;width:180px">Nilai (Rp)</th>
+            <th style="width:40px"></th>
+          </tr>
+        </thead>
+        <tbody id="tbodyPendukung">
+          <!-- baris diisi JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <button type="button" onclick="tambahBarisPendukung()"
+            class="btn btn-outline btn-sm mb-2">
+      <i class="ti ti-plus"></i> Tambah Baris
+    </button>
+
+    <!-- Summary total + persentase -->
+    <div id="summaryPendukung" style="border-radius:var(--radius);padding:14px 16px;
+         background:var(--bg);border:1px solid var(--border);margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <div class="text-xs text-muted">Total Belanja Pendukung</div>
+          <div style="font-size:20px;font-weight:700;color:var(--biru)" id="summTotal">Rp 0</div>
+        </div>
+        <div style="text-align:right">
+          <div class="text-xs text-muted">% terhadap Nilai BKP</div>
+          <div style="font-size:20px;font-weight:700" id="summPct">—</div>
+        </div>
+      </div>
+      <div id="warnPendukung" style="display:none;margin-top:10px;padding:8px 12px;
+           background:var(--merah-light);border-radius:var(--radius);
+           color:var(--merah-mid);font-size:12px;font-weight:600">
+        <i class="ti ti-alert-triangle"></i>
+        Belanja pendukung melebihi batas <strong>5%</strong> dari nilai BKP.
+        Kurangi nilai agar bisa disimpan.
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button type="button" onclick="closeModalPendukung()" class="btn btn-outline">Batal</button>
+      <button type="button" onclick="simpanPendukung()" id="btnSimpanPendukung" class="btn btn-primary">
+        <i class="ti ti-device-floppy"></i> Simpan ke Form
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ── LEAFLET + OpenStreetMap ────────────────────────────── -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 // Data batas waktu dari server (untuk info di form)
 const batasWaktuData = <?= json_encode(array_map(function($bw){
     return [
@@ -304,7 +398,7 @@ const defaultLat = <?= ($p && $p->latitude)  ? $p->latitude  : '2.9671' ?>;
 const defaultLng = <?= ($p && $p->longitude) ? $p->longitude : '98.6762' ?>;
 const map = L.map('map').setView([defaultLat, defaultLng], <?= ($p && $p->latitude) ? 15 : 9 ?>);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
     maxZoom: 19,
 }).addTo(map);
@@ -337,38 +431,326 @@ function jumpToCoords() {
     marker.bindPopup(lat+', '+lng).openPopup();
 }
 
+// ─── Nilai BKP aktif (untuk kalkulasi % belanja pendukung) ───
+var nilaiBkpAktif = <?= ($edit && $p) ? (int)($p->nilai_bkp ?? 0) : 0 ?>;
+
 // ─── Info BKP dinamis (mode tambah) ─────────────────────────
 function onBkpChange(sel) {
     const opt = sel.options[sel.selectedIndex];
-    if (!opt.value) { document.getElementById('infoBkp').style.display='none'; return; }
-    document.getElementById('infoBkpKode').textContent  = opt.dataset.kode;
-    document.getElementById('infoBkpUraian').textContent = opt.dataset.uraian;
-    document.getElementById('infoBkpNilai').textContent  = 'Rp ' + parseInt(opt.dataset.nilai).toLocaleString('id-ID');
-    document.getElementById('infoBkpBidang').textContent = opt.dataset.bidang;
-    document.getElementById('infoBkp').style.display = 'block';
+    if (!opt.value) { document.getElementById('infoBkp').style.display='none'; nilaiBkpAktif = 0; }
+    else {
+        nilaiBkpAktif = parseInt(opt.dataset.nilai) || 0;
+        document.getElementById('infoBkpKode').textContent   = opt.dataset.kode;
+        document.getElementById('infoBkpUraian').textContent = opt.dataset.uraian;
+        document.getElementById('infoBkpNilai').textContent  = 'Rp ' + nilaiBkpAktif.toLocaleString('id-ID');
+        document.getElementById('infoBkpBidang').textContent = opt.dataset.bidang;
+        document.getElementById('infoBkp').style.display = 'block';
+    }
+    hitungSummaryPendukung(); // recalc jika modal sudah diisi
+    updateJenisPenyaluranOptions();
 }
 
-// ─── Info batas waktu per jenis ──────────────────────────────
+// ─── Blokir opsi "Sekaligus" untuk kegiatan Konstruksi BKP > Rp 400 jt ─
+function onJenisPekerjaanChange() {
+    updateJenisPenyaluranOptions();
+}
+
+function updateJenisPenyaluranOptions() {
+    var jenisPekerjaanEl = document.getElementById('jenis_pekerjaan');
+    var jenisPenyaluranEl = document.getElementById('jenis_penyaluran');
+    var sekaligusOpt = jenisPenyaluranEl ? jenisPenyaluranEl.querySelector('option[value="sekaligus"]') : null;
+    var warnEl = document.getElementById('warnSekaligusBlokir');
+    if (!jenisPekerjaanEl || !jenisPenyaluranEl || !sekaligusOpt) return;
+
+    var blokir = (nilaiBkpAktif > 400000000) && (jenisPekerjaanEl.value === 'konstruksi');
+
+    sekaligusOpt.disabled = blokir;
+    sekaligusOpt.hidden   = blokir;
+    if (warnEl) warnEl.style.display = blokir ? 'block' : 'none';
+
+    if (blokir && jenisPenyaluranEl.value === 'sekaligus') {
+        jenisPenyaluranEl.value = '';
+        onJenisChange('');
+    }
+}
+
+// ─── Info batas waktu + tampil/sembunyikan field BAST ────────
 function onJenisChange(jenis) {
+    // Info batas waktu
     const el = document.getElementById('bwContent');
-    if (!jenis) { el.innerHTML = '<span class="text-muted">Pilih jenis penyaluran...</span>'; return; }
-    const items = batasWaktuData.filter(b => b.jenis === jenis);
-    if (!items.length) {
-        el.innerHTML = '<span class="text-warning"><i class="ti ti-alert-triangle"></i> Belum ada batas waktu untuk jenis ini di TA <?= $tahun ?>. Hubungi Admin Provinsi.</span>';
+    if (!jenis) { el.innerHTML = '<span class="text-muted">Pilih jenis penyaluran...</span>'; }
+    else {
+        const items = batasWaktuData.filter(b => b.jenis === jenis);
+        if (!items.length) {
+            el.innerHTML = '<span class="text-warning"><i class="ti ti-alert-triangle"></i> Belum ada batas waktu untuk jenis ini di TA <?= $tahun ?>. Hubungi Admin Provinsi.</span>';
+        } else {
+            el.innerHTML = items.map(function(b) {
+                const today = new Date().toISOString().slice(0,10);
+                const lewat = today > b.batas_pengajuan;
+                const cls   = lewat ? 'text-danger' : '';
+                const icon  = lewat ? '🔴' : '🟢';
+                return `<div class="${cls}">${icon} <strong>${b.label}</strong>: batas pengajuan <strong>${b.batas_pengajuan}</strong>${lewat?' ⚠️ SUDAH LEWAT':''}</div>`;
+            }).join('');
+        }
+    }
+
+    // Tampilkan field BAST hanya jika jenis = sekaligus
+    var showBast = (jenis === 'sekaligus');
+    var disp     = showBast ? '' : 'none';
+    document.getElementById('rowBastNo').style.display     = disp;
+    document.getElementById('rowBastTgl').style.display    = disp;
+    document.getElementById('rowBastSpacer').style.display = disp;
+
+    // Kosongkan nilai BAST jika disembunyikan agar tidak ikut terkirim
+    if (!showBast) {
+        document.getElementById('no_bast').value  = '';
+        document.getElementById('tgl_bast').value = '';
+    }
+}
+
+// ─── Modal Rincian Belanja Pendukung ─────────────────────────
+var uraianOptions = [
+    'Konsultan Perencana',
+    'Konsultan Pengawas',
+    'Perjalanan Dinas Monitoring dan Reviu Pelaksanaan Kegiatan'
+];
+
+var pendukungRows = []; // [{uraian:'...', nilai:0}, ...]
+
+function openModalPendukung() {
+    // Jika belum ada baris, tambah 1 baris kosong
+    if (pendukungRows.length === 0) tambahBarisPendukung();
+    renderTabelPendukung();
+    hitungSummaryPendukung();
+    document.getElementById('modalPendukung').style.display = 'flex';
+}
+
+function closeModalPendukung() {
+    document.getElementById('modalPendukung').style.display = 'none';
+}
+
+function tambahBarisPendukung() {
+    pendukungRows.push({ uraian: '', nilai: 0 });
+    renderTabelPendukung();
+    hitungSummaryPendukung();
+}
+
+function hapusBarisPendukung(idx) {
+    pendukungRows.splice(idx, 1);
+    renderTabelPendukung();
+    hitungSummaryPendukung();
+}
+
+function renderTabelPendukung() {
+    var tbody = document.getElementById('tbodyPendukung');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (pendukungRows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text-muted)">Belum ada rincian. Klik "+ Tambah Baris".</td></tr>';
         return;
     }
-    let html = items.map(function(b) {
-        const today = new Date().toISOString().slice(0,10);
-        const lewat = today > b.batas_pengajuan;
-        const cls   = lewat ? 'text-danger' : '';
-        const icon  = lewat ? '🔴' : '🟢';
-        return `<div class="${cls}">${icon} <strong>${b.label}</strong>: batas pengajuan <strong>${b.batas_pengajuan}</strong>${lewat?' ⚠️ SUDAH LEWAT':''}</div>`;
-    }).join('');
-    el.innerHTML = html;
+    pendukungRows.forEach(function(row, idx) {
+        var opts = uraianOptions.map(function(u) {
+            return '<option value="' + u + '"' + (row.uraian === u ? ' selected' : '') + '>' + u + '</option>';
+        }).join('');
+        var nilaiStr = row.nilai > 0 ? row.nilai.toLocaleString('id-ID') : '';
+        tbody.innerHTML += '<tr>' +
+            '<td class="text-muted" style="font-size:12px;text-align:center">' + (idx+1) + '</td>' +
+            '<td>' +
+              '<select class="form-control fc fc-sm" onchange="updatePendukung(' + idx + ',\'uraian\',this.value)">' +
+                '<option value="">-- Pilih --</option>' + opts +
+              '</select>' +
+            '</td>' +
+            '<td>' +
+              '<input type="text" class="form-control fc fc-sm mono" ' +
+                     'style="text-align:right" ' +
+                     'value="' + nilaiStr + '" ' +
+                     'placeholder="0" ' +
+                     'oninput="updatePendukungNilai(' + idx + ',this.value)">' +
+            '</td>' +
+            '<td style="text-align:center">' +
+              '<button type="button" class="btn-icon del" onclick="hapusBarisPendukung(' + idx + ')" title="Hapus">' +
+                '<i class="ti ti-trash"></i>' +
+              '</button>' +
+            '</td>' +
+            '</tr>';
+    });
 }
 
-// Init jika mode edit
+function updatePendukung(idx, field, value) {
+    if (pendukungRows[idx]) pendukungRows[idx][field] = value;
+    hitungSummaryPendukung();
+}
+
+function updatePendukungNilai(idx, rawValue) {
+    // Bersihkan format ribuan, ambil angka saja
+    var clean = rawValue.replace(/\./g, '').replace(/,/g, '').replace(/[^0-9]/g, '');
+    var num   = parseInt(clean) || 0;
+    if (pendukungRows[idx]) pendukungRows[idx].nilai = num;
+    hitungSummaryPendukung();
+}
+
+function hitungSummaryPendukung() {
+    var total    = pendukungRows.reduce(function(s, r) { return s + (r.nilai || 0); }, 0);
+    var totalEl  = document.getElementById('summTotal');
+    var pctEl    = document.getElementById('summPct');
+    var warnEl   = document.getElementById('warnPendukung');
+    var btnSimpan= document.getElementById('btnSimpanPendukung');
+
+    totalEl.textContent = 'Rp ' + total.toLocaleString('id-ID');
+
+    var melebihi = false;
+    if (nilaiBkpAktif > 0) {
+        var pct  = (total / nilaiBkpAktif * 100).toFixed(2);
+        melebihi = parseFloat(pct) > 5;
+        pctEl.textContent = pct + '%';
+        pctEl.style.color = melebihi ? 'var(--merah-mid)' : 'var(--hijau-mid)';
+        warnEl.style.display = melebihi ? 'block' : 'none';
+    } else {
+        pctEl.textContent    = '— (pilih BKP dulu)';
+        pctEl.style.color    = 'var(--text-muted)';
+        warnEl.style.display = 'none';
+    }
+
+    // Disable tombol simpan jika melebihi 5%
+    if (btnSimpan) {
+        btnSimpan.disabled = melebihi;
+        btnSimpan.style.opacity = melebihi ? '0.5' : '1';
+        btnSimpan.style.cursor  = melebihi ? 'not-allowed' : '';
+        btnSimpan.title = melebihi ? 'Kurangi nilai — total melebihi 5% dari nilai BKP' : '';
+    }
+}
+
+function simpanPendukung() {
+    // Cek lagi sebelum simpan
+    var total    = pendukungRows.reduce(function(s, r) { return s + (r.nilai || 0); }, 0);
+    if (nilaiBkpAktif > 0 && (total / nilaiBkpAktif * 100) > 5) {
+        alert('Total belanja pendukung melebihi 5% dari nilai BKP. Kurangi nilai terlebih dahulu.');
+        return;
+    }
+
+    // Simpan total ke field
+    document.getElementById('nilai_belanja_pendukung').value =
+        total > 0 ? total.toLocaleString('id-ID') : '0';
+
+    // Simpan rincian sebagai JSON ke hidden field agar bisa di-restore saat edit
+    var rincianBersih = pendukungRows.filter(function(r) { return r.uraian && r.nilai > 0; });
+    document.getElementById('belanja_pendukung_json').value =
+        JSON.stringify(rincianBersih);
+
+    closeModalPendukung();
+}
+
+// Restore rincian dari JSON (mode edit) atau nilai existing
+(function initPendukungRows() {
+    <?php if ($edit && $p): ?>
+    var jsonStr = <?= json_encode($p->belanja_pendukung_json ?? '[]') ?>;
+    try {
+        var parsed = JSON.parse(jsonStr);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            pendukungRows = parsed;
+            return; // restored dari JSON, selesai
+        }
+    } catch(e) {}
+    // Fallback: jika JSON kosong/invalid tapi ada nilai, buat 1 baris
+    <?php if (($p->nilai_belanja_pendukung ?? 0) > 0): ?>
+    pendukungRows = [{ uraian: 'Konsultan Perencana', nilai: <?= (int)($p->nilai_belanja_pendukung ?? 0) ?> }];
+    <?php endif; ?>
+    <?php endif; ?>
+})();
+
+// Init tampilan awal — penting untuk mode edit dan mode tambah yang sudah pilih jenis
 <?php if ($edit && $p): ?>
 onJenisChange('<?= $p->jenis_penyaluran ?>');
+<?php else: ?>
+// Mode tambah: jika ada nilai default di select, trigger juga
+(function() {
+    var sel = document.getElementById('jenis_penyaluran');
+    if (sel && sel.value) onJenisChange(sel.value);
+})();
 <?php endif; ?>
+updateJenisPenyaluranOptions();
+
+// ─── Client-side Validation ───────────────────────────────────
+function showFieldError(fieldName, msg) {
+    var el = document.querySelector('[name="' + fieldName + '"]');
+    if (!el) return;
+    var existing = el.parentNode.querySelector('.field-error');
+    if (existing) existing.remove();
+    el.style.borderColor = 'var(--merah-mid)';
+    var err = document.createElement('div');
+    err.className = 'field-error';
+    err.style.cssText = 'color:var(--merah-mid);font-size:11px;margin-top:3px;font-weight:600';
+    err.innerHTML = '<i class="ti ti-alert-circle"></i> ' + msg;
+    el.parentNode.appendChild(err);
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+function clearFieldErrors() {
+    document.querySelectorAll('.field-error').forEach(function(el) { el.remove(); });
+    document.querySelectorAll('[name]').forEach(function(el) { el.style.borderColor = ''; });
+}
+
+document.getElementById('formPekerjaan').addEventListener('submit', function(e) {
+    clearFieldErrors();
+    var errors = [];
+
+    <?php if (!$edit): ?>
+    // Cek BKP dipilih
+    var bkpSel = document.getElementById('bkp_id');
+    if (bkpSel && !bkpSel.value) {
+        errors.push('bkp_id');
+        showFieldError('bkp_id', 'BKP wajib dipilih.');
+    }
+    <?php endif; ?>
+
+    // Cek jenis penyaluran
+    var jenisSel = document.getElementById('jenis_penyaluran');
+    if (!jenisSel || !jenisSel.value) {
+        errors.push('jenis_penyaluran');
+        showFieldError('jenis_penyaluran', 'Jenis penyaluran wajib dipilih.');
+    }
+
+    // Cek nilai kontrak
+    var nilaiEl = document.getElementById('nilai_kontrak');
+    var nilaiRaw = nilaiEl ? nilaiEl.value.replace(/\./g,'').replace(/,/g,'').replace(/[^0-9]/g,'') : '0';
+    var nilaiKontrak = parseInt(nilaiRaw) || 0;
+    if (nilaiKontrak <= 0) {
+        errors.push('nilai_kontrak');
+        showFieldError('nilai_kontrak', 'Nilai kontrak wajib diisi dan harus lebih dari 0.');
+    } else if (jenisSel && jenisSel.value === 'bertahap' && nilaiKontrak <= 400000000) {
+        errors.push('nilai_kontrak');
+        showFieldError('nilai_kontrak', 'Jenis Bertahap: nilai kontrak harus lebih dari Rp 400.000.000.');
+    } else if (nilaiBkpAktif > 0) {
+        var nilaiPendukung = parseInt(document.getElementById('nilai_belanja_pendukung').value.replace(/\./g,'').replace(/,/g,'').replace(/[^0-9]/g,'')) || 0;
+        if ((nilaiKontrak + nilaiPendukung) > nilaiBkpAktif) {
+            errors.push('nilai_kontrak');
+            showFieldError('nilai_kontrak', 'Total nilai kontrak + belanja pendukung (Rp ' +
+                (nilaiKontrak + nilaiPendukung).toLocaleString('id-ID') +
+                ') melebihi nilai BKP (Rp ' + nilaiBkpAktif.toLocaleString('id-ID') + ').');
+        }
+    }
+
+    // Cek field teks wajib
+    var requiredFields = [
+        {name:'nama_kegiatan_dok', label:'Nama kegiatan wajib diisi.'},
+        {name:'nama_penyedia',     label:'Nama penyedia wajib diisi.'},
+        {name:'no_dok_pekerjaan',  label:'Nomor dokumen pekerjaan wajib diisi.'},
+        {name:'no_spmk',           label:'Nomor SPMK wajib diisi.'},
+    ];
+    requiredFields.forEach(function(f) {
+        var el = document.querySelector('[name="' + f.name + '"]');
+        if (el && !el.value.trim()) {
+            errors.push(f.name);
+            showFieldError(f.name, f.label);
+        }
+    });
+
+    if (errors.length > 0) {
+        e.preventDefault();
+        // Scroll ke error pertama
+        var firstErr = document.querySelector('.field-error');
+        if (firstErr) firstErr.scrollIntoView({behavior:'smooth', block:'center'});
+    }
+});
 </script>

@@ -2,10 +2,31 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Verif_kab Controller — Sprint 4
- * Handles: antrian verifikasi, form verifikasi, approve/tolak/revisi,
- *          upload dokumen permohonan, cetak rekapitulasi kegiatan,
- *          konfirmasi penerimaan dana
+ * Verif_kab.php — Controller Verifikasi SKPKD Kab/Kota
+ *
+ * Menangani verifikasi oleh SKPKD Kab/Kota setelah Inspektorat approve,
+ * upload dokumen permohonan pencairan, dan konfirmasi penerimaan dana RKUD.
+ *
+ * ALUR:
+ *   Inspektorat approve → status 'inspektorat_approved'
+ *   → SKPKD Kab buka form verifikasi → upload permohonan
+ *   → putuskan (disetujui/ditolak/revisi) → kirim ke Verifikasi Provinsi
+ *   → setelah dana disalurkan → konfirmasi RKUD via menu Penyaluran
+ *
+ * ROUTES:
+ *   GET  /verifikasi/kab                   → index()        — antrian verifikasi
+ *   GET  /verifikasi/kab/form/{tahapan_id} → form()         — form verifikasi
+ *   POST /verifikasi/kab/upload/{id}       → upload_dok()   — upload dokumen permohonan
+ *   POST /verifikasi/kab/hapus-dok/{id}    → hapus_dok()    — hapus dokumen
+ *   POST /verifikasi/kab/putus/{id}        → putuskan()     — approve/tolak/revisi
+ *   GET  /verifikasi/kab/rekap/{id}        → cetak_rekap()  — cetak rekap kegiatan
+ *
+ * Konfirmasi penerimaan dana RKUD dilakukan via menu Penyaluran
+ * (Penyaluran_kab::konfirmasi), bukan di controller ini.
+ *
+ * KEAMANAN:
+ *   - Guard IDOR: SKPKD hanya bisa akses data kabkota mereka sendiri
+ *   - Notifikasi Telegram ke admin provinsi setelah permohonan diajukan
  */
 class Verif_kab extends Auth_Controller
 {
@@ -79,9 +100,10 @@ class Verif_kab extends Auth_Controller
             redirect('verifikasi/kab'); return;
         }
 
-        // Status valid untuk diverifikasi
+        // Status valid untuk form (verifikasi aktif + view-only setelah disetujui)
         if (!in_array($tahapan->status, [
-            'inspektorat_approved', 'skpkd_kab_verif', 'skpkd_kab_revisi'
+            'inspektorat_approved', 'skpkd_kab_verif', 'skpkd_kab_revisi',
+            'skpkd_kab_approved', 'disalurkan', 'dikonfirmasi',
         ])) {
             $this->session->set_flashdata('error',
                 'Tahapan tidak dalam status yang dapat diverifikasi.');
@@ -163,11 +185,26 @@ class Verif_kab extends Auth_Controller
         $dir = FCPATH . 'uploads/permohonan/' . $pekerjaan->id . '/';
         if (!is_dir($dir)) mkdir($dir, 0755, TRUE);
 
+        if (empty($_FILES['file_dok']['name'])) {
+            $this->session->set_flashdata('error', 'Tidak ada file yang dipilih.');
+            redirect('verifikasi/kab/form/' . $tahapan_id); return;
+        }
+        $mime_ok = ['application/pdf','application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'image/jpeg','image/png'];
+        if (!$this->_mime_valid($_FILES['file_dok']['tmp_name'], $mime_ok)) {
+            $this->session->set_flashdata('error', 'Jenis file tidak diizinkan. Gunakan PDF, DOC, DOCX, JPG, atau PNG.');
+            redirect('verifikasi/kab/form/' . $tahapan_id); return;
+        }
+        $orig_name = basename($_FILES['file_dok']['name']);
+        $ext       = strtolower(pathinfo($orig_name, PATHINFO_EXTENSION));
+        $rand_name = $this->_random_filename($ext);
+
         $this->load->library('upload', [
             'upload_path'   => $dir,
             'allowed_types' => 'pdf|doc|docx|jpg|jpeg|png',
             'max_size'      => 10240,
-            'file_name'     => 'dok_kab_' . $tahapan_id . '_' . time(),
+            'file_name'     => $rand_name,
         ]);
 
         if (!$this->upload->do_upload('file_dok')) {
@@ -184,6 +221,7 @@ class Verif_kab extends Auth_Controller
             'tahapan_id'    => $tahapan_id,
             'jenis_dokumen' => $jenis,
             'nama_file'     => $up['file_name'],
+            'nama_asli'     => $orig_name,
             'file_path'     => $filepath,
             'ukuran_kb'     => (int)$up['file_size'],
             'keterangan'    => $this->input->post('keterangan', TRUE),
@@ -200,13 +238,22 @@ class Verif_kab extends Auth_Controller
     public function hapus_dok($dok_id)
     {
         $this->requirePerm('pekerjaan.upload_dok');
-        $dok     = $this->Pekerjaan_model->get_dokumen_by_id($dok_id);
+        $dok = $this->Pekerjaan_model->get_dokumen_by_id($dok_id);
         if (!$dok) { show_404(); return; }
+
+        // Guard kabkota
         $tahapan = $this->Pekerjaan_model->get_tahapan_by_id($dok->tahapan_id);
+        if (!$tahapan) { show_404(); return; }
+        $pek_cek = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
+        if ($this->rbac->isKabkota() && $pek_cek
+            && (int)$pek_cek->kabkota_id !== (int)$this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('verifikasi/kab'); return;
+        }
 
         $this->Pekerjaan_model->hapus_dokumen($dok_id);
         $this->session->set_flashdata('success', 'Dokumen dihapus.');
-        redirect('verifikasi/kab/form/' . $dok->tahapan_id);
+        redirect('verifikasi/kab/form/' . $tahapan->id);
     }
 
     // ─── KEPUTUSAN VERIFIKASI ─────────────────────────────────
@@ -219,7 +266,23 @@ class Verif_kab extends Auth_Controller
         if (!$verif) { show_404(); return; }
 
         $tahapan   = $this->Pekerjaan_model->get_tahapan_by_id($verif->tahapan_id);
+        if (!$tahapan) { show_404(); return; }
         $pekerjaan = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
+        if (!$pekerjaan) { show_404(); return; }
+
+        // Guard kabkota — SKPKD hanya bisa memutuskan verifikasi kabkota sendiri
+        if ($this->role_kode === 'skpkd_kabkota'
+            && $pekerjaan->kabkota_id != $this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('verifikasi/kab'); return;
+        }
+
+        // Guard transisi status — hanya bisa diputuskan saat tahapan sedang diverifikasi
+        if ($tahapan->status !== 'skpkd_kab_verif') {
+            $this->session->set_flashdata('error',
+                'Tahapan ini tidak dalam status menunggu keputusan verifikasi.');
+            redirect('verifikasi/kab/form/' . $verif->tahapan_id); return;
+        }
 
         $hasil        = $this->input->post('hasil_verifikasi', TRUE);
         $catatan      = $this->input->post('catatan', TRUE);
@@ -363,119 +426,6 @@ class Verif_kab extends Auth_Controller
             'Verif id='.$verif_id.' hasil='.$hasil.' pekerjaan_id='.$pekerjaan->id);
         $this->session->set_flashdata('success', $flash_map[$hasil]);
         redirect('verifikasi/kab');
-    }
-
-    // ─── KONFIRMASI PENERIMAAN DANA ───────────────────────────
-
-    public function konfirmasi($tahapan_id)
-    {
-        $this->requirePerm('verif_kab.konfirmasi');
-
-        $tahapan   = $this->Pekerjaan_model->get_tahapan_by_id($tahapan_id);
-        if (!$tahapan) { show_404(); return; }
-        $pekerjaan = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
-        if (!$pekerjaan) { show_404(); return; }
-
-        if ($this->role_kode === 'skpkd_kabkota'
-            && $pekerjaan->kabkota_id != $this->kabkota_id) {
-            $this->session->set_flashdata('error', 'Akses ditolak.');
-            redirect('verifikasi/kab'); return;
-        }
-
-        if ($tahapan->status !== 'disalurkan') {
-            $this->session->set_flashdata('error',
-                'Konfirmasi hanya dapat dilakukan setelah dana disalurkan oleh Provinsi.');
-            redirect('verifikasi/kab/form/' . $tahapan_id); return;
-        }
-
-        // Ambil data penyaluran
-        $penyaluran = $this->Verifikasi_kab_model->get_penyaluran($tahapan_id);
-        if (!$penyaluran) {
-            $this->session->set_flashdata('error', 'Data penyaluran tidak ditemukan.');
-            redirect('verifikasi/kab/form/' . $tahapan_id); return;
-        }
-
-        // Upload bukti transfer RKUD
-        $dir = FCPATH . 'uploads/permohonan/' . $pekerjaan->id . '/';
-        if (!is_dir($dir)) mkdir($dir, 0755, TRUE);
-
-        $this->load->library('upload', [
-            'upload_path'   => $dir,
-            'allowed_types' => 'pdf|jpg|jpeg|png',
-            'max_size'      => 10240,
-            'file_name'     => 'bukti_transfer_' . $tahapan_id . '_' . time(),
-        ]);
-
-        $file_path = NULL; $nama_file = NULL;
-        if (!empty($_FILES['file_bukti']['name'])) {
-            if (!$this->upload->do_upload('file_bukti')) {
-                $this->session->set_flashdata('error',
-                    'Upload bukti gagal: ' . $this->upload->display_errors('', ''));
-                redirect('verifikasi/kab/form/' . $tahapan_id); return;
-            }
-            $up        = $this->upload->data();
-            $file_path = 'uploads/permohonan/' . $pekerjaan->id . '/' . $up['file_name'];
-            $nama_file = $up['file_name'];
-        }
-
-        if (!$file_path) {
-            $this->session->set_flashdata('error',
-                'File bukti transfer RKUD wajib diupload.');
-            redirect('verifikasi/kab/form/' . $tahapan_id); return;
-        }
-
-        $keterangan = $this->input->post('keterangan', TRUE);
-        $this->Verifikasi_kab_model->simpan_bukti_transfer(
-            $penyaluran->id, $file_path, $nama_file, $keterangan, $this->user_id
-        );
-
-        // Update status tahapan → dikonfirmasi
-        $this->db->where('id', $tahapan_id)
-            ->update('trx_tahapan_penyaluran', [
-                'status'     => 'dikonfirmasi',
-                'updated_at' => date('Y-m-d H:i:s'),
-            ]);
-
-        // Tentukan status pekerjaan berikutnya
-        // Cek apakah semua tahapan sudah dikonfirmasi
-        $semua_tahapan = $this->Pekerjaan_model->get_tahapan($pekerjaan->id);
-        $semua_selesai = TRUE;
-        foreach ($semua_tahapan as $t) {
-            if ($t->id == $tahapan_id) continue; // sudah dikonfirmasi
-            if (!in_array($t->status, ['dikonfirmasi','ditolak','belum'])) {
-                $semua_selesai = FALSE; break;
-            }
-        }
-
-        $status_baru = $semua_selesai ? 'selesai' : 'dikonfirmasi_tahap1';
-        $this->Pekerjaan_model->set_status(
-            $pekerjaan->id, $status_baru,
-            $this->user_id,
-            'Dana diterima di RKUD ' . $pekerjaan->nama_kabkota . '. Bukti transfer diupload.'
-        );
-
-        // Notifikasi Admin Provinsi
-        $admin_prov_users = $this->db
-            ->select('u.id')->from('users u')
-            ->join('roles r','r.id = u.role_id')
-            ->where_in('r.kode', ['superadmin','admin_provinsi'])
-            ->where('u.is_active', 1)->get()->result();
-        foreach ($admin_prov_users as $au) {
-            $this->Notifikasi_model->kirim(
-                $au->id,
-                'Dana Dikonfirmasi Diterima',
-                $pekerjaan->nama_kabkota . ' telah mengkonfirmasi penerimaan dana BKP ' . $pekerjaan->kode_bkp . '.',
-                'sukses',
-                site_url('pekerjaan/detail/' . $pekerjaan->id),
-                $pekerjaan->id
-            );
-        }
-
-        $this->log_aktivitas('verif_kab.konfirmasi',
-            'Konfirmasi dana tahapan='.$tahapan_id);
-        $this->session->set_flashdata('success',
-            'Penerimaan dana berhasil dikonfirmasi. Bukti transfer RKUD telah disimpan.');
-        redirect('verifikasi/kab/form/' . $tahapan_id);
     }
 
     // ─── CETAK REKAPITULASI KEGIATAN ──────────────────────────

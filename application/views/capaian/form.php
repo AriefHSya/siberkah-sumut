@@ -65,7 +65,16 @@
 </div>
 
 <!-- Form Capaian -->
-<?php if ($this->rbac->can('capaian.input')): ?>
+<?php
+$status_boleh_edit = in_array($detail->status, ['dikonfirmasi_tahap1', 'opd_capaian_tahap1', 'inspektorat_revisi']);
+?>
+<?php if ($this->rbac->can('capaian.input') && $status_boleh_edit): ?>
+<?php if ($detail->status === 'inspektorat_revisi'): ?>
+<div class="alert alert-warning" style="margin-bottom:8px">
+  <i class="ti ti-alert-triangle"></i>
+  <strong>Perbaikan Diminta Inspektorat</strong> — Perbarui data capaian sesuai catatan reviu, lalu simpan.
+</div>
+<?php endif; ?>
 <div class="card">
   <div class="card-title"><i class="ti ti-chart-line"></i> <?= $detail->capaian_id ? 'Perbarui' : 'Input' ?> Capaian Output</div>
 
@@ -98,7 +107,7 @@
 
     <!-- Tanggal Realisasi -->
     <div class="form-group">
-      <label class="form-label">Tanggal Realisasi</label>
+      <label class="form-label">Tanggal Realisasi Keuangan Daerah</label>
       <input type="date" name="tgl_realisasi" class="form-control fc"
              value="<?= htmlspecialchars($detail->tgl_realisasi ?? '') ?>">
     </div>
@@ -131,11 +140,27 @@
       <?php if ($detail->foto_path): ?>
       <div class="alert alert-info" style="margin-bottom:8px;font-size:13px">
         <i class="ti ti-photo"></i> Foto sudah ada:
-        <a href="<?= site_url($detail->foto_path) ?>" target="_blank"><?= basename($detail->foto_path) ?></a>
+        <a href="<?= site_url('berkas/unduh/capaian/'.$detail->pekerjaan_id) ?>" target="_blank"><?= htmlspecialchars($detail->nama_foto_asli ?? basename($detail->foto_path)) ?></a>
         &nbsp;—&nbsp; Upload baru untuk mengganti.
       </div>
       <?php endif; ?>
       <input type="file" name="foto_dokumentasi" class="form-control"
+             accept="image/jpeg,image/png,application/pdf"
+             style="padding:6px">
+      <small class="text-muted">Format: JPG, PNG, atau PDF &bull; Maks 5 MB</small>
+    </div>
+
+    <!-- Berita Acara Kemajuan Pekerjaan -->
+    <div class="form-group" style="grid-column:1/-1">
+      <label class="form-label">File Berita Acara Kemajuan Pekerjaan</label>
+      <?php if (!empty($detail->ba_path)): ?>
+      <div class="alert alert-info" style="margin-bottom:8px;font-size:13px">
+        <i class="ti ti-file-check"></i> File BA sudah ada:
+        <a href="<?= site_url('berkas/unduh/capaian-ba/'.$detail->pekerjaan_id) ?>" target="_blank"><?= htmlspecialchars($detail->nama_ba_asli ?? basename($detail->ba_path)) ?></a>
+        &nbsp;—&nbsp; Upload baru untuk mengganti.
+      </div>
+      <?php endif; ?>
+      <input type="file" name="file_ba" class="form-control"
              accept="image/jpeg,image/png,application/pdf"
              style="padding:6px">
       <small class="text-muted">Format: JPG, PNG, atau PDF &bull; Maks 5 MB</small>
@@ -170,8 +195,14 @@
       <div><?= nl2br(htmlspecialchars($detail->keterangan ?? '—')) ?></div></div>
     <?php if ($detail->foto_path): ?>
     <div style="grid-column:1/-1"><div class="form-label text-muted" style="font-size:11px">DOKUMENTASI</div>
-      <a href="<?= site_url($detail->foto_path) ?>" target="_blank" class="btn btn-outline btn-sm">
+      <a href="<?= site_url('berkas/unduh/capaian/'.$detail->pekerjaan_id) ?>" target="_blank" class="btn btn-outline btn-sm">
         <i class="ti ti-download"></i> Lihat Foto/Dokumen
+      </a></div>
+    <?php endif; ?>
+    <?php if (!empty($detail->ba_path)): ?>
+    <div style="grid-column:1/-1"><div class="form-label text-muted" style="font-size:11px">BERITA ACARA KEMAJUAN</div>
+      <a href="<?= site_url('berkas/unduh/capaian-ba/'.$detail->pekerjaan_id) ?>" target="_blank" class="btn btn-outline btn-sm">
+        <i class="ti ti-download"></i> <?= htmlspecialchars($detail->nama_ba_asli ?? 'Berita Acara Kemajuan') ?>
       </a></div>
     <?php endif; ?>
   </div>
@@ -179,6 +210,48 @@
 <?php else: ?>
 <div class="alert alert-warning">Belum ada data capaian yang diinput.</div>
 <?php endif; ?>
+<?php endif; ?>
+
+<!-- Pengajuan Tahap II -->
+<?php if ($detail->jenis_penyaluran === 'bertahap' && $tahap2): ?>
+<div class="card">
+  <div class="card-title"><i class="ti ti-arrow-right-circle"></i> Pengajuan Tahap II</div>
+
+  <?php if ($tahap2->status !== 'belum'): ?>
+  <div class="alert alert-info">
+    Tahap II sudah diajukan ke Inspektorat. Status saat ini: <?= badge_status($tahap2->status) ?>
+  </div>
+
+  <?php elseif ($detail->status !== 'opd_capaian_tahap1'): ?>
+  <div class="alert alert-warning">
+    Isi dan simpan capaian output fisik Tahap I terlebih dahulu sebelum dapat mengajukan Tahap II.
+  </div>
+
+  <?php else: ?>
+    <?php $syarat = (float)($tahap2->persen_fisik_syarat ?? 0); ?>
+    <?php if ((float)($detail->persen_fisik ?? 0) < $syarat): ?>
+    <div class="alert alert-warning">
+      Capaian fisik Tahap I saat ini <strong><?= (float)$detail->persen_fisik ?>%</strong>, belum mencapai syarat minimal
+      <strong><?= $syarat ?>%</strong> untuk mengajukan Tahap II.
+    </div>
+    <?php else: ?>
+    <p class="text-sm text-muted">
+      Capaian fisik Tahap I sudah mencapai <strong><?= (float)$detail->persen_fisik ?>%</strong>
+      (syarat minimal <?= $syarat ?>%). Tahap II senilai <strong><?= rupiah($tahap2->nilai_diajukan ?? 0) ?></strong>
+      dapat diajukan ke Inspektorat untuk direviu.
+    </p>
+    <?php if ($this->rbac->can('capaian.input')): ?>
+    <?= form_open(site_url('capaian/ajukan-tahap2/'.$detail->pekerjaan_id)) ?>
+    <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
+    <button type="submit" class="btn btn-primary"
+            onclick="return confirm('Ajukan Tahap II ke Inspektorat untuk direviu?\n\nPastikan data capaian sudah benar.')">
+      <i class="ti ti-send"></i> Ajukan Tahap II ke Inspektorat
+    </button>
+    <?= form_close() ?>
+    <?php endif; ?>
+    <?php endif; ?>
+  <?php endif; ?>
+</div>
 <?php endif; ?>
 
 <script>

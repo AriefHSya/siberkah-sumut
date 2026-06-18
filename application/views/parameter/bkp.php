@@ -17,21 +17,48 @@
 </div>
 <div class="card mb-2">
   <form method="get" class="filter-row">
-    <div class="filter-group"><label>Tahun</label><select name="tahun"><?php foreach ($tahun_list as $t): ?><option value="<?= $t->tahun ?>" <?= ($t->tahun==$filters['tahun'])?'selected':'' ?>><?= $t->tahun ?></option><?php endforeach; ?></select></div>
-    <div class="filter-group"><label>Kab/Kota</label><select name="kabkota_id"><option value="">Semua</option><?php foreach ($kabkota_list as $k): ?><option value="<?= $k->id ?>" <?= ($k->id==$filters['kabkota_id'])?'selected':'' ?>><?= $k->nama ?></option><?php endforeach; ?></select></div>
-    <div class="filter-group"><label>Cari Uraian</label><input type="text" name="q" value="<?= htmlspecialchars($filters['q']??'') ?>" placeholder="Uraian BKP..."></div>
+    <div class="filter-group">
+      <label>Tahun</label>
+      <select name="tahun">
+        <?php foreach ($tahun_list as $t): ?>
+        <option value="<?= $t->tahun ?>" <?= ($t->tahun==$filters['tahun'])?'selected':'' ?>><?= $t->tahun ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+    <?php if ($is_provinsi): ?>
+    <div class="filter-group">
+      <label>Kab/Kota</label>
+      <select name="kabkota_id">
+        <option value="">Semua</option>
+        <?php foreach ($kabkota_list as $k): ?>
+        <option value="<?= $k->id ?>" <?= ($k->id==$filters['kabkota_id'])?'selected':'' ?>><?= $k->nama ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+    <?php endif; ?>
+    <div class="filter-group">
+      <label>Cari Uraian</label>
+      <input type="text" name="q" value="<?= htmlspecialchars($filters['q']??'') ?>" placeholder="Uraian BKP...">
+    </div>
     <button type="submit" class="btn btn-primary btn-sm"><i class="ti ti-search"></i> Filter</button>
     <a href="<?= site_url('parameter/bkp') ?>" class="btn btn-outline btn-sm">Reset</a>
   </form>
 </div>
 <div class="card">
   <div class="table-wrap"><table class="tbl">
-    <thead><tr><th>Kode BKP</th><th>Kab/Kota</th><th>Uraian BKP</th><th>Bidang</th><th style="text-align:right">Nilai</th><?php if ($this->rbac->can('parameter.bkp.manage')): ?><th>Aksi</th><?php endif; ?></tr></thead>
+    <thead><tr>
+      <th>Kode BKP</th>
+      <?php if ($is_provinsi): ?><th>Kab/Kota</th><?php endif; ?>
+      <th>Uraian BKP</th>
+      <th>Bidang</th>
+      <th style="text-align:right">Nilai</th>
+      <?php if ($this->rbac->can('parameter.bkp.manage')): ?><th>Aksi</th><?php endif; ?>
+    </tr></thead>
     <tbody>
     <?php if (!empty($list)): foreach ($list as $b): $ada_perubahan = ($b->nilai!=$b->nilai_awal); ?>
     <tr <?= $ada_perubahan?'style="background:#FFF8F0"':'' ?>>
       <td class="mono text-sm"><?= htmlspecialchars($b->kode_bkp) ?></td>
-      <td class="text-sm"><?= htmlspecialchars($b->nama_kabkota) ?></td>
+      <?php if ($is_provinsi): ?><td class="text-sm"><?= htmlspecialchars($b->nama_kabkota) ?></td><?php endif; ?>
       <td class="text-sm"><?= htmlspecialchars($b->uraian_bkp) ?></td>
       <td><span class="badge badge-abu"><?= htmlspecialchars($b->nama_bidang) ?></span></td>
       <td style="text-align:right">
@@ -47,6 +74,7 @@
     <?php endforeach; else: ?><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">Belum ada data BKP.</td></tr><?php endif; ?>
     </tbody>
   </table></div>
+  <?php $this->load->view('partials/pagination', ['paging' => $paging, 'filters' => $filters]); ?>
 </div>
 
 <!-- Modal Tambah BKP -->
@@ -56,14 +84,71 @@
     <?= form_open(site_url('parameter/bkp/simpan')) ?>
     <?= form_hidden($this->security->get_csrf_token_name(),$this->security->get_csrf_hash()) ?>
     <div class="form-grid">
-      <div class="form-group"><label>Kode BKP <span class="req">*</span></label><input type="text" name="kode_bkp" class="form-control mono" placeholder="BKP-2026-001" required></div>
-      <div class="form-group"><label>Tahun <span class="req">*</span></label><select name="tahun" class="form-control"><?php foreach ($tahun_list as $t): ?><option value="<?= $t->tahun ?>" <?= ($t->tahun==$filters['tahun'])?'selected':'' ?>><?= $t->tahun ?></option><?php endforeach; ?></select></div>
-      <div class="form-group"><label>Kabupaten/Kota <span class="req">*</span></label><select name="kabkota_id" class="form-control" required><option value="">-- Pilih --</option><?php foreach ($kabkota_list as $k): ?><option value="<?= $k->id ?>" <?= ($k->id==$filters['kabkota_id'])?'selected':'' ?>><?= $k->nama ?></option><?php endforeach; ?></select></div>
-      <div class="form-group"><label>Bidang <span class="req">*</span></label><select name="bidang_id" class="form-control" required><option value="">-- Pilih --</option><?php foreach ($bidang_list as $b): ?><option value="<?= $b->id ?>"><?= $b->nama ?></option><?php endforeach; ?></select></div>
+
+      <!-- Tahun — trigger auto-generate kode -->
+      <div class="form-group">
+        <label>Tahun <span class="req">*</span></label>
+        <select name="tahun" id="tambah_tahun" class="form-control" onchange="generateKodeBkp()">
+          <?php foreach ($tahun_list as $t): ?>
+          <option value="<?= $t->tahun ?>" <?= ($t->tahun==$filters['tahun'])?'selected':'' ?>><?= $t->tahun ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+
+      <!-- Kabupaten/Kota: hanya provinsi yang bisa pilih, kab/kota otomatis milik sendiri -->
+      <?php if ($is_provinsi): ?>
+      <div class="form-group">
+        <label>Kabupaten/Kota <span class="req">*</span></label>
+        <select name="kabkota_id" id="tambah_kabkota" class="form-control" required onchange="generateKodeBkp()">
+          <option value="">-- Pilih --</option>
+          <?php foreach ($kabkota_list as $k): ?>
+          <option value="<?= $k->id ?>" <?= ($k->id==$filters['kabkota_id'])?'selected':'' ?>><?= $k->nama ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <?php else: ?>
+      <!-- Kab/Kota role: kabkota_id otomatis dari session, tidak perlu pilih -->
+      <input type="hidden" name="kabkota_id" id="tambah_kabkota" value="<?= $this->session->userdata('kabkota_id') ?>">
+      <div class="form-group">
+        <label>Kabupaten/Kota</label>
+        <input type="text" class="form-control" value="<?= htmlspecialchars($this->session->userdata('kabkota_nama') ?? '') ?>" readonly style="background:var(--bg)">
+      </div>
+      <?php endif; ?>
+
+      <!-- Kode BKP — auto-generated, bisa diedit manual jika perlu -->
+      <div class="form-group">
+        <label>Kode BKP <span class="req">*</span></label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="text" name="kode_bkp" id="tambah_kode_bkp"
+                 class="form-control mono" placeholder="Pilih tahun & kab/kota dulu"
+                 readonly required
+                 style="background:var(--biru-light);cursor:default;flex:1">
+          <button type="button" onclick="generateKodeBkp()"
+                  class="btn btn-outline btn-sm" title="Generate ulang kode"
+                  style="flex-shrink:0;padding:8px 10px">
+            <i class="ti ti-refresh"></i>
+          </button>
+        </div>
+        <div class="form-hint" id="kode_bkp_hint">Kode akan dibuat otomatis setelah Kab/Kota dipilih</div>
+      </div>
+
+      <div class="form-group">
+        <label>Bidang <span class="req">*</span></label>
+        <select name="bidang_id" class="form-control" required>
+          <option value="">-- Pilih --</option>
+          <?php foreach ($bidang_list as $b): ?>
+          <option value="<?= $b->id ?>"><?= $b->nama ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+
     </div>
     <div class="form-group mt-1"><label>Uraian BKP <span class="req">*</span></label><input type="text" name="uraian_bkp" class="form-control" maxlength="500" required></div>
     <div class="form-group mt-1"><label>Nilai (Rp) <span class="req">*</span></label><input type="text" name="nilai" class="form-control rupiah-input" required></div>
-    <div class="form-actions"><button type="button" onclick="closeModal('modalTambah')" class="btn btn-outline">Batal</button><button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy"></i> Simpan</button></div>
+    <div class="form-actions">
+      <button type="button" onclick="closeModal('modalTambah')" class="btn btn-outline">Batal</button>
+      <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy"></i> Simpan</button>
+    </div>
     <?= form_close() ?>
   </div>
 </div>
@@ -87,4 +172,69 @@ function editBkp(id, uraian, nilai) {
   document.getElementById('formEditBkp').action = '<?= site_url('parameter/bkp/update/') ?>' + id;
   openModal('modalEdit');
 }
+
+/* Auto-generate kode BKP via AJAX saat tahun/kabkota dipilih */
+function generateKodeBkp() {
+  var tahun     = document.getElementById('tambah_tahun').value;
+  var kabkotaId = document.getElementById('tambah_kabkota').value;
+  var inputKode = document.getElementById('tambah_kode_bkp');
+  var hint      = document.getElementById('kode_bkp_hint');
+
+  if (!tahun || !kabkotaId) {
+    inputKode.value       = '';
+    inputKode.placeholder = 'Pilih tahun & kab/kota dulu';
+    hint.textContent      = 'Kode akan dibuat otomatis setelah Kab/Kota dipilih';
+    return;
+  }
+
+  inputKode.value       = '';
+  inputKode.placeholder = 'Memuat...';
+  hint.textContent      = 'Mengecek nomor urut terakhir...';
+
+  var url = '<?= site_url('parameter/bkp/generate-kode') ?>?tahun=' + tahun + '&kabkota_id=' + kabkotaId;
+
+  fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.kode) {
+        inputKode.value   = data.kode;
+        hint.textContent  = 'Kode berikutnya untuk kab/kota ini — klik ↻ untuk generate ulang';
+        hint.style.color  = 'var(--hijau-mid)';
+      } else {
+        inputKode.placeholder = 'Gagal generate';
+        hint.textContent  = 'Tidak dapat generate kode, isi manual';
+        hint.style.color  = 'var(--merah-mid)';
+        inputKode.removeAttribute('readonly');
+      }
+    })
+    .catch(function() {
+      inputKode.placeholder = 'Error';
+      hint.textContent  = 'Koneksi gagal, isi kode manual';
+      hint.style.color  = 'var(--merah-mid)';
+      inputKode.removeAttribute('readonly');
+    });
+}
+
+/* Reset kode saat modal ditutup/dibuka ulang */
+var _origOpenModal = window.openModal;
+window.openModal = function(id) {
+  if (id === 'modalTambah') {
+    var inputKode = document.getElementById('tambah_kode_bkp');
+    var hint      = document.getElementById('kode_bkp_hint');
+    if (inputKode) {
+      inputKode.value       = '';
+      inputKode.placeholder = 'Pilih tahun & kab/kota dulu';
+      inputKode.setAttribute('readonly', true);
+      inputKode.style.background = 'var(--biru-light)';
+    }
+    if (hint) {
+      hint.textContent = 'Kode akan dibuat otomatis setelah Kab/Kota dipilih';
+      hint.style.color = '';
+    }
+    // Jika kabkota sudah dipilih (misalnya dari filter), langsung generate
+    var kabkotaId = document.getElementById('tambah_kabkota').value;
+    if (kabkotaId) generateKodeBkp();
+  }
+  if (_origOpenModal) _origOpenModal(id);
+};
 </script>

@@ -1,4 +1,24 @@
 <?php
+/**
+ * Dashboard.php — Controller Dashboard SIBERKAH SUMUT
+ *
+ * Menampilkan ringkasan data dan antrian aksi sesuai role user.
+ * Konten berbeda per role: admin_provinsi melihat seluruh data,
+ * role kabkota melihat data kabkota mereka saja.
+ *
+ * ROUTES:
+ *   GET  /dashboard                → index()       — halaman utama
+ *   GET  /dashboard/pilih-tahun   → pilih_tahun() — form ganti tahun anggaran
+ *   POST /dashboard/set-tahun     → set_tahun()   — simpan tahun ke session
+ *
+ * DATA YANG DITAMPILKAN:
+ *   - Stats total BKP, nilai, progress penyaluran
+ *   - Funnel status (draft → selesai)
+ *   - Per bidang kegiatan
+ *   - Per kab/kota (hanya role provinsi)
+ *   - Antrian aksi — hal yang perlu dilakukan user saat ini
+ *   - Alert deadline batas waktu (3 hari sebelum/sesudah)
+ */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Dashboard extends Auth_Controller
@@ -71,6 +91,56 @@ class Dashboard extends Auth_Controller
         ]));
     }
 
+    /**
+     * JSON endpoint: data lokasi semua pekerjaan yang punya koordinat
+     * Digunakan oleh peta cluster Leaflet di dashboard
+     */
+    public function peta_data()
+    {
+        $tahun       = $this->input->get('tahun') ?? $this->tahun;
+        $is_provinsi = $this->rbac->isProvinsi();
+
+        $this->db->select('p.id, p.latitude, p.longitude, p.lokasi_deskripsi, p.status, p.nilai_kontrak, b.kode_bkp, b.uraian_bkp, k.nama as nama_kabkota')
+            ->from('trx_pekerjaan p')
+            ->join('ref_bkp b', 'b.id = p.bkp_id')
+            ->join('ref_kabkota k', 'k.id = b.kabkota_id')
+            ->where('b.tahun', $tahun)
+            ->where('p.latitude IS NOT NULL', NULL, FALSE)
+            ->where('p.longitude IS NOT NULL', NULL, FALSE)
+            ->where('p.latitude !=', '')
+            ->where('p.longitude !=', '');
+
+        // Provinsi & pengawas melihat seluruh kab/kota; role kabkota dibatasi ke kab/kota sendiri
+        if (!$is_provinsi && $this->role_kode !== 'pengawas') {
+            $this->db->where('b.kabkota_id', (int)$this->kabkota_id);
+        }
+
+        $rows = $this->db->get()->result();
+
+        $data = [];
+        foreach ($rows as $r) {
+            $data[] = [
+                'lat'          => (float)$r->latitude,
+                'lng'          => (float)$r->longitude,
+                'id'           => (int)$r->id,
+                'kode'         => $r->kode_bkp,
+                'uraian'       => $r->uraian_bkp,
+                'kab'          => $r->nama_kabkota,
+                'status'       => $r->status,
+                'status_label' => strip_tags(badge_status($r->status)),
+                'nilai'        => (int)$r->nilai_kontrak,
+                'lokasi'       => $r->lokasi_deskripsi,
+            ];
+        }
+
+        $this->json($data);
+    }
+
+    /**
+     * Kumpulkan daftar aksi mendesak sesuai role user saat ini.
+     * Digunakan untuk blok "Perlu Dilakukan" di dashboard.
+     * Return array item: [icon, label, url, warna]
+     */
     private function _get_antrian_aksi($tahun, $kabkota_id)
     {
         $aksi = [];
@@ -118,7 +188,7 @@ class Dashboard extends Auth_Controller
                 ->join('ref_bkp b','b.id=p.bkp_id')
                 ->where(['b.tahun'=>$tahun,'b.kabkota_id'=>$kabkota_id,'t.status'=>'disalurkan'])
                 ->count_all_results();
-            if ($n2) $aksi[] = ['icon'=>'cash','label'=>$n2.' dana disalurkan — konfirmasi penerimaan RKUD','url'=>'verifikasi/kab?status=disalurkan','warna'=>'hijau'];
+            if ($n2) $aksi[] = ['icon'=>'cash','label'=>$n2.' dana disalurkan — konfirmasi penerimaan RKUD','url'=>'penyaluran-kab','warna'=>'hijau'];
         }
 
         if (in_array($role, ['superadmin','admin_provinsi'])) {

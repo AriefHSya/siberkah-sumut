@@ -2,12 +2,122 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Verifikasi_prov_model — Sprint 5
- * Mengelola trx_verifikasi_skpkd_prov + trx_penyaluran_dana
+ * Verifikasi_prov_model.php — Model Verifikasi SKPKD Provinsi & Penyaluran
+ *
+ * Akses data verifikasi final oleh Admin Provinsi dan pencairan dana (SP2D).
+ *
+ * TABEL UTAMA:
+ *   trx_verifikasi_skpkd_prov — record verifikasi provinsi per tahapan (UNIQUE)
+ *   trx_penyaluran_dana        — data SP2D + tanggal + nominal per tahapan
+ *
+ * ALUR DATA:
+ *   SKPKD Kab approve → verifikasi provinsi bisa dibuat
+ *   → Admin Provinsi putuskan (disetujui/ditolak/revisi)
+ *   → Jika disetujui: input SP2D → konfirmasi transfer
+ *   → SKPKD Kab konfirmasi RKUD → status = selesai
+ *
+ * VALIDASI BISNIS (di controller, model hanya akses data):
+ *   SP2D hanya bisa diinput jika verifikasi prov = 'disetujui'
+ *   Konfirmasi transfer hanya jika SP2D sudah ada
+ *
+ * METHOD UTAMA:
+ *   get_antrian($filters)            — daftar tahapan siap diverifikasi provinsi
+ *   get_verif_by_tahapan($id)        — detail verifikasi satu tahapan
+ *   buat_atau_ambil_verif($id)       — upsert record verifikasi provinsi
+ *   update_verif($id, $data)         — simpan hasil verifikasi
+ *   simpan_sp2d($tahapan_id, $data)  — insert/update data SP2D
+ *   update_status_transfer($id)      — update status setelah konfirmasi transfer
+ *   rekap_penyaluran()               — rekap total penyaluran untuk laporan
+ *   get_daftar_sp2d()               — daftar semua SP2D untuk export
  */
 class Verifikasi_prov_model extends CI_Model
 {
-    // ─── ANTRIAN ──────────────────────────────────────────────
+    // ─── DAFTAR PERMOHONAN DARI KAB/KOTA ─────────────────────
+
+    public function get_permohonan_list($filters = [], $limit = 0, $offset = 0)
+    {
+        $this->db->select("pm.*, k.nama as nama_kabkota, u.nama as nama_pembuat,
+            (SELECT COUNT(*) FROM trx_permohonan_item pi
+             WHERE pi.permohonan_id = pm.id) as jumlah_item,
+            (SELECT COUNT(*) FROM trx_permohonan_item pi2
+             JOIN trx_tahapan_penyaluran t2 ON t2.id = pi2.tahapan_id
+             WHERE pi2.permohonan_id = pm.id
+               AND t2.status IN ('disalurkan','dikonfirmasi')) as item_disalurkan,
+            (SELECT SUM(
+                CASE WHEN pm.jenis_penyaluran = 'bertahap' AND pm.kode_tahap = 'tahap_2'
+                     THEN t3.nilai_diajukan
+                     ELSE t3.nilai_diajukan + IFNULL(pk3.nilai_belanja_pendukung, 0)
+                END)
+             FROM trx_permohonan_item pi3
+             JOIN trx_tahapan_penyaluran t3 ON t3.id = pi3.tahapan_id
+             JOIN trx_pekerjaan pk3 ON pk3.id = t3.pekerjaan_id
+             WHERE pi3.permohonan_id = pm.id) as total_nilai");
+        $this->_build_pm_query($filters);
+        $this->db->order_by('pm.created_at', 'ASC');
+        if ($limit > 0) $this->db->limit($limit, $offset);
+        return $this->db->get()->result();
+    }
+
+    public function count_permohonan_filtered($filters = [])
+    {
+        $this->_build_pm_query($filters);
+        return $this->db->count_all_results();
+    }
+
+    private function _build_pm_query($filters)
+    {
+        $this->db->from('trx_permohonan pm')
+            ->join('ref_kabkota k', 'k.id = pm.kabkota_id')
+            ->join('users u', 'u.id = pm.created_by', 'left')
+            ->where_in('pm.status', ['diajukan', 'selesai']);
+        if (!empty($filters['tahun']))
+            $this->db->where('pm.tahun', $filters['tahun']);
+        if (!empty($filters['kabkota_id']))
+            $this->db->where('pm.kabkota_id', $filters['kabkota_id']);
+        if (!empty($filters['jenis']))
+            $this->db->where('pm.jenis_penyaluran', $filters['jenis']);
+        if (!empty($filters['q']))
+            $this->db->group_start()
+                ->like('pm.no_permohonan', $filters['q'])
+                ->or_like('k.nama', $filters['q'])
+                ->group_end();
+    }
+
+    public function get_permohonan_by_id($id)
+    {
+        return $this->db
+            ->select('pm.*, k.nama as nama_kabkota, u.nama as nama_pembuat')
+            ->from('trx_permohonan pm')
+            ->join('ref_kabkota k', 'k.id = pm.kabkota_id')
+            ->join('users u', 'u.id = pm.created_by', 'left')
+            ->where('pm.id', $id)
+            ->get()->row();
+    }
+
+    public function get_permohonan_items_for_prov($permohonan_id)
+    {
+        return $this->db
+            ->select('pi.id as item_id, t.id as tahapan_id, t.kode_tahap, t.label_tahap,
+                      t.nilai_diajukan, t.persen_nilai, t.status as tahapan_status,
+                      p.id as pekerjaan_id, p.nama_kegiatan_dok, p.nilai_kontrak,
+                      p.nilai_belanja_pendukung, p.jenis_penyaluran,
+                      p.no_dok_pekerjaan, p.nama_penyedia,
+                      b.kode_bkp, b.uraian_bkp, b.nilai as pagu_bkp,
+                      pd.id as penyaluran_id, pd.no_sp2d, pd.tgl_sp2d,
+                      pd.nilai_transfer, pd.status_transfer,
+                      vp.hasil_verifikasi as hasil_verif_prov')
+            ->from('trx_permohonan_item pi')
+            ->join('trx_tahapan_penyaluran t',    't.id = pi.tahapan_id')
+            ->join('trx_pekerjaan p',              'p.id = t.pekerjaan_id')
+            ->join('ref_bkp b',                    'b.id = p.bkp_id')
+            ->join('trx_penyaluran_dana pd',       'pd.tahapan_id = t.id', 'left')
+            ->join('trx_verifikasi_skpkd_prov vp', 'vp.tahapan_id = t.id', 'left')
+            ->where('pi.permohonan_id', $permohonan_id)
+            ->order_by('b.kode_bkp', 'ASC')
+            ->get()->result();
+    }
+
+    // ─── ANTRIAN (TAHAPAN INDIVIDUAL) ────────────────────────
 
     public function get_antrian($filters = [], $limit = 0, $offset = 0)
     {
@@ -107,12 +217,9 @@ class Verifikasi_prov_model extends CI_Model
     public function get_penyaluran($tahapan_id)
     {
         return $this->db
-            ->select('pd.*, u.nama as nama_input,
-                      bt.file_path as bukti_path, bt.keterangan as bukti_ket,
-                      bt.created_at as tgl_bukti')
+            ->select('pd.*, u.nama as nama_input')
             ->from('trx_penyaluran_dana pd')
-            ->join('users u',              'u.id = pd.user_input', 'left')
-            ->join('trx_bukti_transfer bt','bt.penyaluran_id = pd.id', 'left')
+            ->join('users u', 'u.id = pd.user_input', 'left')
             ->where('pd.tahapan_id', $tahapan_id)
             ->get()->row();
     }
@@ -168,38 +275,49 @@ class Verifikasi_prov_model extends CI_Model
 
     public function rekap_penyaluran($tahun)
     {
-        return $this->db
-            ->select('COUNT(*) as total_tahapan,
-                      SUM(t.nilai_diajukan) as total_nilai_diajukan,
-                      SUM(pd.nilai_transfer) as total_disalurkan,
-                      COUNT(pd.id) as total_sp2d,
-                      COUNT(CASE WHEN t.status="dikonfirmasi" THEN 1 END) as total_dikonfirmasi')
-            ->from('trx_tahapan_penyaluran t')
-            ->join('trx_pekerjaan p', 'p.id = t.pekerjaan_id')
-            ->join('ref_bkp b',       'b.id = p.bkp_id')
-            ->join('trx_penyaluran_dana pd', 'pd.tahapan_id = t.id', 'left')
-            ->where('b.tahun', $tahun)
-            ->where_in('t.status', ['disalurkan','dikonfirmasi'])
-            ->get()->row();
+        return $this->db->query("
+            SELECT
+                COUNT(CASE WHEN pm.no_sp2d IS NOT NULL THEN 1 END)         AS total_sp2d,
+                COALESCE(SUM(CASE WHEN pm.status_sp2d IS NOT NULL
+                               THEN COALESCE(pm.nilai_sp2d, 0) ELSE 0 END), 0) AS total_disalurkan,
+                COUNT(CASE WHEN pm.status_sp2d = 'selesai' THEN 1 END)     AS total_dikonfirmasi
+            FROM trx_permohonan pm
+            WHERE pm.tahun = ?
+        ", [$tahun])->row();
     }
 
-    /** Daftar SP2D per tahun untuk laporan */
+    /** Rincian kegiatan (BKP) dalam satu permohonan — untuk cetak rekap SP2D */
+    public function get_items_ringkas($permohonan_id)
+    {
+        return $this->db
+            ->select('b.kode_bkp, b.uraian_bkp, t.nilai_diajukan, p.nilai_belanja_pendukung')
+            ->from('trx_permohonan_item pi')
+            ->join('trx_tahapan_penyaluran t', 't.id = pi.tahapan_id')
+            ->join('trx_pekerjaan p',          'p.id = t.pekerjaan_id')
+            ->join('ref_bkp b',                'b.id = p.bkp_id')
+            ->where('pi.permohonan_id', $permohonan_id)
+            ->order_by('b.kode_bkp', 'ASC')
+            ->get()->result();
+    }
+
+    /** Daftar SP2D per tahun untuk laporan (per permohonan) */
     public function get_daftar_sp2d($tahun, $kabkota_id = NULL)
     {
-        $this->db
-            ->select('pd.*, t.label_tahap, t.nilai_diajukan, t.kode_tahap,
-                      p.jenis_penyaluran, p.nama_kegiatan_dok,
-                      b.kode_bkp, b.uraian_bkp,
-                      k.nama as nama_kabkota, bid.nama as nama_bidang')
-            ->from('trx_penyaluran_dana pd')
-            ->join('trx_tahapan_penyaluran t', 't.id = pd.tahapan_id')
-            ->join('trx_pekerjaan p',           'p.id = t.pekerjaan_id')
-            ->join('ref_bkp b',                 'b.id = p.bkp_id')
-            ->join('ref_kabkota k',             'k.id = b.kabkota_id')
-            ->join('ref_bidang bid',            'bid.id = b.bidang_id')
-            ->where('b.tahun', $tahun);
-        if ($kabkota_id) $this->db->where('b.kabkota_id', $kabkota_id);
-        return $this->db->order_by('pd.tgl_sp2d', 'ASC')
-            ->order_by('k.nama', 'ASC')->get()->result();
+        $sql = "
+            SELECT pm.id, pm.no_permohonan, pm.no_sp2d, pm.tgl_sp2d,
+                   pm.nilai_sp2d as nilai_transfer, pm.status_sp2d as status_transfer,
+                   pm.rek_asal, pm.nama_bank_asal, pm.rek_tujuan, pm.nama_bank_tujuan,
+                   pm.jenis_penyaluran, pm.kode_tahap,
+                   k.nama as nama_kabkota,
+                   (SELECT COUNT(*) FROM trx_permohonan_item pi
+                    WHERE pi.permohonan_id = pm.id) as jumlah_item
+            FROM trx_permohonan pm
+            JOIN ref_kabkota k ON k.id = pm.kabkota_id
+            WHERE pm.tahun = ? AND pm.no_sp2d IS NOT NULL
+        ";
+        $binds = [$tahun];
+        if ($kabkota_id) { $sql .= " AND pm.kabkota_id = ?"; $binds[] = $kabkota_id; }
+        $sql .= " ORDER BY pm.tgl_sp2d ASC, k.nama ASC";
+        return $this->db->query($sql, $binds)->result();
     }
 }
