@@ -19,7 +19,7 @@ $route['tim-reviu/hapus/(:num)']     = 'tim_reviu/hapus/$1';
 $route['tim-reviu/(:num)']           = 'tim_reviu/detail/$1';
 $route['berkas/unduh/sk-tim/(:num)'] = 'berkas/unduh_sk_tim/$1';
 
-// ─── AUTH ─────────────────────────────────────────────────────
+// ─── LUPA / RESET PASSWORD ────────────────────────────────────
 $route['lupa-password']          = 'auth/lupa_password';
 $route['lupa-password/kirim']    = 'auth/kirim_reset';
 $route['reset-password/proses']  = 'auth/proses_reset';

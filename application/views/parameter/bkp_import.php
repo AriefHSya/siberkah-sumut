@@ -325,7 +325,7 @@ function toggleRef() {
 }
 
 <?php if (isset($preview)): ?>
-var rows    = <?= json_encode($preview) ?>;
+var rows    = <?= json_encode($preview, JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 var aksiMap = {};
 
 rows.forEach(function(r, i) {

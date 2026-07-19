@@ -41,7 +41,7 @@ h2{font-size:11pt;text-align:center;text-transform:uppercase;margin:10px 0 8px;f
       <option value="">Semua Kab/Kota</option>
       <?php foreach ($kabkota_list as $k): ?>
       <option value="<?= $k->id ?>" <?= ($kabkota && $kabkota->id==$k->id)?'selected':'' ?>>
-        <?= $k->nama ?>
+        <?= htmlspecialchars($k->nama) ?>
       </option>
       <?php endforeach; ?>
     </select>

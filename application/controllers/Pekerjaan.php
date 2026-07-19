@@ -452,9 +452,13 @@ class Pekerjaan extends Auth_Controller
         }
 
         // ── VALIDASI BATAS WAKTU ──────────────────────────────
-        // Untuk bertahap cek Tahap I dulu
-        $kode_tahap_cek = $pekerjaan->jenis_penyaluran === 'bertahap' ? 'tahap_1' : 'khusus';
-        if (in_array($pekerjaan->jenis_penyaluran, ['sekaligus'])) $kode_tahap_cek = 'sekaligus';
+        if ($pekerjaan->jenis_penyaluran === 'bertahap') {
+            $kode_tahap_cek = 'tahap_1';
+        } elseif ($pekerjaan->jenis_penyaluran === 'sekaligus') {
+            $kode_tahap_cek = 'sekaligus';
+        } else {
+            $kode_tahap_cek = 'khusus'; // khusus_mendesak dan khusus_bencana
+        }
 
         $cek = $this->Parameter_model->cek_deadline(
             $pekerjaan->tahun,

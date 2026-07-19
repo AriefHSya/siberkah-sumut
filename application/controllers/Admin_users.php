@@ -183,6 +183,11 @@ class Admin_users extends Auth_Controller
         if ($id == $this->user_id) {
             $this->session->set_flashdata('error','Tidak bisa menonaktifkan akun sendiri.'); redirect('admin/users'); return;
         }
+        $user = $this->User_model->get_by_id($id);
+        if (!$user) { show_404(); return; }
+        if (!$this->rbac->canManageUser($user->role_level)) {
+            $this->session->set_flashdata('error','Anda tidak berwenang mengubah status user dengan role ini.'); redirect('admin/users'); return;
+        }
         $this->User_model->toggle($id);
         $this->session->set_flashdata('success','Status user berhasil diubah.');
         redirect('admin/users');
@@ -220,6 +225,10 @@ class Admin_users extends Auth_Controller
             $this->session->set_flashdata('error','Tidak bisa menghapus akun sendiri.'); redirect('admin/users'); return;
         }
         $user = $this->User_model->get_by_id($id);
+        if (!$user) { show_404(); return; }
+        if (!$this->rbac->canManageUser($user->role_level)) {
+            $this->session->set_flashdata('error','Anda tidak berwenang menghapus user dengan role ini.'); redirect('admin/users'); return;
+        }
         $this->User_model->hapus($id);
         $this->log_aktivitas('admin.user.hapus','Hapus user '.$user->username);
         $this->session->set_flashdata('success','User berhasil dihapus.');

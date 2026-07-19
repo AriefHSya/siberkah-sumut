@@ -649,7 +649,7 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
   var grpSelesai = <?= $grp_selesai ?>;
   var grpTolak   = <?= $grp_tolak ?>;
 
-  var bidangLabels  = <?= json_encode($bidang_labels) ?>;
+  var bidangLabels  = <?= json_encode($bidang_labels, JSON_HEX_TAG | JSON_HEX_AMP) ?>;
   var bidangVals    = <?= json_encode($bidang_vals) ?>;
   var bidangNilai   = <?= json_encode($bidang_nilai) ?>;
   var BIDANG_SOLID  = <?= json_encode($bidang_palette_solid) ?>;
@@ -661,7 +661,7 @@ $kab_kontrak    = array_map(fn($k) => (float)($k->total_kontrak ?? 0) / 1000000,
   var bidangHex   = BIDANG_HEX.slice(0, bidangLabels.length);
 
   <?php if ($is_provinsi && !empty($top_kab)): ?>
-  var kabLabels     = <?= json_encode(array_values($kab_labels)) ?>;
+  var kabLabels     = <?= json_encode(array_values($kab_labels), JSON_HEX_TAG | JSON_HEX_AMP) ?>;
   var kabDisalurkan = <?= json_encode(array_values($kab_disalurkan)) ?>;
   var kabKontrak    = <?= json_encode(array_values($kab_kontrak)) ?>;
   <?php endif; ?>

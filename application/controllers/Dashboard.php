@@ -41,7 +41,13 @@ class Dashboard extends Auth_Controller
     public function set_tahun()
     {
         $tahun = $this->input->post('tahun', TRUE);
-        if ($tahun) $this->session->set_userdata('tahun_anggaran', $tahun);
+        if ($tahun) {
+            $valid = $this->Parameter_model->get_all_tahun();
+            $valid_years = array_column($valid, 'tahun');
+            if (in_array($tahun, $valid_years)) {
+                $this->session->set_userdata('tahun_anggaran', $tahun);
+            }
+        }
         redirect('dashboard');
     }
 

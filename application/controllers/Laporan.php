@@ -351,7 +351,7 @@ class Laporan extends Auth_Controller
             $summary      = $this->Laporan_model->get_summary_laporan_kab($tahun, $kabkota_id);
             $pejabat_rows = $this->db->where(['kabkota_id'=>$kabkota_id,'tahun'=>$tahun])
                                      ->get('ref_pemda_pejabat')->result();
-            foreach ($pejabat_rows as $p) $pejabat[$p->jenis_jabatan] = $p;
+            foreach ($pejabat_rows as $p) $pejabat[$p->jenis] = $p;
         }
 
         $this->render('laporan/laporan_akhir_kab', array_merge($this->data, [
@@ -382,7 +382,7 @@ class Laporan extends Auth_Controller
         $pejabat_rows = $this->db->where(['kabkota_id'=>$kabkota_id,'tahun'=>$tahun])
                                  ->get('ref_pemda_pejabat')->result();
         $pejabat = [];
-        foreach ($pejabat_rows as $p) $pejabat[$p->jenis_jabatan] = $p;
+        foreach ($pejabat_rows as $p) $pejabat[$p->jenis] = $p;
 
         $this->render_plain('laporan/cetak_laporan_akhir_kab', [
             'tahun'        => $tahun,

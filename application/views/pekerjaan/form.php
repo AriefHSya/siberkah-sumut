@@ -391,7 +391,7 @@ const batasWaktuData = <?= json_encode(array_map(function($bw){
         'batas_pengajuan' => $bw->batas_pengajuan,
         'batas_penyaluran'=> $bw->batas_penyaluran,
     ];
-}, $batas_waktu)) ?>;
+}, $batas_waktu), JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 
 // ─── Inisialisasi Peta Leaflet ───────────────────────────────
 const defaultLat = <?= ($p && $p->latitude)  ? $p->latitude  : '2.9671' ?>;
@@ -644,7 +644,7 @@ function simpanPendukung() {
 // Restore rincian dari JSON (mode edit) atau nilai existing
 (function initPendukungRows() {
     <?php if ($edit && $p): ?>
-    var jsonStr = <?= json_encode($p->belanja_pendukung_json ?? '[]') ?>;
+    var jsonStr = <?= json_encode($p->belanja_pendukung_json ?? '[]', JSON_HEX_TAG | JSON_HEX_AMP) ?>;
     try {
         var parsed = JSON.parse(jsonStr);
         if (Array.isArray(parsed) && parsed.length > 0) {

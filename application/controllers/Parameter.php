@@ -335,18 +335,18 @@ class Parameter extends Auth_Controller
             // Cocokkan Kab/Kota
             $kabkota        = $this->_match_kabkota($nama_kab, $all_kabkota);
             $kabkota_mapped = $kabkota ? $kabkota->nama : NULL;
-            if (!$kabkota) $row_errors[] = 'Kab/Kota "' . htmlspecialchars($nama_kab) . '" tidak dikenali';
+            if (!$kabkota) $row_errors[] = 'Kab/Kota "' . $nama_kab . '" tidak dikenali';
 
             // Cocokkan Bidang (dengan fuzzy + alias)
             $bidang_result  = $this->_match_bidang($nama_bid, $all_bidang);
             $bidang         = $bidang_result['obj'];
             $bidang_warning = $bidang_result['warning']; // peringatan jika pakai fuzzy
-            if (!$bidang) $row_errors[] = 'Bidang "' . htmlspecialchars($nama_bid) . '" tidak dikenali';
+            if (!$bidang) $row_errors[] = 'Bidang "' . $nama_bid . '" tidak dikenali';
 
             // Validasi nilai harus angka — bersihkan format umum (Rp, titik, koma, spasi)
             $nilai_bersih = str_replace(['Rp', '.', ',', ' '], '', $nilai_raw);
             if ($nilai_bersih !== '' && !is_numeric($nilai_bersih)) {
-                $row_errors[] = 'Nilai "' . htmlspecialchars($nilai_raw) . '" bukan angka';
+                $row_errors[] = 'Nilai "' . $nilai_raw . '" bukan angka';
                 $nilai = 0;
             } else {
                 $nilai = (int)$nilai_bersih;
@@ -371,14 +371,14 @@ class Parameter extends Auth_Controller
                 'row'             => $row_num,
                 'tahun'           => $tahun,
                 'kabkota_id'      => $kabkota ? $kabkota->id   : NULL,
-                'kabkota_nama'    => $kabkota ? $kabkota->nama  : htmlspecialchars($nama_kab),
-                'kabkota_input'   => htmlspecialchars($nama_kab),
+                'kabkota_nama'    => $kabkota ? $kabkota->nama  : $nama_kab,
+                'kabkota_input'   => $nama_kab,
                 'kabkota_mapped'  => $kabkota_mapped,
                 'bidang_id'       => $bidang  ? $bidang->id    : NULL,
-                'bidang_nama'     => $bidang  ? $bidang->nama   : htmlspecialchars($nama_bid),
-                'bidang_input'    => htmlspecialchars($nama_bid),
+                'bidang_nama'     => $bidang  ? $bidang->nama   : $nama_bid,
+                'bidang_input'    => $nama_bid,
                 'bidang_warning'  => $bidang_warning,
-                'uraian_bkp'      => htmlspecialchars($uraian),
+                'uraian_bkp'      => $uraian,
                 'nilai'           => $nilai,
                 'preview_kode'    => $preview_kode,
                 'status'          => $existing ? 'duplikat' : 'baru',
@@ -896,6 +896,10 @@ class Parameter extends Auth_Controller
             $this->session->set_flashdata('error', 'Pilih file logo terlebih dahulu.');
             redirect('parameter/logo'); return;
         }
+        if (!$this->_mime_valid($_FILES['file_logo']['tmp_name'], ['image/jpeg','image/png','image/webp'])) {
+            $this->session->set_flashdata('error', 'Jenis file tidak diizinkan. Gunakan JPG, PNG, atau WEBP.');
+            redirect('parameter/logo'); return;
+        }
         $dir = FCPATH . 'uploads/logo/';
         if (!is_dir($dir)) mkdir($dir, 0755, TRUE);
 
@@ -1002,6 +1006,10 @@ class Parameter extends Auth_Controller
 
         $foto_path = NULL;
         if (!empty($_FILES['foto']['name'])) {
+            if (!$this->_mime_valid($_FILES['foto']['tmp_name'], ['image/jpeg','image/png'])) {
+                $this->session->set_flashdata('error', 'Jenis file tidak diizinkan. Gunakan JPG atau PNG.');
+                redirect('parameter/landing'); return;
+            }
             // Tangani error PHP-level lebih dulu (file terlalu besar, dll)
             if ($_FILES['foto']['error'] !== UPLOAD_ERR_OK) {
                 $php_errors = [
@@ -1080,6 +1088,13 @@ class Parameter extends Auth_Controller
 
         $upload_dir = FCPATH . 'uploads/landing/slideshow/';
         if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, TRUE);
+
+        if (!empty($_FILES['foto']['name'])
+            && $_FILES['foto']['error'] === UPLOAD_ERR_OK
+            && !$this->_mime_valid($_FILES['foto']['tmp_name'], ['image/jpeg','image/png'])) {
+            $this->session->set_flashdata('error', 'Jenis file tidak diizinkan. Gunakan JPG atau PNG.');
+            redirect('parameter/landing/slideshow'); return;
+        }
 
         // Cek PHP-level error
         if (isset($_FILES['foto']) && $_FILES['foto']['error'] !== UPLOAD_ERR_OK && $_FILES['foto']['error'] !== UPLOAD_ERR_NO_FILE) {
