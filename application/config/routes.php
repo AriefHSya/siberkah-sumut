@@ -9,6 +9,10 @@ $route['translate_uri_dashes'] = FALSE;
 $route['login']            = 'auth/login';
 $route['login/proses']     = 'auth/proses';
 $route['logout']           = 'auth/logout';
+$route['lupa-password']          = 'auth/lupa_password';
+$route['lupa-password/kirim']    = 'auth/kirim_reset';
+$route['reset-password/proses']  = 'auth/proses_reset';
+$route['reset-password/(:any)']  = 'auth/reset_password/$1';
 
 // ─── AKUN ─────────────────────────────────────────────────────
 $route['ganti-password']        = 'akun/ganti_password';

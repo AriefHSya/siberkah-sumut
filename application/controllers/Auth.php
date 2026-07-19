@@ -30,10 +30,8 @@ class Auth extends Guest_Controller
     }
 
     public function login() {
-        $this->data['title'] = 'Login — SIBERKAH SUMUT';
-        $setting_logo = $this->db->get_where('ref_app_setting', ['kode' => 'logo_provinsi'])->row();
-        $this->data['logo_prov'] = ($setting_logo && !empty($setting_logo->nilai))
-            ? base_url($setting_logo->nilai) : NULL;
+        $this->data['title']              = 'Login — SIBERKAH SUMUT';
+        $this->data['logo_prov']          = $this->_get_logo_prov();
         $this->data['recaptcha_site_key'] = $this->config->item('recaptcha_site_key');
         $this->load->view('auth/login', $this->data);
     }
@@ -138,5 +136,208 @@ class Auth extends Guest_Controller
         }
         $this->session->sess_destroy();
         redirect('login');
+    }
+
+    // ─── LUPA PASSWORD ────────────────────────────────────────────
+
+    public function lupa_password() {
+        $this->data['title'] = 'Lupa Password — SIBERKAH SUMUT';
+        $this->data['logo_prov'] = $this->_get_logo_prov();
+        $this->load->view('auth/lupa_password', $this->data);
+    }
+
+    public function kirim_reset() {
+        if ($this->input->method() !== 'post') { redirect('lupa-password'); return; }
+
+        $input = trim($this->input->post('username_or_email', TRUE));
+        if (empty($input)) {
+            $this->session->set_flashdata('error', 'Username atau email wajib diisi.');
+            redirect('lupa-password'); return;
+        }
+
+        $from_email = $this->config->item('smtp_from_email');
+        if (empty($from_email)) {
+            $this->session->set_flashdata('error',
+                'Fitur reset password via email belum dikonfigurasi. Hubungi administrator untuk mereset password Anda.');
+            redirect('lupa-password'); return;
+        }
+
+        // Cari user berdasarkan username atau email (aktif saja)
+        $user = $this->db->where('username', $input)->where('is_active', 1)->get('users')->row();
+        if (!$user) {
+            $user = $this->db->where('email', $input)->where('is_active', 1)->get('users')->row();
+        }
+
+        // Selalu tampilkan pesan generik — jangan bocorkan apakah user ditemukan (security)
+        if (!$user || empty($user->email)) {
+            $this->session->set_flashdata('success',
+                'Jika username atau email terdaftar dan aktif, link reset password akan dikirimkan dalam beberapa menit.');
+            redirect('lupa-password'); return;
+        }
+
+        // Invalidasi token lama yang belum terpakai
+        $this->db->where('user_id', $user->id)->where('used_at IS NULL')
+                 ->update('password_reset_tokens', ['used_at' => date('Y-m-d H:i:s')]);
+
+        // Buat token baru, berlaku 1 jam
+        $token      = bin2hex(random_bytes(32));
+        $expires_at = date('Y-m-d H:i:s', time() + 3600);
+        $this->db->insert('password_reset_tokens', [
+            'user_id'    => $user->id,
+            'token'      => $token,
+            'expires_at' => $expires_at,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $sent = $this->_send_reset_email($user, $token);
+        if ($sent) {
+            $this->db->insert('user_logs', [
+                'user_id'    => $user->id,
+                'aksi'       => 'reset_password_request',
+                'keterangan' => 'Permintaan reset password via email ke: ' . $user->email,
+                'ip_address' => $this->input->ip_address(),
+                'created_at' => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        $this->session->set_flashdata('success',
+            'Jika username atau email terdaftar dan aktif, link reset password akan dikirimkan dalam beberapa menit.');
+        redirect('lupa-password');
+    }
+
+    public function reset_password($token = '') {
+        if (empty($token)) { redirect('lupa-password'); return; }
+
+        $rec = $this->db->where('token', $token)->where('used_at IS NULL')
+                        ->where('expires_at >=', date('Y-m-d H:i:s'))
+                        ->get('password_reset_tokens')->row();
+        if (!$rec) {
+            $this->session->set_flashdata('error',
+                'Link reset password tidak valid atau sudah kadaluarsa. Silakan minta link baru.');
+            redirect('lupa-password'); return;
+        }
+
+        $user = $this->db->where('id', $rec->user_id)->where('is_active', 1)->get('users')->row();
+        if (!$user) {
+            $this->session->set_flashdata('error', 'Akun tidak ditemukan atau tidak aktif.');
+            redirect('login'); return;
+        }
+
+        $this->data['title']    = 'Reset Password — SIBERKAH SUMUT';
+        $this->data['logo_prov']= $this->_get_logo_prov();
+        $this->data['token']    = $token;
+        $this->data['user']     = $user;
+        $this->load->view('auth/reset_password', $this->data);
+    }
+
+    public function proses_reset() {
+        if ($this->input->method() !== 'post') { redirect('login'); return; }
+
+        $token    = $this->input->post('token', TRUE);
+        $password = $this->input->post('password');
+        $confirm  = $this->input->post('password_confirm');
+
+        if (empty($token) || empty($password) || empty($confirm)) {
+            $this->session->set_flashdata('error', 'Semua field wajib diisi.');
+            redirect('reset-password/' . urlencode($token)); return;
+        }
+        if ($password !== $confirm) {
+            $this->session->set_flashdata('error', 'Konfirmasi password tidak cocok.');
+            redirect('reset-password/' . urlencode($token)); return;
+        }
+        if (strlen($password) < 8) {
+            $this->session->set_flashdata('error', 'Password minimal 8 karakter.');
+            redirect('reset-password/' . urlencode($token)); return;
+        }
+
+        // Validasi token ulang (anti replay)
+        $rec = $this->db->where('token', $token)->where('used_at IS NULL')
+                        ->where('expires_at >=', date('Y-m-d H:i:s'))
+                        ->get('password_reset_tokens')->row();
+        if (!$rec) {
+            $this->session->set_flashdata('error',
+                'Link reset password tidak valid atau sudah kadaluarsa. Silakan minta link baru.');
+            redirect('lupa-password'); return;
+        }
+
+        // Update password + buka kunci akun jika terkunci
+        $this->db->where('id', $rec->user_id)->update('users', [
+            'password'              => password_hash($password, PASSWORD_BCRYPT),
+            'must_change_password'  => 0,
+            'failed_login_attempts' => 0,
+            'locked_at'             => NULL,
+            'updated_at'            => date('Y-m-d H:i:s'),
+        ]);
+        // Tandai token sebagai sudah terpakai
+        $this->db->where('id', $rec->id)->update('password_reset_tokens',
+            ['used_at' => date('Y-m-d H:i:s')]);
+
+        $this->db->insert('user_logs', [
+            'user_id'    => $rec->user_id,
+            'aksi'       => 'reset_password',
+            'keterangan' => 'Password berhasil direset via email',
+            'ip_address' => $this->input->ip_address(),
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->session->set_flashdata('success', 'Password berhasil diperbarui. Silakan login dengan password baru Anda.');
+        redirect('login');
+    }
+
+    // ─── PRIVATE HELPERS ──────────────────────────────────────────
+
+    private function _get_logo_prov() {
+        $s = $this->db->get_where('ref_app_setting', ['kode' => 'logo_provinsi'])->row();
+        return ($s && !empty($s->nilai)) ? base_url($s->nilai) : NULL;
+    }
+
+    private function _send_reset_email($user, $token) {
+        $from_email = $this->config->item('smtp_from_email');
+        if (empty($from_email) || empty($user->email)) return FALSE;
+
+        $reset_url  = site_url('reset-password/' . $token);
+        $app_name   = $this->config->item('app_name');
+        $from_name  = $this->config->item('smtp_from_name');
+        $nama       = htmlspecialchars($user->nama);
+
+        $body = '<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;background:#f4f6f9;margin:0;padding:20px">'
+            . '<div style="max-width:520px;margin:0 auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">'
+            . '<div style="background:#1A5EA8;padding:24px 32px;text-align:center">'
+            . '<h1 style="color:#fff;margin:0;font-size:20px;letter-spacing:1px">' . htmlspecialchars($app_name) . '</h1>'
+            . '<p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:13px">Sistem Informasi Bantuan Keuangan Daerah</p>'
+            . '</div>'
+            . '<div style="padding:32px">'
+            . '<p style="margin:0 0 16px">Yth. <strong>' . $nama . '</strong>,</p>'
+            . '<p style="margin:0 0 16px;color:#444;line-height:1.6">Kami menerima permintaan reset password untuk akun Anda di ' . htmlspecialchars($app_name) . '. Klik tombol di bawah untuk membuat password baru.</p>'
+            . '<div style="text-align:center;margin:28px 0">'
+            . '<a href="' . $reset_url . '" style="display:inline-block;background:#1A5EA8;color:#fff;text-decoration:none;padding:13px 32px;border-radius:8px;font-weight:bold;font-size:15px">Reset Password Saya</a>'
+            . '</div>'
+            . '<p style="margin:0 0 8px;color:#666;font-size:13px">Atau salin link berikut ke browser Anda:</p>'
+            . '<p style="margin:0 0 20px;font-size:12px;word-break:break-all;background:#f4f6f9;padding:10px;border-radius:6px;color:#1A5EA8">' . $reset_url . '</p>'
+            . '<p style="margin:0;color:#999;font-size:12px;border-top:1px solid #eee;padding-top:16px">Link ini berlaku selama <strong>1 jam</strong>. Jika Anda tidak merasa meminta reset password, abaikan email ini — password Anda tidak akan berubah.</p>'
+            . '</div>'
+            . '</div></body></html>';
+
+        $this->load->library('email');
+        $cfg = [
+            'mailtype' => 'html',
+            'charset'  => 'utf-8',
+            'newline'  => "\r\n",
+        ];
+        $smtp_host = $this->config->item('smtp_host');
+        if (!empty($smtp_host)) {
+            $cfg['protocol']  = 'smtp';
+            $cfg['smtp_host'] = $smtp_host;
+            $cfg['smtp_port'] = $this->config->item('smtp_port');
+            $cfg['smtp_user'] = $this->config->item('smtp_user');
+            $cfg['smtp_pass'] = $this->config->item('smtp_pass');
+            $cfg['smtp_crypto'] = $this->config->item('smtp_crypto');
+        }
+        $this->email->initialize($cfg);
+        $this->email->from($from_email, $from_name);
+        $this->email->to($user->email);
+        $this->email->subject('[' . $app_name . '] Permintaan Reset Password');
+        $this->email->message($body);
+        return $this->email->send(FALSE);
     }
 }

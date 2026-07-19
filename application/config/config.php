@@ -1,7 +1,7 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed');
 
 // Auto-detect URL: pakai env var APP_URL jika ada (Railway), fallback ke localhost
-$config['base_url'] = getenv('APP_URL') ?: 'http://localhost/';
+$config['base_url'] = getenv('APP_URL') ?: 'http://localhost:8080/';
 $config['index_page']          = '';
 $config['uri_protocol']        = 'REQUEST_URI';
 $config['url_suffix']          = '';
@@ -77,6 +77,16 @@ $config['app_owner']   = 'BKAD Provinsi Sumatera Utara';
 // Jika kosong, CAPTCHA dilewati (graceful degradation untuk dev tanpa key)
 $config['recaptcha_site_key']   = getenv('RECAPTCHA_SITE_KEY')   ?: '';
 $config['recaptcha_secret_key'] = getenv('RECAPTCHA_SECRET_KEY') ?: '';
+
+// SMTP — untuk fitur lupa password dan notifikasi email
+// Jika SMTP_FROM_EMAIL kosong, fitur kirim email dinonaktifkan (graceful degradation)
+$config['smtp_host']       = getenv('SMTP_HOST')       ?: '';
+$config['smtp_port']       = (int)(getenv('SMTP_PORT') ?: 587);
+$config['smtp_crypto']     = getenv('SMTP_CRYPTO')     ?: 'tls';  // tls | ssl | ''
+$config['smtp_user']       = getenv('SMTP_USER')       ?: '';
+$config['smtp_pass']       = getenv('SMTP_PASS')       ?: '';
+$config['smtp_from_email'] = getenv('SMTP_FROM_EMAIL') ?: '';
+$config['smtp_from_name']  = getenv('SMTP_FROM_NAME')  ?: 'SIBERKAH SUMUT';
 
 // Upload config
 $config['upload_path']      = FCPATH . 'uploads/';

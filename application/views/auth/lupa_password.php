@@ -3,14 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Login — SIBERKAH SUMUT</title>
+<title>Lupa Password — SIBERKAH SUMUT</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <link rel="stylesheet" href="<?= base_url('assets/css/siberkah.css') ?>">
 </head>
 <body class="login-body">
-<!-- Tombol kembali ke landing — class .back-to-landing di siberkah.css -->
-<a href="<?= site_url('/') ?>" class="back-to-landing">
-  <i class="ti ti-arrow-left"></i> Beranda
+<a href="<?= site_url('login') ?>" class="back-to-landing">
+  <i class="ti ti-arrow-left"></i> Kembali ke Login
 </a>
 
 <div class="login-wrap">
@@ -24,7 +23,7 @@
            class="login-logo" style="margin-bottom:0">
     </div>
     <h1>SIBERKAH SUMUT</h1>
-    <p>Platform Kolaborasi Bantuan Keuangan Provinsi dan Kab/Kota</p>
+    <p>Reset Password Akun</p>
   </div>
   <div class="login-card">
     <?php if ($flash = $this->session->flashdata('error')): ?>
@@ -36,34 +35,22 @@
     </div>
     <?php endif; ?>
 
-    <?= form_open(site_url('login/proses')) ?>
-    <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
+    <p style="color:rgba(255,255,255,0.8);font-size:13px;margin-bottom:18px;line-height:1.5">
+      Masukkan username atau email yang terdaftar. Kami akan mengirimkan link reset password ke alamat email Anda.
+    </p>
 
+    <?= form_open(site_url('lupa-password/kirim')) ?>
+    <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
     <div class="form-group">
-      <label>Username</label>
-      <input type="text" name="username" placeholder="Masukkan username" autocomplete="username" required>
+      <label>Username atau Email</label>
+      <input type="text" name="username_or_email" placeholder="Masukkan username atau email" autocomplete="username email" required autofocus>
     </div>
-    <div class="form-group">
-      <label>Password</label>
-      <input type="password" name="password" placeholder="Masukkan password" autocomplete="current-password" required>
-    </div>
-    <?php if (!empty($recaptcha_site_key)): ?>
-    <div class="g-recaptcha" data-sitekey="<?= htmlspecialchars($recaptcha_site_key) ?>" style="margin-bottom:12px"></div>
-    <?php endif; ?>
-    <button type="submit" class="btn-login">Masuk ke Sistem</button>
+    <button type="submit" class="btn-login">Kirim Link Reset Password</button>
     <?= form_close() ?>
-    <div style="text-align:center;margin-top:14px">
-      <a href="<?= site_url('lupa-password') ?>" style="color:rgba(255,255,255,0.7);font-size:13px;text-decoration:none">
-        <i class="ti ti-key" style="font-size:13px"></i> Lupa Password?
-      </a>
-    </div>
   </div>
   <div class="login-footer">
     <p>BKAD Provinsi Sumatera Utara &copy; <?= date('Y') ?> &middot; SIBERKAH SUMUT v<?= htmlspecialchars($app_version) ?></p>
   </div>
 </div>
-<?php if (!empty($recaptcha_site_key)): ?>
-<script src="https://www.google.com/recaptcha/api.js" async defer></script>
-<?php endif; ?>
 </body>
 </html>
