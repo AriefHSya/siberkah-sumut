@@ -84,6 +84,10 @@ class Admin_users extends Auth_Controller
             $this->session->set_flashdata('error', 'Role Pengawas hanya dapat dibuat oleh Admin Provinsi atau Superadmin.');
             redirect('admin/users/tambah'); return;
         }
+        if (!$this->input->post('consent_data_pribadi')) {
+            $this->session->set_flashdata('error', 'Pernyataan persetujuan penggunaan data pribadi wajib dicentang.');
+            redirect('admin/users/tambah'); return;
+        }
         $nip_raw = preg_replace('/[^0-9]/', '', $this->input->post('nip', TRUE));
         if (strlen($nip_raw) !== 18) {
             $this->session->set_flashdata('error', 'NIP harus tepat 18 digit angka.');
@@ -108,6 +112,7 @@ class Admin_users extends Auth_Controller
             'telegram_chat_id'  => $this->input->post('telegram_chat_id',TRUE) ?: NULL,
             'is_active'         => 1,
             'must_change_password' => 1,
+            'consent_at'        => date('Y-m-d H:i:s'),
             'created_by'        => $this->user_id,
         ];
         $this->User_model->insert($data);

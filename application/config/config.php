@@ -1,7 +1,7 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed');
 
 // Auto-detect URL: pakai env var APP_URL jika ada (Railway), fallback ke localhost
-$config['base_url'] = getenv('APP_URL') ?: 'http://localhost:8080/';
+$config['base_url'] = getenv('APP_URL') ?: 'http://localhost/';
 $config['index_page']          = '';
 $config['uri_protocol']        = 'REQUEST_URI';
 $config['url_suffix']          = '';
@@ -35,12 +35,12 @@ if ($_is_prod && !getenv('ENCRYPTION_KEY')) {
     header('HTTP/1.1 500 Internal Server Error', TRUE, 500);
     exit('Konfigurasi tidak lengkap: ENCRYPTION_KEY wajib di-set di environment production.');
 }
-$config['encryption_key'] = getenv('ENCRYPTION_KEY') ?: 'siberkah_dev_only_key_not4prod!!';
+$config['encryption_key'] = getenv('ENCRYPTION_KEY') ?: '8ecb4be9a0b2a92f790d52e01d32e58972baa94f11cf9cf9a7af3846145e02e0';
 
 // Session: database di production (lebih aman & scalable), files di development.
 // Tabel ci_sessions harus dibuat dulu — lihat database/ci_sessions.sql
 $config['sess_driver']   = $_is_prod ? 'database' : 'files';
-$config['sess_save_path']= $_is_prod ? 'ci_sessions' : APPPATH.'cache/sessions';
+$config['sess_save_path']= $_is_prod ? 'ci_sessions' : APPPATH.'/home/ard/siberkah/application/cache/sessions';
 
 $config['sess_cookie_name']        = 'siberkah_sess';
 $config['sess_expiration']         = 7200;
@@ -72,6 +72,11 @@ $config['app_name']    = 'SIBERKAH SUMUT';
 $config['app_tagline'] = 'Platform Kolaborasi Bantuan Keuangan Provinsi dan Kab/Kota';
 $config['app_version'] = '4.1.0';
 $config['app_owner']   = 'BKAD Provinsi Sumatera Utara';
+
+// reCAPTCHA v2 — set via env var RECAPTCHA_SITE_KEY dan RECAPTCHA_SECRET_KEY
+// Jika kosong, CAPTCHA dilewati (graceful degradation untuk dev tanpa key)
+$config['recaptcha_site_key']   = getenv('RECAPTCHA_SITE_KEY')   ?: '';
+$config['recaptcha_secret_key'] = getenv('RECAPTCHA_SECRET_KEY') ?: '';
 
 // Upload config
 $config['upload_path']      = FCPATH . 'uploads/';

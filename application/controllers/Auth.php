@@ -34,6 +34,7 @@ class Auth extends Guest_Controller
         $setting_logo = $this->db->get_where('ref_app_setting', ['kode' => 'logo_provinsi'])->row();
         $this->data['logo_prov'] = ($setting_logo && !empty($setting_logo->nilai))
             ? base_url($setting_logo->nilai) : NULL;
+        $this->data['recaptcha_site_key'] = $this->config->item('recaptcha_site_key');
         $this->load->view('auth/login', $this->data);
     }
 
@@ -44,6 +45,26 @@ class Auth extends Guest_Controller
         if (empty($username) || empty($password)) {
             $this->session->set_flashdata('error', 'Username dan password wajib diisi.');
             redirect('login'); return;
+        }
+
+        // Verifikasi reCAPTCHA v2 — hanya jika secret key dikonfigurasi
+        $secret = $this->config->item('recaptcha_secret_key');
+        if (!empty($secret)) {
+            $captcha_response = $this->input->post('g-recaptcha-response');
+            if (empty($captcha_response)) {
+                $this->session->set_flashdata('error', 'Harap selesaikan verifikasi CAPTCHA terlebih dahulu.');
+                redirect('login'); return;
+            }
+            $verify = @file_get_contents(
+                'https://www.google.com/recaptcha/api/siteverify?secret='
+                . urlencode($secret) . '&response=' . urlencode($captcha_response)
+                . '&remoteip=' . urlencode($this->input->ip_address())
+            );
+            $result = $verify ? json_decode($verify, TRUE) : ['success' => FALSE];
+            if (empty($result['success'])) {
+                $this->session->set_flashdata('error', 'Verifikasi CAPTCHA gagal. Silakan coba lagi.');
+                redirect('login'); return;
+            }
         }
 
         $user = $this->User_model->get_for_login($username);

@@ -568,6 +568,44 @@ class Pekerjaan extends Auth_Controller
         redirect('pekerjaan/detail/'.$id);
     }
 
+    // ─── SIMPAN DATA KEPALA OPD TEKNIS ───────────────────────
+    // Dipanggil OPD sebelum submit ke Inspektorat — mengisi identitas Kepala OPD
+    // yang akan muncul sebagai penandatangan di Kertas Kerja Reviu.
+
+    public function simpan_kepala_opd($id)
+    {
+        $this->requirePerm('pekerjaan.submit');
+        $pekerjaan = $this->Pekerjaan_model->get_by_id($id);
+        if (!$pekerjaan) { show_404(); return; }
+
+        if (!in_array($pekerjaan->status, ['draft'])) {
+            $this->session->set_flashdata('error', 'Data Kepala OPD hanya bisa diubah saat status Draft.');
+            redirect('pekerjaan/detail/'.$id); return;
+        }
+        if ($this->rbac->isKabkota() && (int)$pekerjaan->kabkota_id !== (int)$this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('pekerjaan'); return;
+        }
+
+        $nama = trim($this->input->post('kepala_opd_nama', TRUE));
+        if (empty($nama)) {
+            $this->session->set_flashdata('error', 'Nama Kepala OPD wajib diisi.');
+            redirect('pekerjaan/detail/'.$id); return;
+        }
+
+        $nip_raw = preg_replace('/[^0-9]/', '', $this->input->post('kepala_opd_nip', TRUE));
+        $this->db->where('id', $id)->update('trx_pekerjaan', [
+            'kepala_opd_nama'    => $nama,
+            'kepala_opd_nip'     => $nip_raw ?: NULL,
+            'kepala_opd_jabatan' => trim($this->input->post('kepala_opd_jabatan', TRUE)) ?: NULL,
+            'updated_by'         => $this->user_id,
+        ]);
+
+        $this->log_aktivitas('pekerjaan.simpan_kepala_opd', 'Simpan data Kepala OPD pekerjaan id='.$id);
+        $this->session->set_flashdata('success', 'Data Kepala OPD berhasil disimpan.');
+        redirect('pekerjaan/detail/'.$id);
+    }
+
     // ─── KIRIM REVISI KE INSPEKTORAT ─────────────────────────
     // Dipanggil OPD setelah memperbaiki pekerjaan yang dikembalikan Inspektorat
 
@@ -658,6 +696,7 @@ class Pekerjaan extends Auth_Controller
         if (empty($pekerjaan->nama_penyedia))      $errors[] = 'Nama penyedia/rekanan belum diisi';
         if (empty($pekerjaan->nilai_kontrak) || $pekerjaan->nilai_kontrak <= 0) $errors[] = 'Nilai kontrak belum diisi';
         if (empty($pekerjaan->no_spmk))            $errors[] = 'Nomor SPMK belum diisi';
+        if (empty($pekerjaan->kepala_opd_nama))    $errors[] = 'Data Kepala OPD Teknis belum diisi (nama wajib diisi sebelum submit)';
 
         // Validasi dokumen wajib pre-submit
         // SPK & SPMK tidak wajib untuk jenis penyaluran darurat/mendesak

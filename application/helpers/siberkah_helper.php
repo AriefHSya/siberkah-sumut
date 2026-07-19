@@ -170,6 +170,38 @@ function icon_file($path) {
     return $icons[$ext] ?? 'ti-file';
 }
 
+// ── Data Masking ──────────────────────────────────────────────
+
+/**
+ * mask_nip($nip, $full) — tampilkan NIP tersamar
+ * Format: 8 digit pertama + 6 bintang + 4 digit terakhir (18 digit NIP PNS)
+ * Jika $full = true, tampilkan lengkap (untuk superadmin/admin_provinsi)
+ */
+function mask_nip($nip, $full = FALSE) {
+    if (empty($nip)) return '—';
+    if ($full) return htmlspecialchars($nip);
+    $nip = (string)$nip;
+    if (strlen($nip) < 9) return str_repeat('*', strlen($nip));
+    return htmlspecialchars(substr($nip, 0, 8)) . '******' . htmlspecialchars(substr($nip, -4));
+}
+
+/**
+ * mask_rekening($rek, $full) — tampilkan nomor rekening tersamar
+ * Tampilkan 4 digit terakhir saja, sisanya bintang per 4 karakter
+ * Jika $full = true, tampilkan lengkap (untuk superadmin/admin_provinsi)
+ */
+function mask_rekening($rek, $full = FALSE) {
+    if (empty($rek)) return '—';
+    if ($full) return htmlspecialchars($rek);
+    $rek    = preg_replace('/\s+/', '', (string)$rek);
+    $len    = strlen($rek);
+    $show   = min(4, $len);
+    $masked = str_repeat('*', max(0, $len - $show));
+    $result = $masked . substr($rek, -$show);
+    // Format dengan spasi tiap 4 karakter untuk keterbacaan
+    return htmlspecialchars(trim(chunk_split($result, 4, ' ')));
+}
+
 // ── Sub-nav HTML builder ───────────────────────────────────────
 function sub_nav_parameter($active_sub) {
     $CI =& get_instance();

@@ -51,14 +51,15 @@
 <div class="card" style="padding:0;overflow:hidden">
   <div class="table-wrap">
     <table class="tbl">
-      <thead><tr><th>Nama</th><th style="width:130px">Username</th><th style="width:140px">Role</th><th style="width:110px">Instansi</th><th style="width:120px">Kab/Kota</th><th style="width:110px">Login Terakhir</th><th style="width:60px;text-align:center">Status</th><th style="width:100px;text-align:center">Aksi</th></tr></thead>
+      <thead><tr><th>Nama</th><th style="width:130px">Username</th><th style="width:150px">NIP</th><th style="width:140px">Role</th><th style="width:110px">Instansi</th><th style="width:120px">Kab/Kota</th><th style="width:110px">Login Terakhir</th><th style="width:60px;text-align:center">Status</th><th style="width:100px;text-align:center">Aksi</th></tr></thead>
       <tbody>
         <?php if (empty($list)): ?>
-        <tr><td colspan="8"><div class="empty-state"><i class="ti ti-users-group"></i>Belum ada user</div></td></tr>
+        <tr><td colspan="9"><div class="empty-state"><i class="ti ti-users-group"></i>Belum ada user</div></td></tr>
         <?php else: foreach ($list as $u): ?>
         <tr>
           <td><div class="fw-500"><?= htmlspecialchars($u->nama) ?></div><div class="text-xs text-muted"><?= htmlspecialchars($u->email??'-') ?></div></td>
           <td class="text-mono"><?= htmlspecialchars($u->username) ?></td>
+          <td class="text-mono text-sm"><?= mask_nip($u->nip??'', $this->rbac->isProvinsi()) ?></td>
           <td><?= badge_role($u->role_kode??'',$u->role_nama??'') ?></td>
           <td class="text-xs"><?= label_instansi($u->instansi_jenis??'') ?><?= $u->opd_nama?'<br><span class="text-muted">'.htmlspecialchars($u->opd_nama).'</span>':'' ?></td>
           <td class="text-sm"><?= htmlspecialchars($u->nama_kabkota??'–') ?></td>

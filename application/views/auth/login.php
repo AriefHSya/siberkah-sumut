@@ -42,6 +42,9 @@
       <label>Password</label>
       <input type="password" name="password" placeholder="Masukkan password" autocomplete="current-password" required>
     </div>
+    <?php if (!empty($recaptcha_site_key)): ?>
+    <div class="g-recaptcha" data-sitekey="<?= htmlspecialchars($recaptcha_site_key) ?>" style="margin-bottom:12px"></div>
+    <?php endif; ?>
     <button type="submit" class="btn-login">Masuk ke Sistem</button>
     <?= form_close() ?>
   </div>
@@ -49,5 +52,8 @@
     <p>BKAD Provinsi Sumatera Utara &copy; <?= date('Y') ?> &middot; SIBERKAH SUMUT v<?= htmlspecialchars($app_version) ?></p>
   </div>
 </div>
+<?php if (!empty($recaptcha_site_key)): ?>
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<?php endif; ?>
 </body>
 </html>

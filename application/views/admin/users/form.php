@@ -22,7 +22,17 @@
       </div>
     </div>
     <div class="form-group"><label>Username <span class="req">*</span></label><input type="text" name="username" class="form-control" value="<?= htmlspecialchars($user->username??'') ?>" required></div>
-    <div class="form-group"><label>Password <?= $edit ? '(kosongkan jika tidak diubah)' : '<span class="req">*</span>' ?></label><input type="password" name="password" class="form-control" <?= $edit ? '' : 'required' ?>></div>
+    <div class="form-group">
+      <label>Password <?= $edit ? '(kosongkan jika tidak diubah)' : '<span class="req">*</span>' ?></label>
+      <div style="position:relative">
+        <input type="password" name="password" id="inputPassword" class="form-control" <?= $edit ? '' : 'required' ?> style="padding-right:40px">
+        <button type="button" onclick="togglePeekPassword()"
+                style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--abu);padding:0;line-height:1"
+                title="Tampilkan/sembunyikan password">
+          <i id="iconPeek" class="ti ti-eye" style="font-size:18px"></i>
+        </button>
+      </div>
+    </div>
     <div class="form-group"><label>Email</label><input type="email" name="email" class="form-control" value="<?= htmlspecialchars($user->email??'') ?>"></div>
     <div class="form-group"><label>No. Telepon</label><input type="text" name="telepon" class="form-control" value="<?= htmlspecialchars($user->telepon??'') ?>"></div>
     <div class="form-group"><label>Jabatan</label><input type="text" name="jabatan" class="form-control" value="<?= htmlspecialchars($user->jabatan??'') ?>"></div>
@@ -66,6 +76,25 @@
       <small class="text-muted">Cara dapat Chat ID: kirim /start ke bot → buka <code>t.me/userinfobot</code> atau gunakan <code>/getUpdates</code> di API bot.</small>
     </div>
   </div>
+  <?php if (!$edit): ?>
+  <div class="form-group" style="margin-top:16px;padding:14px 16px;background:var(--biru-light);border:1px solid var(--biru);border-radius:8px">
+    <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-weight:normal">
+      <input type="checkbox" name="consent_data_pribadi" value="1" required style="margin-top:3px;flex-shrink:0;width:16px;height:16px;accent-color:var(--biru)">
+      <span>
+        Saya menyatakan bahwa data pribadi pengguna yang diinput (nama, NIP, email, dan informasi lainnya)
+        telah diperoleh dengan sepengetahuan dan persetujuan yang bersangkutan, serta akan digunakan
+        semata-mata untuk kepentingan pengelolaan Sistem Informasi Bantuan Keuangan Daerah (SIBERKAH SUMUT)
+        sesuai ketentuan yang berlaku.
+      </span>
+    </label>
+  </div>
+  <?php else: ?>
+  <div class="form-group" style="margin-top:16px;padding:12px 16px;background:var(--hijau-light);border:1px solid var(--hijau-mid);border-radius:8px;font-size:13px;color:var(--hijau)">
+    <i class="ti ti-circle-check"></i>
+    Persetujuan penggunaan data pribadi telah diberikan pada
+    <strong><?= $user->consent_at ? tgl_short($user->consent_at) : '—' ?></strong>.
+  </div>
+  <?php endif; ?>
   <div class="form-actions">
     <a href="<?= site_url('admin/users') ?>" class="btn btn-outline">Batal</a>
     <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy"></i> <?= $edit ? 'Simpan Perubahan' : 'Tambah User' ?></button>
@@ -99,6 +128,19 @@ function onRoleChange(sel) {
   var show  = (level <= 2);
   wrap.style.display = show ? '' : 'none';
   if (!show && input) input.value = '';
+}
+
+function togglePeekPassword() {
+  var inp  = document.getElementById('inputPassword');
+  var icon = document.getElementById('iconPeek');
+  if (!inp) return;
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    icon.className = 'ti ti-eye-off';
+  } else {
+    inp.type = 'password';
+    icon.className = 'ti ti-eye';
+  }
 }
 
 // Init saat halaman dimuat (mode edit: cek role yang sudah tersimpan)

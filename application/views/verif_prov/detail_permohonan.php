@@ -272,12 +272,13 @@ function closeTolakPermohonan() {
               echo '<span class="badge badge-'.$s[0].'">'.$s[1].'</span>'; ?>
       </div>
     </div>
-    <?php if ($pm->rek_asal || $pm->rek_tujuan): ?>
+    <?php if ($pm->rek_asal || $pm->rek_tujuan):
+      $full_rek = $this->rbac->isSuperadmin(); ?>
     <div class="text-xs text-muted mt-2">
       <?= htmlspecialchars($pm->nama_bank_asal ?? 'Bank Sumut') ?>
-      (<?= htmlspecialchars($pm->rek_asal ?? '—') ?>) →
+      (<?= mask_rekening($pm->rek_asal ?? '', $full_rek) ?>) →
       <?= htmlspecialchars($pm->nama_bank_tujuan ?? '—') ?>
-      (<?= htmlspecialchars($pm->rek_tujuan ?? '—') ?>)
+      (<?= mask_rekening($pm->rek_tujuan ?? '', $full_rek) ?>)
     </div>
     <?php endif; ?>
   </div>

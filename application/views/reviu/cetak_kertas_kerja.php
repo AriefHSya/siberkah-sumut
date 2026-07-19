@@ -36,7 +36,7 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
   <button onclick="window.print()" style="padding:7px 14px;background:#1A5EA8;color:#fff;border:none;border-radius:6px;cursor:pointer">🖨️ Cetak</button>
 </div>
 
-<?php $p=$pekerjaan; $inspektur=$pejabat['inspektur']??NULL; $kdh=$pejabat['kepala_daerah']??NULL; ?>
+<?php $p=$pekerjaan; $inspektur=$pejabat['inspektur']??NULL; ?>
 
 <!-- KOP -->
 <div class="kop">
@@ -119,7 +119,19 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
 
 <!-- TTD -->
 <?php $rv = $reviewer ?? []; ?>
-<div class="ttd" style="justify-content:flex-end">
+<div class="ttd">
+  <!-- Kiri: Kepala OPD Teknis (Penandatangan dari OPD) -->
+  <div class="ttd-blok">
+    <p><?= htmlspecialchars($p->nama_kabkota) ?>, <?= $tgl_cetak ?></p>
+    <p><?= !empty($p->kepala_opd_jabatan) ? htmlspecialchars($p->kepala_opd_jabatan) : 'Kepala OPD Teknis' ?></p>
+    <div class="nama">
+      <?= !empty($p->kepala_opd_nama) ? htmlspecialchars($p->kepala_opd_nama) : '.................................................' ?>
+    </div>
+    <div class="nip">
+      NIP. <?= !empty($p->kepala_opd_nip) ? htmlspecialchars($p->kepala_opd_nip) : '.......................................' ?>
+    </div>
+  </div>
+  <!-- Kanan: Inspektur / Reviewer -->
   <div class="ttd-blok">
     <p><?= htmlspecialchars($p->nama_kabkota) ?>, <?= $tgl_cetak ?></p>
     <p><?= htmlspecialchars($rv['jabatan'] ?? ($inspektur->jabatan ?? 'Inspektur')) ?></p>

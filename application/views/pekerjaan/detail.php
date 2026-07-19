@@ -246,6 +246,76 @@
     </div>
     <?php endif; ?>
 
+    <!-- ══ DATA KEPALA OPD TEKNIS (untuk Kertas Kerja Reviu) ══ -->
+    <?php if ($p->status === 'draft' && $this->rbac->can('pekerjaan.submit')): ?>
+    <?php $kepala_ok = !empty($p->kepala_opd_nama); ?>
+    <div class="card mb-2" style="border-left:4px solid <?= $kepala_ok ? 'var(--hijau-mid)' : 'var(--kuning-mid)' ?>">
+      <div class="card-title">
+        <i class="ti ti-user-check"></i> Data Kepala OPD Teknis
+        <?php if ($kepala_ok): ?>
+        <span class="badge badge-hijau" style="margin-left:auto">Terisi</span>
+        <?php else: ?>
+        <span class="badge badge-kuning" style="margin-left:auto">Belum Diisi</span>
+        <?php endif; ?>
+      </div>
+      <div class="text-xs text-muted mb-2">
+        Identitas Kepala OPD Teknis akan tampil sebagai penandatangan pada Kertas Kerja Reviu.
+        Wajib diisi sebelum submit ke Inspektorat.
+      </div>
+      <?php if ($kepala_ok): ?>
+      <table class="tbl mb-2">
+        <tr><td class="text-muted text-sm" style="width:35%">Nama</td><td class="fw-500"><?= htmlspecialchars($p->kepala_opd_nama) ?></td></tr>
+        <tr><td class="text-muted text-sm">NIP</td><td class="mono text-sm"><?= htmlspecialchars($p->kepala_opd_nip ?: '—') ?></td></tr>
+        <tr><td class="text-muted text-sm">Jabatan</td><td class="text-sm"><?= htmlspecialchars($p->kepala_opd_jabatan ?: '—') ?></td></tr>
+      </table>
+      <?php endif; ?>
+      <button type="button" class="btn btn-outline btn-sm" onclick="openModal('modalKepalaOpd')">
+        <i class="ti ti-edit"></i> <?= $kepala_ok ? 'Ubah Data' : 'Isi Data Kepala OPD' ?>
+      </button>
+    </div>
+
+    <!-- Modal input Kepala OPD -->
+    <div id="modalKepalaOpd"
+         style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);
+                z-index:1000;align-items:center;justify-content:center">
+      <div style="background:#fff;border-radius:12px;padding:24px;width:480px;max-width:95vw">
+        <div class="card-title" style="margin-bottom:16px">
+          <i class="ti ti-user-check"></i> Data Kepala OPD Teknis
+          <button type="button" onclick="closeModal('modalKepalaOpd')"
+                  style="margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted)">
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
+        <?= form_open(site_url('pekerjaan/simpan-kepala-opd/'.$p->id)) ?>
+        <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
+        <div class="form-group">
+          <label>Nama Kepala OPD <span class="req">*</span></label>
+          <input type="text" name="kepala_opd_nama" class="form-control"
+                 value="<?= htmlspecialchars($p->kepala_opd_nama ?? '') ?>"
+                 placeholder="Contoh: Ir. Ahmad Budi Santoso, M.T." required>
+        </div>
+        <div class="form-group">
+          <label>NIP <span class="text-xs text-muted">(opsional)</span></label>
+          <input type="text" name="kepala_opd_nip" class="form-control mono"
+                 value="<?= htmlspecialchars($p->kepala_opd_nip ?? '') ?>"
+                 placeholder="18 digit angka" maxlength="18"
+                 oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+        </div>
+        <div class="form-group">
+          <label>Jabatan <span class="text-xs text-muted">(opsional)</span></label>
+          <input type="text" name="kepala_opd_jabatan" class="form-control"
+                 value="<?= htmlspecialchars($p->kepala_opd_jabatan ?? '') ?>"
+                 placeholder="Contoh: Kepala Dinas PUPR Kab. Samosir">
+        </div>
+        <div class="form-actions">
+          <button type="button" onclick="closeModal('modalKepalaOpd')" class="btn btn-outline">Batal</button>
+          <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy"></i> Simpan</button>
+        </div>
+        <?= form_close() ?>
+      </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Tahapan Penyaluran -->
     <div class="card mb-2">
       <div class="card-title"><i class="ti ti-layers-intersect"></i> Tahapan Penyaluran</div>
