@@ -31,7 +31,7 @@ class Reviu extends Auth_Controller
     {
         parent::__construct();
         $this->requirePerm('reviu.view');
-        $this->load->model(['Reviu_model', 'Pekerjaan_model', 'Parameter_model']);
+        $this->load->model(['Reviu_model', 'Pekerjaan_model', 'Parameter_model', 'Tim_reviu_model']);
         $this->data['active_menu'] = 'reviu';
     }
 
@@ -143,18 +143,66 @@ class Reviu extends Auth_Controller
             $capaian = $this->Capaian_model->get_detail($tahapan->pekerjaan_id);
         }
 
+        // Daftar tim review untuk dropdown pilih tim
+        $tim_list     = ($this->kabkota_id)
+            ? $this->Tim_reviu_model->get_for_dropdown($this->kabkota_id, $this->tahun)
+            : [];
+        $tim_selected = $reviu->tim_id ?? NULL;
+        $tim_anggota  = $tim_selected
+            ? $this->Tim_reviu_model->get_anggota($tim_selected)
+            : [];
+
         $this->render('reviu/form', array_merge($this->data, [
-            'title'     => 'Reviu — ' . $pekerjaan->kode_bkp,
-            'tahapan'   => $tahapan,
-            'pekerjaan' => $pekerjaan,
-            'reviu'     => $reviu,
-            'items'     => $items,
-            'isian'     => $isian,
-            'stat'      => $stat,
-            'dokumen'   => $dokumen,
-            'pejabat'   => $pejabat,
-            'capaian'   => $capaian,
+            'title'        => 'Reviu — ' . $pekerjaan->kode_bkp,
+            'tahapan'      => $tahapan,
+            'pekerjaan'    => $pekerjaan,
+            'reviu'        => $reviu,
+            'items'        => $items,
+            'isian'        => $isian,
+            'stat'         => $stat,
+            'dokumen'      => $dokumen,
+            'pejabat'      => $pejabat,
+            'capaian'      => $capaian,
+            'tim_list'     => $tim_list,
+            'tim_selected' => $tim_selected,
+            'tim_anggota'  => $tim_anggota,
         ]));
+    }
+
+    // ─── SIMPAN PILIHAN TIM REVIEW ────────────────────────────
+
+    public function simpan_tim($reviu_id)
+    {
+        $this->requirePerm('reviu.input');
+
+        $reviu = $this->Reviu_model->get_by_id($reviu_id);
+        if (!$reviu) { show_404(); return; }
+
+        $tahapan   = $this->Pekerjaan_model->get_tahapan_by_id($reviu->tahapan_id);
+        $pekerjaan = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
+        if ($this->role_kode === 'inspektorat'
+            && $pekerjaan->kabkota_id != $this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('reviu'); return;
+        }
+
+        $tim_id = (int)$this->input->post('tim_id');
+
+        // Validasi tim milik kabkota yang sama
+        if ($tim_id > 0) {
+            $tim = $this->db->get_where('trx_tim_reviu',
+                ['id' => $tim_id, 'kabkota_id' => $pekerjaan->kabkota_id])->row();
+            if (!$tim) {
+                $this->session->set_flashdata('error', 'Tim review tidak valid.');
+                redirect('reviu/form/' . $reviu->tahapan_id); return;
+            }
+        }
+
+        $this->Reviu_model->update($reviu_id, ['tim_id' => $tim_id ?: NULL]);
+        $this->log_aktivitas('reviu.simpan_tim',
+            'Pilih tim_id='.$tim_id.' untuk reviu_id='.$reviu_id);
+        $this->session->set_flashdata('success', 'Tim review berhasil dipilih.');
+        redirect('reviu/form/' . $reviu->tahapan_id);
     }
 
     // ─── SIMPAN CHECKLIST (auto-save) ─────────────────────────
@@ -486,16 +534,26 @@ class Reviu extends Auth_Controller
                       ?: ($reviu->reviewer_jabatan ?? 'Inspektur'),
         ];
 
+        // Data tim review jika ada
+        $tim_data    = NULL;
+        $tim_anggota = [];
+        if (!empty($reviu->tim_id)) {
+            $tim_data    = $this->db->get_where('trx_tim_reviu', ['id' => $reviu->tim_id])->row();
+            $tim_anggota = $this->Tim_reviu_model->get_anggota($reviu->tim_id);
+        }
+
         $this->render_plain('reviu/cetak_kertas_kerja', [
-            'reviu'    => $reviu,
-            'tahapan'  => $tahapan,
-            'pekerjaan'=> $pekerjaan,
-            'items'    => $items,
-            'isian'    => $isian,
-            'stat'     => $stat,
-            'pejabat'  => $pejabat,
-            'reviewer' => $reviewer,
-            'tgl_cetak'=> tgl_indo(date('Y-m-d')),
+            'reviu'       => $reviu,
+            'tahapan'     => $tahapan,
+            'pekerjaan'   => $pekerjaan,
+            'items'       => $items,
+            'isian'       => $isian,
+            'stat'        => $stat,
+            'pejabat'     => $pejabat,
+            'reviewer'    => $reviewer,
+            'tim_data'    => $tim_data,
+            'tim_anggota' => $tim_anggota,
+            'tgl_cetak'   => tgl_indo(date('Y-m-d')),
         ]);
     }
 

@@ -33,6 +33,26 @@ class Berkas extends Auth_Controller
 
     // ─── DISPATCHER ──────────────────────────────────────────────
 
+    /** Unduh Surat Tugas Tim Review */
+    public function unduh_sk_tim($tim_id)
+    {
+        $this->requirePerm('tim_reviu.view');
+        $this->load->model('Tim_reviu_model');
+
+        $tim = $this->Tim_reviu_model->get_by_id($tim_id);
+        if (!$tim || empty($tim->file_sk)) { show_404(); return; }
+
+        // Guard kabkota — inspektorat hanya boleh akses SK milik kabkotanya
+        if ($this->rbac->isKabkota()
+            && (int)$tim->kabkota_id !== (int)$this->kabkota_id) {
+            show_404(); return;
+        }
+
+        $nama = !empty($tim->nama_asli_sk) ? $tim->nama_asli_sk : basename($tim->file_sk);
+        $this->log_aktivitas('berkas.unduh', 'Unduh SK tim_id=' . $tim_id);
+        $this->_kirim_file($tim->file_sk, $nama);
+    }
+
     /** Entry point untuk unduhan tanpa sub-jenis */
     public function unduh($jenis, $id)
     {

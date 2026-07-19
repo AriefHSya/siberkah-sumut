@@ -118,9 +118,9 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
 <?php endif; ?>
 
 <!-- TTD -->
-<?php $rv = $reviewer ?? []; ?>
+<?php $rv = $reviewer ?? []; $ada_tim = !empty($tim_data) && !empty($tim_anggota); ?>
 <div class="ttd">
-  <!-- Kiri: Kepala OPD Teknis (Penandatangan dari OPD) -->
+  <!-- Kiri: Kepala OPD Teknis -->
   <div class="ttd-blok">
     <p><?= htmlspecialchars($p->nama_kabkota) ?>, <?= $tgl_cetak ?></p>
     <p><?= !empty($p->kepala_opd_jabatan) ? htmlspecialchars($p->kepala_opd_jabatan) : 'Kepala OPD Teknis' ?></p>
@@ -131,7 +131,37 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
       NIP. <?= !empty($p->kepala_opd_nip) ? htmlspecialchars($p->kepala_opd_nip) : '.......................................' ?>
     </div>
   </div>
-  <!-- Kanan: Inspektur / Reviewer -->
+
+  <!-- Kanan: Tim Review (jika ada) atau Inspektur (fallback) -->
+  <?php if ($ada_tim): ?>
+  <div class="ttd-blok" style="width:52%;text-align:left">
+    <p style="text-align:center"><?= htmlspecialchars($p->nama_kabkota) ?>, <?= $tgl_cetak ?></p>
+    <p style="text-align:center;font-size:10pt">Tim Reviu Inspektorat</p>
+    <p style="font-size:9pt;text-align:center;margin-bottom:6px">
+      Berdasarkan SK No. <?= htmlspecialchars($tim_data->no_sk) ?>
+      tanggal <?= tgl_indo($tim_data->tgl_sk) ?>
+    </p>
+    <table style="width:100%;font-size:9pt;border-collapse:collapse;margin-top:4px">
+      <tr style="border-bottom:1px solid #ccc">
+        <th style="text-align:left;padding:3px 4px;width:25px">No.</th>
+        <th style="text-align:left;padding:3px 4px">Nama</th>
+        <th style="text-align:left;padding:3px 4px">Jabatan</th>
+        <th style="text-align:center;padding:3px 4px;width:60px">Paraf</th>
+      </tr>
+      <?php foreach ($tim_anggota as $a): ?>
+      <tr>
+        <td style="padding:4px 4px;vertical-align:top"><?= $a->urutan ?>.</td>
+        <td style="padding:4px 4px;vertical-align:top">
+          <strong><?= htmlspecialchars($a->nama) ?></strong>
+          <?php if ($a->nip): ?><div style="font-size:8pt;color:#555">NIP. <?= htmlspecialchars($a->nip) ?></div><?php endif; ?>
+        </td>
+        <td style="padding:4px 4px;font-size:8.5pt;vertical-align:top"><?= htmlspecialchars($a->jabatan ?: '—') ?></td>
+        <td style="padding:4px 4px;border-bottom:1px solid #aaa;width:60px"></td>
+      </tr>
+      <?php endforeach; ?>
+    </table>
+  </div>
+  <?php else: ?>
   <div class="ttd-blok">
     <p><?= htmlspecialchars($p->nama_kabkota) ?>, <?= $tgl_cetak ?></p>
     <p><?= htmlspecialchars($rv['jabatan'] ?? ($inspektur->jabatan ?? 'Inspektur')) ?></p>
@@ -142,6 +172,7 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
       NIP. <?= !empty($rv['nip']) ? htmlspecialchars($rv['nip']) : '.......................................' ?>
     </div>
   </div>
+  <?php endif; ?>
 </div>
 
 <div class="footer-note">Dicetak melalui SIBERKAH SUMUT · <?= $tgl_cetak ?> · <?= $p->kode_bkp ?> / <?= $tahapan->label_tahap ?></div>

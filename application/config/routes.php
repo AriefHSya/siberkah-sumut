@@ -9,6 +9,17 @@ $route['translate_uri_dashes'] = FALSE;
 $route['login']            = 'auth/login';
 $route['login/proses']     = 'auth/proses';
 $route['logout']           = 'auth/logout';
+// ─── TIM REVIEW ───────────────────────────────────────────────
+$route['tim-reviu']                  = 'tim_reviu/index';
+$route['tim-reviu/tambah']           = 'tim_reviu/tambah';
+$route['tim-reviu/simpan']           = 'tim_reviu/simpan';
+$route['tim-reviu/edit/(:num)']      = 'tim_reviu/edit/$1';
+$route['tim-reviu/update/(:num)']    = 'tim_reviu/update/$1';
+$route['tim-reviu/hapus/(:num)']     = 'tim_reviu/hapus/$1';
+$route['tim-reviu/(:num)']           = 'tim_reviu/detail/$1';
+$route['berkas/unduh/sk-tim/(:num)'] = 'berkas/unduh_sk_tim/$1';
+
+// ─── AUTH ─────────────────────────────────────────────────────
 $route['lupa-password']          = 'auth/lupa_password';
 $route['lupa-password/kirim']    = 'auth/kirim_reset';
 $route['reset-password/proses']  = 'auth/proses_reset';
@@ -112,6 +123,7 @@ $route['pekerjaan/cetak-permohonan/(:num)']   = 'pekerjaan/cetak_permohonan/$1';
 $route['reviu']                               = 'reviu/index';
 $route['reviu/form/(:num)']                   = 'reviu/form/$1';
 $route['reviu/simpan-checklist/(:num)']       = 'reviu/simpan_checklist/$1';
+$route['reviu/simpan-tim/(:num)']             = 'reviu/simpan_tim/$1';
 $route['reviu/upload-lhr/(:num)']             = 'reviu/upload_lhr/$1';
 $route['reviu/putuskan/(:num)']               = 'reviu/putuskan/$1';
 $route['reviu/cetak-kertas-kerja/(:num)']     = 'reviu/cetak_kertas_kerja/$1';

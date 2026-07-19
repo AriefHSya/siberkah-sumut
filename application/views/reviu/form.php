@@ -283,6 +283,77 @@ $semua_sesuai    = $confirmed && !$ada_tidak_sesuai && $semua_terisi;
 <?php endif; ?>
 
 <!-- ══════════════════════════════════════════════════════════
+     BLOK 1C: TIM REVIEW — pilih Surat Tugas
+     ══════════════════════════════════════════════════════════ -->
+<?php if ($can_input && $r): ?>
+<div class="card mb-2" style="border-left:4px solid var(--teal-mid)">
+  <div class="card-title"><i class="ti ti-users-group"></i> Tim Review & Surat Tugas
+    <?php if ($tim_selected): ?>
+    <span class="badge badge-teal" style="margin-left:auto"><i class="ti ti-circle-check"></i> Tim dipilih</span>
+    <?php else: ?>
+    <span class="badge badge-abu" style="margin-left:auto">Belum dipilih</span>
+    <?php endif; ?>
+  </div>
+
+  <?php if (!empty($tim_list)): ?>
+  <?= form_open(site_url('reviu/simpan-tim/'.$r->id)) ?>
+  <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
+  <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+    <div class="form-group" style="margin:0;flex:1;min-width:200px">
+      <label>Pilih Tim Review</label>
+      <select name="tim_id" class="form-control" onchange="onTimChange(this.value)">
+        <option value="0">— Belum pilih tim —</option>
+        <?php foreach ($tim_list as $t): ?>
+        <option value="<?= $t->id ?>" <?= $tim_selected == $t->id ? 'selected' : '' ?>>
+          SK No. <?= htmlspecialchars($t->no_sk) ?> — <?= tgl_short($t->tgl_sk) ?>
+          (<?= $t->jml_anggota ?> anggota)
+        </option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+    <div style="padding-bottom:2px">
+      <button type="submit" class="btn btn-primary btn-sm">
+        <i class="ti ti-check"></i> Simpan Pilihan
+      </button>
+    </div>
+    <div style="padding-bottom:2px">
+      <a href="<?= site_url('tim-reviu/tambah') ?>" target="_blank" class="btn btn-outline btn-sm">
+        <i class="ti ti-plus"></i> Buat Tim Baru
+      </a>
+    </div>
+  </div>
+  <?= form_close() ?>
+
+  <!-- Preview anggota tim terpilih -->
+  <?php if ($tim_selected && !empty($tim_anggota)): ?>
+  <div id="timPreview" style="margin-top:12px;padding:10px 12px;background:var(--teal-light);border-radius:6px">
+    <div class="text-xs fw-600 text-muted mb-1" style="text-transform:uppercase;letter-spacing:.5px">Anggota Tim</div>
+    <?php foreach ($tim_anggota as $a): ?>
+    <div style="display:flex;gap:8px;font-size:13px;margin-bottom:3px">
+      <span class="text-muted" style="min-width:16px"><?= $a->urutan ?>.</span>
+      <span class="fw-500"><?= htmlspecialchars($a->nama) ?></span>
+      <?php if ($a->jabatan): ?>
+      <span class="text-muted">— <?= htmlspecialchars($a->jabatan) ?></span>
+      <?php endif; ?>
+    </div>
+    <?php endforeach; ?>
+  </div>
+  <?php endif; ?>
+
+  <?php else: ?>
+  <div class="alert alert-warning" style="font-size:13px">
+    <i class="ti ti-alert-triangle"></i>
+    <div>
+      Belum ada tim review untuk tahun <?= $pekerjaan->tahun ?>.
+      <a href="<?= site_url('tim-reviu/tambah') ?>" target="_blank">Buat tim review terlebih dahulu</a>
+      sebelum melanjutkan reviu.
+    </div>
+  </div>
+  <?php endif; ?>
+</div>
+<?php endif; ?>
+
+<!-- ══════════════════════════════════════════════════════════
      BLOK 2: STATISTIK + PROGRESS CHECKLIST
      ══════════════════════════════════════════════════════════ -->
 <?php if ($r): ?>
