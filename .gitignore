@@ -33,3 +33,7 @@ docker-entrypoint.sh
 
 # Panduan instalasi — berisi detail konfigurasi server internal
 Installasi.md
+installasiprov.md
+
+# Claude Code session files
+.claude/
