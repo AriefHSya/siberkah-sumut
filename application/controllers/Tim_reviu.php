@@ -29,24 +29,26 @@ class Tim_reviu extends Auth_Controller
 
     public function index()
     {
-        if (!$this->kabkota_id) {
-            $this->session->set_flashdata('error', 'Menu ini hanya untuk Inspektorat Kab/Kota.');
-            redirect('dashboard'); return;
-        }
+        $kabkota_id  = $this->kabkota_id ?: NULL;
+        $is_provinsi = $this->rbac->isProvinsi() || $this->role_kode === 'pengawas';
 
-        $list = $this->Tim_reviu_model->get_all($this->kabkota_id, $this->tahun);
+        $list = $this->Tim_reviu_model->get_all($kabkota_id, $this->tahun);
 
         $this->render('tim_reviu/index', array_merge($this->data, [
-            'title' => 'Tim Review — SIBERKAH SUMUT',
-            'list'  => $list,
-            'tahun' => $this->tahun,
+            'title'       => 'Tim Review — SIBERKAH SUMUT',
+            'list'        => $list,
+            'tahun'       => $this->tahun,
+            'is_provinsi' => $is_provinsi,
         ]));
     }
 
     public function tambah()
     {
         $this->requirePerm('tim_reviu.manage');
-        if (!$this->kabkota_id) { redirect('tim-reviu'); return; }
+        if (!$this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Pembuatan Tim Review hanya dapat dilakukan oleh Inspektorat Kab/Kota.');
+            redirect('tim-reviu'); return;
+        }
 
         $this->render('tim_reviu/form', array_merge($this->data, [
             'title' => 'Tambah Tim Review',
@@ -59,7 +61,10 @@ class Tim_reviu extends Auth_Controller
     public function simpan()
     {
         $this->requirePerm('tim_reviu.manage');
-        if (!$this->kabkota_id) { redirect('tim-reviu'); return; }
+        if (!$this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Pembuatan Tim Review hanya dapat dilakukan oleh Inspektorat Kab/Kota.');
+            redirect('tim-reviu'); return;
+        }
 
         $no_sk  = trim($this->input->post('no_sk', TRUE));
         $tgl_sk = $this->input->post('tgl_sk', TRUE);

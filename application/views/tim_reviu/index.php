@@ -25,6 +25,7 @@
     <thead>
       <tr>
         <th style="width:40px">#</th>
+        <?php if ($is_provinsi): ?><th>Kab/Kota</th><?php endif; ?>
         <th>No. SK / Surat Tugas</th>
         <th style="width:110px">Tanggal SK</th>
         <th style="width:80px;text-align:center">Anggota</th>
@@ -37,6 +38,9 @@
     <?php foreach ($list as $i => $t): ?>
     <tr>
       <td class="text-muted text-sm"><?= $i+1 ?></td>
+      <?php if ($is_provinsi): ?>
+      <td class="text-sm"><?= htmlspecialchars($t->nama_kabkota) ?></td>
+      <?php endif; ?>
       <td>
         <div class="fw-500"><?= htmlspecialchars($t->no_sk) ?></div>
         <?php if ($t->keterangan): ?>

@@ -5,16 +5,15 @@ class Tim_reviu_model extends CI_Model
 {
     public function get_all($kabkota_id, $tahun)
     {
-        return $this->db
+        $q = $this->db
             ->select('t.*, k.nama as nama_kabkota,
                       (SELECT COUNT(*) FROM trx_tim_reviu_anggota WHERE tim_id = t.id) as jml_anggota,
                       (SELECT COUNT(*) FROM trx_reviu_inspektorat WHERE tim_id = t.id) as jml_reviu')
             ->from('trx_tim_reviu t')
             ->join('ref_kabkota k', 'k.id = t.kabkota_id')
-            ->where('t.kabkota_id', $kabkota_id)
-            ->where('t.tahun', $tahun)
-            ->order_by('t.tgl_sk', 'DESC')
-            ->get()->result();
+            ->where('t.tahun', $tahun);
+        if ($kabkota_id) $q->where('t.kabkota_id', $kabkota_id);
+        return $q->order_by('k.nama', 'ASC')->order_by('t.tgl_sk', 'DESC')->get()->result();
     }
 
     public function get_by_id($id)
