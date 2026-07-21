@@ -58,6 +58,13 @@
       <i class="ti ti-send"></i> Kirim Revisi ke Inspektorat
     </a>
     <?php endif; ?>
+    <?php if ($this->rbac->can('pekerjaan.submit') && $p->status === 'skpkd_kab_revisi'): ?>
+    <a href="<?= site_url('pekerjaan/kirim-revisi-kab/'.$p->id) ?>"
+       class="btn btn-primary btn-sm"
+       onclick="return confirm('Kirim perbaikan ke Inspektorat?\n\nPekerjaan akan masuk antrian reviu ulang Inspektorat sebelum diteruskan ke SKPKD Kab/Kota.')">
+      <i class="ti ti-send"></i> Lanjutkan ke Inspektorat
+    </a>
+    <?php endif; ?>
     <a href="<?= $back_url ?>" class="btn btn-outline btn-sm"><i class="ti ti-arrow-left"></i> Kembali</a>
   </div>
 </div>
@@ -68,6 +75,373 @@
   <div style="font-weight:600;display:flex;align-items:center;gap:6px"><i class="ti ti-lock"></i> Batas Waktu Terlewat — Pengajuan Diblokir</div>
   <div class="mt-1"><?= $flash ?></div>
   <div class="mt-1 text-sm">Untuk perubahan batas waktu, hubungi Admin Provinsi melalui menu <a href="<?= site_url('parameter/batas-waktu') ?>">Parameter → Batas Waktu</a>.</div>
+</div>
+<?php endif; ?>
+
+<?php if ($p->status === 'inspektorat_revisi'): ?>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CARD: CATATAN REVIU INSPEKTORAT (temuan tidak sesuai)
+     ═══════════════════════════════════════════════════════════ -->
+<?php if (!empty($temuan_reviu) || $catatan_reviu_umum): ?>
+<div class="card mb-2" style="border-left:4px solid var(--kuning-mid)">
+  <div class="card-title">
+    <i class="ti ti-clipboard-x" style="color:var(--kuning-mid)"></i>
+    Catatan Reviu Inspektorat — Perlu Perbaikan
+    <?php if (!empty($temuan_reviu)): ?>
+    <span class="badge badge-merah" style="margin-left:auto"><?= count($temuan_reviu) ?> item tidak sesuai</span>
+    <?php endif; ?>
+  </div>
+
+  <?php if ($catatan_reviu_umum): ?>
+  <div style="padding:10px 14px;background:var(--kuning-light);border-radius:6px;margin-bottom:14px;border:1px solid #e8c97e">
+    <div class="text-xs fw-600 mb-1" style="color:var(--kuning-mid);text-transform:uppercase;letter-spacing:.5px">
+      <i class="ti ti-message"></i> Catatan Umum Inspektorat
+    </div>
+    <div class="text-sm" style="white-space:pre-line"><?= htmlspecialchars($catatan_reviu_umum) ?></div>
+  </div>
+  <?php endif; ?>
+
+  <?php if (!empty($temuan_reviu)): ?>
+  <div class="text-xs fw-600 text-muted mb-2" style="text-transform:uppercase;letter-spacing:.5px">
+    <i class="ti ti-list-details"></i> Item Tidak Sesuai
+  </div>
+  <div class="table-wrap">
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th style="width:60px;text-align:center">Kode</th>
+        <th>Item Pemeriksaan</th>
+        <th style="width:260px">Catatan Pemeriksa</th>
+      </tr>
+    </thead>
+    <tbody>
+    <?php foreach ($temuan_reviu as $tmn): ?>
+    <tr>
+      <td class="mono fw-500 text-sm" style="text-align:center;color:var(--merah-mid)"><?= htmlspecialchars($tmn->kode) ?></td>
+      <td class="text-sm"><?= htmlspecialchars($tmn->uraian_item) ?></td>
+      <td class="text-sm">
+        <?= $tmn->catatan
+            ? htmlspecialchars($tmn->catatan)
+            : '<span class="text-muted">—</span>' ?>
+      </td>
+    </tr>
+    <?php endforeach; ?>
+    </tbody>
+  </table>
+  </div>
+  <?php endif; ?>
+
+  <div class="alert alert-warning mt-2" style="font-size:12px">
+    <i class="ti ti-info-circle"></i>
+    <div>Perbaiki data dan dokumen pekerjaan sesuai catatan di atas, lalu klik
+      <strong>Kirim Revisi ke Inspektorat</strong> di header halaman ini.</div>
+  </div>
+</div>
+<?php endif; ?>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CARD: UPLOAD ULANG SPK / SPMK (saat inspektorat_revisi)
+     ═══════════════════════════════════════════════════════════ -->
+<?php if ($this->rbac->can('pekerjaan.upload_dok')): ?>
+<?php
+$darurat_dok2  = in_array($p->jenis_penyaluran, ['khusus_mendesak','khusus_bencana']);
+$dok_revisi = [
+    'spk'  => ['label'=>'SPK',  'desc'=>'Surat Perintah Kerja',       'path'=>$p->dok_spk_path  ?? NULL, 'wajib'=>!$darurat_dok2],
+    'spmk' => ['label'=>'SPMK', 'desc'=>'Surat Perintah Mulai Kerja', 'path'=>$p->dok_spmk_path ?? NULL, 'wajib'=>!$darurat_dok2],
+];
+if ($p->jenis_penyaluran === 'sekaligus') {
+    $dok_revisi['bast'] = ['label'=>'BAST', 'desc'=>'Berita Acara Serah Terima', 'path'=>$p->dok_bast_path ?? NULL, 'wajib'=>TRUE];
+}
+$semua_dok_revisi_ok = !array_filter($dok_revisi, fn($d) => $d['wajib'] && empty($d['path']));
+?>
+<div class="card mb-2" style="border-left:4px solid <?= $semua_dok_revisi_ok ? 'var(--hijau-mid)' : 'var(--kuning-mid)' ?>">
+  <div class="card-title">
+    <i class="ti ti-file-upload"></i> Upload Ulang Dokumen
+    <?php if ($semua_dok_revisi_ok): ?>
+    <span class="badge badge-hijau" style="margin-left:auto"><i class="ti ti-circle-check"></i> Lengkap</span>
+    <?php else: ?>
+    <span class="badge badge-kuning" style="margin-left:auto">Perlu Dilengkapi</span>
+    <?php endif; ?>
+  </div>
+  <div class="text-xs text-muted mb-2">
+    Upload ulang SPK dan SPMK jika ada perubahan atau dokumen perlu diganti.
+  </div>
+
+  <?php foreach ($dok_revisi as $jenis2 => $dok2):
+    $uploaded2 = !empty($dok2['path']) && file_exists(FCPATH . $dok2['path']);
+  ?>
+  <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+    <div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;
+                align-items:center;justify-content:center;font-size:16px;
+                background:<?= $uploaded2 ? 'var(--hijau-light)' : 'var(--kuning-light)' ?>;
+                color:<?= $uploaded2 ? 'var(--hijau-mid)' : 'var(--kuning-mid)' ?>">
+      <i class="ti ti-<?= $uploaded2 ? 'circle-check' : 'clock' ?>"></i>
+    </div>
+    <div style="flex:1;min-width:0">
+      <div class="fw-500 text-sm"><?= $dok2['label'] ?>
+        <?php if ($dok2['wajib']): ?><span class="text-danger">*</span><?php endif; ?>
+      </div>
+      <div class="text-xs text-muted"><?= $dok2['desc'] ?></div>
+      <?php if ($uploaded2): ?>
+      <div class="text-xs" style="color:var(--hijau-mid);margin-top:2px">
+        <i class="ti ti-file"></i> <?= htmlspecialchars(basename($dok2['path'])) ?>
+      </div>
+      <?php endif; ?>
+    </div>
+    <div class="aksi-row" style="flex-shrink:0">
+      <?php if ($uploaded2): ?>
+      <a href="<?= site_url('berkas/unduh/draft/'.$p->id.'/'.$jenis2) ?>" target="_blank"
+         class="btn btn-outline btn-xs"><i class="ti ti-eye"></i> Lihat</a>
+      <?php endif; ?>
+      <button type="button" class="btn btn-primary btn-xs"
+              onclick="openModal('modalRevisi_<?= $jenis2 ?>')">
+        <i class="ti ti-upload"></i> <?= $uploaded2 ? 'Ganti' : 'Upload' ?>
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal upload revisi per jenis -->
+  <div id="modalRevisi_<?= $jenis2 ?>"
+       style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);
+              z-index:1000;align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:12px;padding:24px;width:460px;max-width:95vw">
+      <div class="card-title" style="margin-bottom:16px">
+        <i class="ti ti-upload"></i> Upload Ulang <?= $dok2['label'] ?>
+        <button type="button" onclick="closeModal('modalRevisi_<?= $jenis2 ?>')"
+                style="margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted)">
+          <i class="ti ti-x"></i>
+        </button>
+      </div>
+      <div class="alert alert-info mb-2" style="font-size:12px">
+        <i class="ti ti-info-circle"></i>
+        <div><strong><?= $dok2['label'] ?>:</strong> <?= $dok2['desc'] ?></div>
+      </div>
+      <?= form_open_multipart(site_url('pekerjaan/upload-dok-draft/'.$p->id.'/'.$jenis2)) ?>
+      <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
+      <div class="form-group mb-3">
+        <label>Pilih File <span class="req">*</span></label>
+        <input type="file" name="file_dok" class="form-control"
+               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" required>
+        <div class="form-hint">Format: PDF, DOC, DOCX, JPG, PNG &nbsp;·&nbsp; Maks. 10 MB</div>
+      </div>
+      <div class="form-actions">
+        <button type="button" onclick="closeModal('modalRevisi_<?= $jenis2 ?>')" class="btn btn-outline">Batal</button>
+        <button type="submit" class="btn btn-primary"><i class="ti ti-upload"></i> Upload</button>
+      </div>
+      <?= form_close() ?>
+    </div>
+  </div>
+  <?php endforeach; ?>
+</div>
+<?php endif; ?>
+
+<?php endif; // end inspektorat_revisi ?>
+
+<?php if ($p->status === 'skpkd_kab_revisi'): ?>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CARD: CATATAN PENGEMBALIAN SKPKD KAB/KOTA (status aktif)
+     ═══════════════════════════════════════════════════════════ -->
+<?php
+// Ambil catatan pengembalian terakhir dari riwayat
+$catatan_kab_aktif = NULL;
+if (!empty($riwayat_pengembalian_kab)) {
+    $last_kab = end($riwayat_pengembalian_kab);
+    $catatan_kab_aktif = preg_replace(
+        '/^Verifikasi SKPKD Kab\/Kota: Perlu Perbaikan\. /i', '',
+        $last_kab->catatan ?? ''
+    );
+}
+?>
+<div class="card mb-2" style="border-left:4px solid var(--kuning-mid)">
+  <div class="card-title">
+    <i class="ti ti-arrow-back-up" style="color:var(--kuning-mid)"></i>
+    Dikembalikan oleh SKPKD Kab/Kota — Perlu Perbaikan
+  </div>
+  <?php if ($catatan_kab_aktif): ?>
+  <div style="padding:10px 14px;background:var(--kuning-light);border-radius:var(--radius);margin-bottom:12px">
+    <div class="text-xs fw-600 text-muted mb-1">Catatan dari SKPKD Kab/Kota:</div>
+    <div class="text-sm" style="white-space:pre-line"><?= htmlspecialchars($catatan_kab_aktif) ?></div>
+  </div>
+  <?php endif; ?>
+  <div class="alert alert-info" style="font-size:13px">
+    <i class="ti ti-info-circle"></i>
+    <div>Perbaiki data dan dokumen pekerjaan sesuai catatan di atas, lalu klik
+    <strong>Lanjutkan ke Inspektorat</strong> di pojok kanan atas untuk mengirim ulang.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CARD: UPLOAD ULANG SPK / SPMK (saat skpkd_kab_revisi)
+     ═══════════════════════════════════════════════════════════ -->
+<?php if ($this->rbac->can('pekerjaan.upload_dok')): ?>
+<?php
+$darurat_dok3  = in_array($p->jenis_penyaluran, ['khusus_mendesak','khusus_bencana']);
+$dok_revisi_kab = [
+    'spk'  => ['label'=>'SPK',  'desc'=>'Surat Perintah Kerja',       'path'=>$p->dok_spk_path  ?? NULL, 'wajib'=>!$darurat_dok3],
+    'spmk' => ['label'=>'SPMK', 'desc'=>'Surat Perintah Mulai Kerja', 'path'=>$p->dok_spmk_path ?? NULL, 'wajib'=>!$darurat_dok3],
+];
+if ($p->jenis_penyaluran === 'sekaligus') {
+    $dok_revisi_kab['bast'] = ['label'=>'BAST', 'desc'=>'Berita Acara Serah Terima', 'path'=>$p->dok_bast_path ?? NULL, 'wajib'=>TRUE];
+}
+$semua_dok_kab_ok = !array_filter($dok_revisi_kab, function($d) { return $d['wajib'] && empty($d['path']); });
+?>
+<div class="card mb-2" style="border-left:4px solid <?= $semua_dok_kab_ok ? 'var(--hijau-mid)' : 'var(--kuning-mid)' ?>">
+  <div class="card-title">
+    <i class="ti ti-file-upload"></i> Upload Ulang Dokumen
+    <?php if ($semua_dok_kab_ok): ?>
+    <span class="badge badge-hijau" style="margin-left:auto"><i class="ti ti-circle-check"></i> Lengkap</span>
+    <?php else: ?>
+    <span class="badge badge-kuning" style="margin-left:auto">Perlu Dilengkapi</span>
+    <?php endif; ?>
+  </div>
+  <div class="text-xs text-muted mb-2">
+    Upload ulang dokumen jika ada perbaikan atau penggantian berkas.
+  </div>
+
+  <?php foreach ($dok_revisi_kab as $jenis3 => $dok3):
+    $uploaded3 = !empty($dok3['path']) && file_exists(FCPATH . $dok3['path']);
+  ?>
+  <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+    <div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;
+                align-items:center;justify-content:center;font-size:16px;
+                background:<?= $uploaded3 ? 'var(--hijau-light)' : 'var(--kuning-light)' ?>;
+                color:<?= $uploaded3 ? 'var(--hijau-mid)' : 'var(--kuning-mid)' ?>">
+      <i class="ti ti-<?= $uploaded3 ? 'circle-check' : 'clock' ?>"></i>
+    </div>
+    <div style="flex:1;min-width:0">
+      <div class="fw-500 text-sm"><?= $dok3['label'] ?>
+        <?php if ($dok3['wajib']): ?><span class="text-danger">*</span><?php endif; ?>
+      </div>
+      <div class="text-xs text-muted"><?= $dok3['desc'] ?></div>
+      <?php if ($uploaded3): ?>
+      <div class="text-xs" style="color:var(--hijau-mid);margin-top:2px">
+        <i class="ti ti-file"></i> <?= htmlspecialchars(basename($dok3['path'])) ?>
+      </div>
+      <?php endif; ?>
+    </div>
+    <div class="aksi-row" style="flex-shrink:0">
+      <?php if ($uploaded3): ?>
+      <a href="<?= site_url('berkas/unduh/draft/'.$p->id.'/'.$jenis3) ?>" target="_blank"
+         class="btn btn-outline btn-xs"><i class="ti ti-eye"></i> Lihat</a>
+      <?php endif; ?>
+      <button type="button" class="btn btn-primary btn-xs"
+              onclick="openModal('modalKab_<?= $jenis3 ?>')">
+        <i class="ti ti-upload"></i> <?= $uploaded3 ? 'Ganti' : 'Upload' ?>
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal upload per jenis -->
+  <div id="modalKab_<?= $jenis3 ?>"
+       style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);
+              z-index:1000;align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:12px;padding:24px;width:460px;max-width:95vw">
+      <div class="card-title" style="margin-bottom:16px">
+        <i class="ti ti-upload"></i> Upload Ulang <?= $dok3['label'] ?>
+        <button type="button" onclick="closeModal('modalKab_<?= $jenis3 ?>')"
+                style="margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted)">
+          <i class="ti ti-x"></i>
+        </button>
+      </div>
+      <div class="alert alert-info mb-2" style="font-size:12px">
+        <i class="ti ti-info-circle"></i>
+        <div><strong><?= $dok3['label'] ?>:</strong> <?= $dok3['desc'] ?></div>
+      </div>
+      <?= form_open_multipart(site_url('pekerjaan/upload-dok-draft/'.$p->id.'/'.$jenis3)) ?>
+      <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
+      <div class="form-group mb-3">
+        <label>Pilih File <span class="req">*</span></label>
+        <input type="file" name="file_dok" class="form-control"
+               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" required>
+        <div class="form-hint">Format: PDF, DOC, DOCX, JPG, PNG &nbsp;·&nbsp; Maks. 10 MB</div>
+      </div>
+      <div class="form-actions">
+        <button type="button" onclick="closeModal('modalKab_<?= $jenis3 ?>')" class="btn btn-outline">Batal</button>
+        <button type="submit" class="btn btn-primary"><i class="ti ti-upload"></i> Upload</button>
+      </div>
+      <?= form_close() ?>
+    </div>
+  </div>
+  <?php endforeach; ?>
+</div>
+<?php endif; ?>
+
+<?php endif; // end skpkd_kab_revisi ?>
+
+<?php if (!empty($riwayat_pengembalian)): ?>
+<!-- ═══════════════════════════════════════════════════════════
+     CARD: RIWAYAT PENGEMBALIAN REVIU INSPEKTORAT (persistent)
+     ═══════════════════════════════════════════════════════════ -->
+<div class="card mb-2" style="border-left:4px solid var(--kuning-mid)">
+  <div class="card-title">
+    <i class="ti ti-history"></i> Riwayat Pengembalian Reviu Inspektorat
+    <span class="badge badge-kuning" style="margin-left:auto">
+      <?= count($riwayat_pengembalian) ?>× dikembalikan
+    </span>
+  </div>
+  <?php foreach ($riwayat_pengembalian as $i => $rw):
+    // Bersihkan prefix otomatis dari set_status catatan
+    $catatan_rw = preg_replace(
+        '/^Reviu Inspektorat: (Perlu Perbaikan|Ditolak)\. /i', '',
+        $rw->catatan ?? ''
+    );
+    $tgl_rw = substr($rw->created_at, 0, 10);
+  ?>
+  <div <?= $i > 0 ? 'style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"' : '' ?>>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px">
+      <span class="badge badge-kuning">Pengembalian ke-<?= $i + 1 ?></span>
+      <span class="text-xs text-muted">
+        <?= tgl_indo($tgl_rw) ?> &middot; <?= htmlspecialchars($rw->nama_user ?? 'Inspektorat') ?>
+      </span>
+    </div>
+    <?php if ($catatan_rw): ?>
+    <div style="padding:8px 12px;background:var(--kuning-light);border-radius:var(--radius);font-size:13px;white-space:pre-line">
+      <?= htmlspecialchars($catatan_rw) ?>
+    </div>
+    <?php else: ?>
+    <div class="text-muted text-sm">— Tidak ada catatan dari Inspektorat.</div>
+    <?php endif; ?>
+  </div>
+  <?php endforeach; ?>
+</div>
+<?php endif; ?>
+
+<?php if (!empty($riwayat_pengembalian_kab)): ?>
+<!-- ═══════════════════════════════════════════════════════════
+     CARD: RIWAYAT PENGEMBALIAN SKPKD KAB/KOTA (persistent)
+     ═══════════════════════════════════════════════════════════ -->
+<div class="card mb-2" style="border-left:4px solid var(--oranye,#c2550a)">
+  <div class="card-title">
+    <i class="ti ti-history"></i> Riwayat Pengembalian SKPKD Kab/Kota
+    <span class="badge badge-oranye" style="margin-left:auto">
+      <?= count($riwayat_pengembalian_kab) ?>× dikembalikan
+    </span>
+  </div>
+  <?php foreach ($riwayat_pengembalian_kab as $i => $rw):
+    $catatan_rw = preg_replace(
+        '/^Verifikasi SKPKD Kab\/Kota: Perlu Perbaikan\. /i', '',
+        $rw->catatan ?? ''
+    );
+    $tgl_rw = substr($rw->created_at, 0, 10);
+  ?>
+  <div <?= $i > 0 ? 'style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"' : '' ?>>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px">
+      <span class="badge badge-oranye">Pengembalian ke-<?= $i + 1 ?></span>
+      <span class="text-xs text-muted">
+        <?= tgl_indo($tgl_rw) ?> &middot; <?= htmlspecialchars($rw->nama_user ?? 'SKPKD Kab/Kota') ?>
+      </span>
+    </div>
+    <?php if ($catatan_rw): ?>
+    <div style="padding:8px 12px;background:var(--kuning-light);border-radius:var(--radius);font-size:13px;white-space:pre-line">
+      <?= htmlspecialchars($catatan_rw) ?>
+    </div>
+    <?php else: ?>
+    <div class="text-muted text-sm">— Tidak ada catatan dari SKPKD Kab/Kota.</div>
+    <?php endif; ?>
+  </div>
+  <?php endforeach; ?>
 </div>
 <?php endif; ?>
 
@@ -595,7 +969,14 @@
             <?php endif; ?>
           </div>
           <div class="text-xs text-muted"><?= htmlspecialchars($h->nama_user??'Sistem') ?> · <?= htmlspecialchars($h->nama_role??'') ?></div>
-          <?php if ($h->catatan): ?><div class="text-xs mt-1"><?= htmlspecialchars($h->catatan) ?></div><?php endif; ?>
+          <?php
+          // Catatan inspektorat disembunyikan dari OPD kecuali saat dikembalikan (alasan pengembalian harus terlihat)
+          $is_opd_view    = $this->session->userdata('role_kode') === 'opd_teknis';
+          $is_insp_action = (($h->nama_role === 'inspektorat')
+              || in_array($h->status_baru, ['inspektorat_reviu','inspektorat_approved','inspektorat_revisi']))
+              && $h->status_baru !== 'inspektorat_revisi';
+          if ($h->catatan && !($is_opd_view && $is_insp_action)):
+          ?><div class="text-xs mt-1"><?= htmlspecialchars($h->catatan) ?></div><?php endif; ?>
           <div class="text-xs text-muted mt-1"><?= tgl_indo($h->created_at) ?></div>
         </div>
         <?php endforeach; ?>

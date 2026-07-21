@@ -62,7 +62,7 @@ p{margin-bottom:10px;text-align:justify}
 
 <p>Dengan hormat,</p>
 <p>
-Dalam rangka memenuhi ketentuan SE Gubernur Sumatera Utara Nomor 900.1.1.3689 tentang Pedoman Bantuan Keuangan Provinsi kepada Kabupaten/Kota, bersama ini kami mengajukan permohonan reviu terhadap kegiatan yang dibiayai dari Bantuan Keuangan Provinsi (BKP) Tahun Anggaran <?= $p->tahun ?>, sebagai berikut:
+Dalam rangka memenuhi ketentuan pada Peraturan Gubernur No 18 Tahun 2026 tentang Tata Cara Perencanaan, Penganggaran, Pelaksanaan dan Penatausahaan, Pertanggungjawaban dan Pelaporan serta Monitoring dan Evaluasi Belanja Bantuan Keuangan serta SE Gubernur Sumatera Utara Nomor 900.1.1.3689 tentang Pedoman Bantuan Keuangan Provinsi kepada Kabupaten/Kota, bersama ini kami mengajukan permohonan reviu terhadap kegiatan yang dibiayai dari Bantuan Keuangan Provinsi (BKP) Tahun Anggaran <?= $p->tahun ?>, sebagai berikut:
 </p>
 
 <table class="tbl-data">
@@ -124,28 +124,21 @@ $tahapan_cetak = ($p->jenis_penyaluran === 'bertahap')
 
 <p style="text-align:right"><?= htmlspecialchars($p->nama_kabkota) ?>, <?= $tgl_cetak ?></p>
 
-<div class="ttd">
-  <!-- Kiri: Mengetahui — Kepala Daerah -->
-  <div class="ttd-blok">
-    <p class="ttd-title">Mengetahui,</p>
-    <p class="ttd-jabatan">Bupati/Wali Kota <?= htmlspecialchars($p->nama_kabkota) ?></p>
-    <div class="ttd-space"></div>
-    <?php if ($kdh): ?>
-    <div class="ttd-nama"><?= htmlspecialchars($kdh->nama) ?></div>
-    <?php if ($kdh->nip): ?><div class="ttd-nip">NIP. <?= htmlspecialchars($kdh->nip) ?></div><?php endif; ?>
-    <?php else: ?>
-    <div class="ttd-nama" style="min-width:220px">&nbsp;</div>
-    <div class="ttd-nip">NIP. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
-    <?php endif; ?>
-  </div>
-
-  <!-- Kanan: Kepala OPD/Dinas Teknis -->
+<div class="ttd" style="justify-content:flex-end">
+  <!-- Kepala OPD/Dinas Teknis — dari data trx_pekerjaan -->
   <div class="ttd-blok">
     <p class="ttd-title">Kepala,</p>
     <p class="ttd-jabatan"><?= htmlspecialchars($p->opd_nama ?? 'Dinas Teknis') ?></p>
     <div class="ttd-space"></div>
+    <?php if (!empty($p->kepala_opd_nama)): ?>
+    <div class="ttd-nama"><?= htmlspecialchars($p->kepala_opd_nama) ?></div>
+    <?php if (!empty($p->kepala_opd_nip)): ?>
+    <div class="ttd-nip">NIP. <?= htmlspecialchars($p->kepala_opd_nip) ?></div>
+    <?php endif; ?>
+    <?php else: ?>
     <div class="ttd-nama" style="min-width:220px">&nbsp;</div>
     <div class="ttd-nip">NIP. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+    <?php endif; ?>
   </div>
 </div>
 

@@ -234,21 +234,27 @@ class Reviu extends Auth_Controller
             ];
         }
 
+        // Validasi: semua item wajib diputuskan (Sesuai/Tidak Sesuai)
+        if ($tahapan_chk && $pekerjaan_chk) {
+            $expected = $this->Reviu_model->get_checklist_items(
+                $pekerjaan_chk->jenis_penyaluran,
+                $tahapan_chk->kode_tahap
+            );
+            foreach ($expected as $itm) {
+                $nilai_item = $isian[$itm->id]['nilai'] ?? NULL;
+                if (!in_array($nilai_item, ['sesuai', 'tidak_sesuai'])) {
+                    $msg = 'Item ' . $itm->kode . ' belum diputuskan. Semua item wajib diberi keputusan Sesuai atau Tidak Sesuai.';
+                    if ($this->input->is_ajax_request()) {
+                        $this->json(['ok' => FALSE, 'error' => $msg]); return;
+                    }
+                    $this->session->set_flashdata('error', $msg);
+                    redirect('reviu/form/' . $reviu->tahapan_id); return;
+                }
+            }
+        }
+
         $this->Reviu_model->simpan_checklist($reviu_id, $isian);
         $stat = $this->Reviu_model->hitung_checklist($reviu_id);
-
-        // Simpan data reviewer jika dikirim
-        $reviewer_nama    = $this->input->post('reviewer_nama', TRUE);
-        $reviewer_nip     = $this->input->post('reviewer_nip',  TRUE);
-        $reviewer_jabatan = $this->input->post('reviewer_jabatan', TRUE);
-        if ($reviewer_nama || $reviewer_nip || $reviewer_jabatan) {
-            $upd = array_filter([
-                'reviewer_nama'    => $reviewer_nama    ?: NULL,
-                'reviewer_nip'     => $reviewer_nip     ?: NULL,
-                'reviewer_jabatan' => $reviewer_jabatan ?: NULL,
-            ], fn($v) => $v !== NULL);
-            if ($upd) $this->Reviu_model->update($reviu_id, $upd);
-        }
 
         // Jika dari AJAX return JSON
         if ($this->input->is_ajax_request()) {

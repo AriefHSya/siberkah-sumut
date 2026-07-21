@@ -390,6 +390,51 @@ class Pekerjaan extends Auth_Controller
             $capaian = $this->Capaian_model->get_detail($id);
         }
 
+        // Riwayat semua pengembalian oleh Inspektorat (persistent, dari trx_status_history)
+        $riwayat_pengembalian = $this->db
+            ->select('sh.catatan, sh.created_at, sh.tahapan_id, u.nama as nama_user')
+            ->from('trx_status_history sh')
+            ->join('users u', 'u.id = sh.user_id', 'left')
+            ->where('sh.pekerjaan_id', $id)
+            ->where('sh.status_baru', 'inspektorat_revisi')
+            ->order_by('sh.created_at', 'ASC')
+            ->get()->result();
+
+        // Riwayat semua pengembalian oleh SKPKD Kab/Kota (persistent, dari trx_status_history)
+        $riwayat_pengembalian_kab = $this->db
+            ->select('sh.catatan, sh.created_at, sh.tahapan_id, u.nama as nama_user')
+            ->from('trx_status_history sh')
+            ->join('users u', 'u.id = sh.user_id', 'left')
+            ->where('sh.pekerjaan_id', $id)
+            ->where('sh.status_baru', 'skpkd_kab_revisi')
+            ->order_by('sh.created_at', 'ASC')
+            ->get()->result();
+
+        // Temuan checklist tidak sesuai dari Inspektorat (saat dikembalikan untuk perbaikan)
+        $temuan_reviu      = [];
+        $catatan_reviu_umum = NULL;
+        if ($pekerjaan->status === 'inspektorat_revisi') {
+            $this->load->model('Reviu_model');
+            foreach ($tahapan as $_t) {
+                if ($_t->status === 'inspektorat_revisi') {
+                    $reviu_aktif = $this->db->get_where('trx_reviu_inspektorat',
+                        ['tahapan_id' => $_t->id])->row();
+                    if ($reviu_aktif) {
+                        $catatan_reviu_umum = $reviu_aktif->catatan;
+                        $temuan_reviu = $this->db
+                            ->select('ci.kode, ci.uraian_item, cr.catatan')
+                            ->from('trx_checklist_reviu cr')
+                            ->join('ref_checklist_item ci', 'ci.id = cr.checklist_item_id')
+                            ->where('cr.reviu_id', $reviu_aktif->id)
+                            ->where('cr.nilai', 'tidak_sesuai')
+                            ->order_by('ci.kode', 'ASC')
+                            ->get()->result();
+                    }
+                    break;
+                }
+            }
+        }
+
         // Ambil dokumen per tahapan
         $dok_per_tahapan = [];
         foreach ($semua_dok as $d) {
@@ -431,10 +476,14 @@ class Pekerjaan extends Auth_Controller
             'tahapan'         => $tahapan,
             'dok_per_tahapan' => $dok_per_tahapan,
             'deadline_info'   => $deadline_info,
-            'history'         => $history,
-            'pejabat'         => $pejabat_map,
-            'back_url'        => $back_url,
-            'capaian'         => $capaian,
+            'history'           => $history,
+            'pejabat'           => $pejabat_map,
+            'back_url'          => $back_url,
+            'capaian'           => $capaian,
+            'temuan_reviu'          => $temuan_reviu,
+            'catatan_reviu_umum'    => $catatan_reviu_umum,
+            'riwayat_pengembalian'      => $riwayat_pengembalian,
+            'riwayat_pengembalian_kab'  => $riwayat_pengembalian_kab,
         ]));
     }
 
@@ -692,6 +741,98 @@ class Pekerjaan extends Auth_Controller
         redirect('pekerjaan/detail/'.$id);
     }
 
+    // ─── KIRIM ULANG KE INSPEKTORAT (dari skpkd_kab_revisi) ─────
+
+    public function kirim_revisi_kab($id)
+    {
+        $this->requirePerm('pekerjaan.submit');
+
+        $pekerjaan = $this->Pekerjaan_model->get_by_id($id);
+        if (!$pekerjaan) { show_404(); return; }
+
+        if ($pekerjaan->status !== 'skpkd_kab_revisi') {
+            $this->session->set_flashdata('error', 'Status pekerjaan tidak valid untuk dikirim ulang.');
+            redirect('pekerjaan/detail/'.$id); return;
+        }
+
+        if ($this->rbac->isKabkota() && (int)$pekerjaan->kabkota_id !== (int)$this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('pekerjaan'); return;
+        }
+
+        // Temukan tahapan yang sedang skpkd_kab_revisi
+        $tahapan_list   = $this->Pekerjaan_model->get_tahapan($id);
+        $tahapan_revisi = NULL;
+        foreach ($tahapan_list as $t) {
+            if ($t->status === 'skpkd_kab_revisi') { $tahapan_revisi = $t; break; }
+        }
+        if (!$tahapan_revisi) {
+            $this->session->set_flashdata('error', 'Data tahapan tidak ditemukan.');
+            redirect('pekerjaan/detail/'.$id); return;
+        }
+
+        // Reset record reviu — Inspektorat perlu reviu ulang dari awal
+        $reviu = $this->db->get_where('trx_reviu_inspektorat',
+            ['tahapan_id' => $tahapan_revisi->id])->row();
+        if ($reviu) {
+            $this->db->where('id', $reviu->id)->update('trx_reviu_inspektorat', [
+                'hasil_reviu'            => NULL,
+                'catatan'                => NULL,
+                'checklist_confirmed_at' => NULL,
+                'tgl_reviu_selesai'      => NULL,
+                'updated_at'             => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        // Reset record verifikasi kab — akan diverifikasi ulang setelah reviu selesai
+        $verif_kab = $this->db->get_where('trx_verifikasi_skpkd_kab',
+            ['tahapan_id' => $tahapan_revisi->id])->row();
+        if ($verif_kab) {
+            $this->db->where('id', $verif_kab->id)->update('trx_verifikasi_skpkd_kab', [
+                'hasil_verifikasi' => NULL,
+                'catatan'          => NULL,
+                'tgl_verifikasi'   => NULL,
+                'updated_at'       => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        // Reset status tahapan → opd_input (masuk antrian Inspektorat)
+        $this->db->where('id', $tahapan_revisi->id)->update('trx_tahapan_penyaluran', [
+            'status'     => 'opd_input',
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->Pekerjaan_model->set_status($id, 'opd_submitted', $this->user_id,
+            'Revisi dikirim kembali ke Inspektorat oleh OPD Teknis (setelah dikembalikan SKPKD Kab)');
+
+        // Notifikasi ke Inspektorat kabkota
+        $inspektorat_users = $this->db
+            ->select('u.id')
+            ->from('users u')
+            ->join('roles r', 'r.id = u.role_id')
+            ->where('r.kode', 'inspektorat')
+            ->where('u.kabkota_id', $pekerjaan->kabkota_id)
+            ->where('u.is_active', 1)
+            ->get()->result();
+        foreach ($inspektorat_users as $iu) {
+            $this->Notifikasi_model->kirim(
+                $iu->id,
+                'Perbaikan Dikirim Ulang',
+                'OPD telah mengirim perbaikan untuk BKP ' . $pekerjaan->kode_bkp .
+                    '. Silakan lakukan reviu ulang.',
+                'info',
+                site_url('reviu'),
+                $id
+            );
+        }
+
+        $this->log_aktivitas('pekerjaan.kirim_revisi_kab',
+            'Kirim revisi pekerjaan id='.$id.' ke Inspektorat (dari skpkd_kab_revisi)');
+        $this->session->set_flashdata('success',
+            'Perbaikan berhasil dikirim ke Inspektorat untuk reviu ulang.');
+        redirect('pekerjaan/detail/'.$id);
+    }
+
     private function _validasi_kelengkapan($pekerjaan)
     {
         $errors = [];
@@ -725,8 +866,8 @@ class Pekerjaan extends Auth_Controller
 
         $pekerjaan = $this->Pekerjaan_model->get_by_id($pekerjaan_id);
         if (!$pekerjaan) { show_404(); return; }
-        if ($pekerjaan->status !== 'draft') {
-            $this->session->set_flashdata('error', 'Dokumen draft hanya bisa diupload saat status Draft.');
+        if (!in_array($pekerjaan->status, ['draft', 'inspektorat_revisi'])) {
+            $this->session->set_flashdata('error', 'Dokumen hanya bisa diupload saat status Draft atau Dikembalikan oleh Inspektorat.');
             redirect('pekerjaan/detail/'.$pekerjaan_id); return;
         }
 

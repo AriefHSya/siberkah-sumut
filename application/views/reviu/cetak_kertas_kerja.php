@@ -62,8 +62,8 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
   <?php if ($reviu->tgl_reviu_selesai): ?>
   <span class="lbl">Tgl. Reviu Selesai</span><span>:</span><span><?= tgl_indo($reviu->tgl_reviu_selesai) ?></span>
   <?php endif; ?>
-  <?php if (!empty($reviewer['nama'])): ?>
-  <span class="lbl">Reviewer</span><span>:</span><span><?= htmlspecialchars($reviewer['nama']) ?><?= !empty($reviewer['nip']) ? ' (NIP. '.$reviewer['nip'].')' : '' ?></span>
+  <?php if (!empty($tim_data)): ?>
+  <span class="lbl">Tim Reviu</span><span>:</span><span>SK No. <?= htmlspecialchars($tim_data->no_sk) ?> / <?= tgl_indo($tim_data->tgl_sk) ?> (<?= count($tim_anggota) ?> anggota)</span>
   <?php endif; ?>
 </div>
 
@@ -96,7 +96,7 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
     <td class="center mono"><?= $item->kode ?></td>
     <td><?= htmlspecialchars($item->uraian_item) ?></td>
     <td class="center <?= $nilai ?>"><strong><?= $label_map[$nilai] ?></strong></td>
-    <td><?= htmlspecialchars($is_val->catatan ?? '—') ?></td>
+    <td><?= ($nilai === 'tidak_sesuai' && !empty($is_val->catatan)) ? htmlspecialchars($is_val->catatan) : '—' ?></td>
   </tr>
   <?php endforeach; ?>
   </tbody>
@@ -118,21 +118,24 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
 <?php endif; ?>
 
 <!-- TTD -->
-<?php $rv = $reviewer ?? []; $ada_tim = !empty($tim_data) && !empty($tim_anggota); ?>
+<?php
+$insp_data = $pejabat['inspektur'] ?? NULL;
+$ada_tim   = !empty($tim_data) && !empty($tim_anggota);
+?>
 <div class="ttd">
-  <!-- Kiri: Kepala OPD Teknis -->
+  <!-- Kiri: Inspektur (dari Parameter ref_pemda_pejabat) -->
   <div class="ttd-blok">
     <p><?= htmlspecialchars($p->nama_kabkota) ?>, <?= $tgl_cetak ?></p>
-    <p><?= !empty($p->kepala_opd_jabatan) ? htmlspecialchars($p->kepala_opd_jabatan) : 'Kepala OPD Teknis' ?></p>
+    <p><?= $insp_data ? htmlspecialchars($insp_data->jabatan ?? 'Inspektur') : 'Inspektur' ?></p>
     <div class="nama">
-      <?= !empty($p->kepala_opd_nama) ? htmlspecialchars($p->kepala_opd_nama) : '.................................................' ?>
+      <?= ($insp_data && !empty($insp_data->nama)) ? htmlspecialchars($insp_data->nama) : '.................................................' ?>
     </div>
     <div class="nip">
-      NIP. <?= !empty($p->kepala_opd_nip) ? htmlspecialchars($p->kepala_opd_nip) : '.......................................' ?>
+      NIP. <?= ($insp_data && !empty($insp_data->nip)) ? htmlspecialchars($insp_data->nip) : '.......................................' ?>
     </div>
   </div>
 
-  <!-- Kanan: Tim Review (jika ada) atau Inspektur (fallback) -->
+  <!-- Kanan: Tim Reviu (jika dipilih) -->
   <?php if ($ada_tim): ?>
   <div class="ttd-blok" style="width:52%;text-align:left">
     <p style="text-align:center"><?= htmlspecialchars($p->nama_kabkota) ?>, <?= $tgl_cetak ?></p>
@@ -160,17 +163,6 @@ h2{font-size:12pt;text-align:center;text-transform:uppercase;margin:14px 0 10px;
       </tr>
       <?php endforeach; ?>
     </table>
-  </div>
-  <?php else: ?>
-  <div class="ttd-blok">
-    <p><?= htmlspecialchars($p->nama_kabkota) ?>, <?= $tgl_cetak ?></p>
-    <p><?= htmlspecialchars($rv['jabatan'] ?? ($inspektur->jabatan ?? 'Inspektur')) ?></p>
-    <div class="nama">
-      <?= !empty($rv['nama']) ? htmlspecialchars($rv['nama']) : '.................................................' ?>
-    </div>
-    <div class="nip">
-      NIP. <?= !empty($rv['nip']) ? htmlspecialchars($rv['nip']) : '.......................................' ?>
-    </div>
   </div>
   <?php endif; ?>
 </div>

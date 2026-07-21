@@ -5,6 +5,7 @@
 <?php
 $status_labels = [
   'opd_input'             => ['biru',   'Menunggu Reviu'],
+  'reviu_ulang'           => ['ungu',   'Menunggu Reviu Ulang'],
   'inspektorat_reviu'     => ['kuning', 'Dalam Reviu'],
   'inspektorat_revisi'    => ['oranye', 'Dikembalikan'],
   'inspektorat_approved'  => ['hijau',  'Disetujui'],
@@ -101,13 +102,17 @@ $status_labels = [
         <td class="text-sm fw-500" style="text-align:right"><?= rupiah($r->nilai_kontrak) ?></td>
         <td>
           <?php
+          // opd_input + reviu record sudah ada = pengajuan ulang setelah pernah dikembalikan
+          $is_reviu_ulang = ($r->status === 'opd_input' && !empty($r->reviu_id));
           $st_label = [
-            'opd_input'            => ['biru',  'Menunggu'],
+            'opd_input'            => ['biru',  'Menunggu Reviu'],
             'inspektorat_reviu'    => ['kuning','Dalam Reviu'],
             'inspektorat_revisi'   => ['oranye','Dikembalikan'],
             'inspektorat_approved' => ['hijau', 'Selesai'],
           ];
-          if ($r->hasil_reviu === 'disetujui' && !isset($st_label[$r->status])) {
+          if ($is_reviu_ulang) {
+              $sl = ['ungu', 'Menunggu Reviu Ulang'];
+          } elseif ($r->hasil_reviu === 'disetujui') {
               $sl = ['hijau', 'Selesai'];
           } else {
               $sl = $st_label[$r->status] ?? ['abu', $r->status];

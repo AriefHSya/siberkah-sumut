@@ -38,9 +38,9 @@ if ($_is_prod && !getenv('ENCRYPTION_KEY')) {
 $config['encryption_key'] = getenv('ENCRYPTION_KEY') ?: '8ecb4be9a0b2a92f790d52e01d32e58972baa94f11cf9cf9a7af3846145e02e0';
 
 // Session: database di production (lebih aman & scalable), files di development.
-// Tabel ci_sessions harus dibuat dulu — lihat database/ci_sessions.sql
+// Tabel ci_sessions harus dibuat dulu — sudah tercakup di database/schemanew.sql
 $config['sess_driver']   = $_is_prod ? 'database' : 'files';
-$config['sess_save_path']= $_is_prod ? 'ci_sessions' : APPPATH.'/home/ard/siberkah/application/cache/sessions';
+$config['sess_save_path']= $_is_prod ? 'ci_sessions' : APPPATH.'cache/sessions';
 
 $config['sess_cookie_name']        = 'siberkah_sess';
 $config['sess_expiration']         = 7200;
@@ -51,9 +51,12 @@ $config['sess_regenerate_destroy'] = FALSE;
 $config['cookie_prefix']   = 'siberkah_';
 $config['cookie_domain']   = '';
 $config['cookie_path']     = '/';
-// Cookie aman hanya via HTTPS & tidak bisa diakses JavaScript — wajib TRUE di production
-$config['cookie_secure']   = $_is_prod ? TRUE : FALSE;
-$config['cookie_httponly']  = $_is_prod ? TRUE : FALSE;
+// cookie_secure hanya aktif jika benar-benar berjalan di HTTPS
+// (tidak cukup hanya production — server lokal HTTP pun bisa production)
+$_is_https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+          || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+$config['cookie_secure']   = $_is_https;
+$config['cookie_httponly']  = TRUE;
 $config['standardize_newlines']= FALSE;
 $config['global_xss_filtering']= FALSE;
 $config['csrf_protection']     = TRUE;

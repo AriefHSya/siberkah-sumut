@@ -78,6 +78,10 @@ class Reviu_model extends CI_Model
         if (!empty($filters['status'])) {
             if ($filters['status'] === 'inspektorat_approved') {
                 $this->db->where('r.hasil_reviu', 'disetujui');
+            } elseif ($filters['status'] === 'reviu_ulang') {
+                // opd_input dengan reviu record sudah ada = pengajuan ulang setelah dikembalikan
+                $this->db->where('t.status', 'opd_input')
+                          ->where('r.id IS NOT NULL', NULL, FALSE);
             } else {
                 $this->db->where('t.status', $filters['status']);
             }
@@ -277,6 +281,17 @@ class Reviu_model extends CI_Model
         $rows = $this->db->group_by('t.status')->get()->result();
         $map  = [];
         foreach ($rows as $r) $map[$r->status] = (int)$r->total;
+
+        // Hitung reviu ulang: opd_input dengan record reviu sudah ada (pernah dikembalikan)
+        $this->db
+            ->from('trx_tahapan_penyaluran t')
+            ->join('trx_reviu_inspektorat r', 'r.tahapan_id = t.id')
+            ->join('trx_pekerjaan p',         'p.id = t.pekerjaan_id')
+            ->join('ref_bkp b',               'b.id = p.bkp_id')
+            ->where('b.tahun', $tahun)
+            ->where('t.status', 'opd_input');
+        if ($kabkota_id) $this->db->where('b.kabkota_id', $kabkota_id);
+        $map['reviu_ulang'] = (int)$this->db->count_all_results();
 
         // Hitung reviu selesai dari r.hasil_reviu — terlepas dari t.status saat ini
         $this->db
