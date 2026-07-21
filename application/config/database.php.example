@@ -1,4 +1,18 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed');
+
+// =============================================================================
+// SIBERKAH SUMUT — database.php
+// Salin file ini ke database.php lalu sesuaikan nilainya.
+// File database.php TIDAK di-track git — setiap server maintain salinannya sendiri.
+//
+// Cara set env var di server Apache (VirtualHost):
+//   SetEnv DB_HOST   localhost
+//   SetEnv DB_USER   siberkah
+//   SetEnv DB_PASS   password_anda
+//   SetEnv DB_NAME   siberkah_sumut
+//   SetEnv DB_PORT   3306
+// =============================================================================
+
 $active_group = 'default';
 $query_builder = TRUE;
 $db['default'] = [

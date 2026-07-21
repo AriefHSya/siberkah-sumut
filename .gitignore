@@ -1,5 +1,8 @@
-# Config lokal dengan credentials hardcoded — jangan commit jika masih pakai nilai lokal
-# database.php dan config.php SUDAH AMAN di-commit karena pakai getenv()
+# Config per-environment — tidak di-track git, setiap server maintain salinannya sendiri.
+# Template tersedia di config.php.example dan database.php.example
+# Setup server: cp config.php.example config.php && cp database.php.example database.php
+application/config/config.php
+application/config/database.php
 
 # Upload files — jangan commit ke git (data user)
 uploads/
