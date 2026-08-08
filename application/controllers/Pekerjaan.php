@@ -866,8 +866,8 @@ class Pekerjaan extends Auth_Controller
 
         $pekerjaan = $this->Pekerjaan_model->get_by_id($pekerjaan_id);
         if (!$pekerjaan) { show_404(); return; }
-        if (!in_array($pekerjaan->status, ['draft', 'inspektorat_revisi'])) {
-            $this->session->set_flashdata('error', 'Dokumen hanya bisa diupload saat status Draft atau Dikembalikan oleh Inspektorat.');
+        if (!in_array($pekerjaan->status, ['draft', 'inspektorat_revisi', 'skpkd_kab_revisi'])) {
+            $this->session->set_flashdata('error', 'Dokumen hanya bisa diupload saat status Draft, Dikembalikan oleh Inspektorat, atau Dikembalikan oleh SKPKD Kab/Kota.');
             redirect('pekerjaan/detail/'.$pekerjaan_id); return;
         }
 
@@ -945,7 +945,7 @@ class Pekerjaan extends Auth_Controller
         if (!in_array($jenis, $jenis_allowed)) { show_404(); return; }
 
         $pekerjaan = $this->Pekerjaan_model->get_by_id($pekerjaan_id);
-        if (!$pekerjaan || $pekerjaan->status !== 'draft') {
+        if (!$pekerjaan || !in_array($pekerjaan->status, ['draft', 'inspektorat_revisi', 'skpkd_kab_revisi'])) {
             redirect('pekerjaan/detail/'.$pekerjaan_id); return;
         }
         if ($this->rbac->isKabkota() && (int)$pekerjaan->kabkota_id !== (int)$this->kabkota_id) {
