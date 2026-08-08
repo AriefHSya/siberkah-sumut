@@ -113,8 +113,9 @@ class Verif_kab extends Auth_Controller
         // Buat atau ambil record verifikasi
         $verif_id = $this->Verifikasi_kab_model->buat_atau_ambil($tahapan_id, $this->user_id);
 
-        // Set status → skpkd_kab_verif jika baru masuk
-        if ($tahapan->status === 'inspektorat_approved') {
+        // Set status → skpkd_kab_verif jika baru masuk — hanya SKPKD Kab/Kota
+        if ($tahapan->status === 'inspektorat_approved'
+            && $this->role_kode === 'skpkd_kabkota') {
             $this->db->where('id', $tahapan_id)
                 ->update('trx_tahapan_penyaluran', [
                     'status'     => 'skpkd_kab_verif',
