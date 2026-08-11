@@ -1,6 +1,36 @@
 Options -Indexes
 DirectoryIndex index.php index.html
 
+# ── Security Headers (remediasi ITSA 2026 - Finding 003) ─────────────────────
+<IfModule mod_headers.c>
+    # Cegah MIME type sniffing
+    Header set X-Content-Type-Options "nosniff"
+
+    # Cegah Clickjacking — hanya izinkan embed dari domain yang sama
+    Header set X-Frame-Options "SAMEORIGIN"
+
+    # Kontrol informasi Referrer
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Batasi akses fitur browser yang tidak digunakan
+    Header set Permissions-Policy "geolocation=(), camera=(), microphone=(), payment=()"
+
+    # Paksa HTTPS selama 1 tahun (aktifkan setelah SSL terkonfirmasi stabil)
+    Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+    # Content Security Policy — disesuaikan dengan CDN yang digunakan aplikasi:
+    # jsdelivr (Tabler Icons, Chart.js), unpkg (Leaflet, markercluster),
+    # google.com/gstatic.com (reCAPTCHA), tile.openstreetmap.org (peta)
+    Header set Content-Security-Policy "default-src 'self'; \
+script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://www.google.com https://www.gstatic.com; \
+style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; \
+img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com; \
+font-src 'self' https://cdn.jsdelivr.net; \
+frame-src https://www.google.com https://maps.google.com; \
+connect-src 'self' https://*.tile.openstreetmap.org; \
+object-src 'none'"
+</IfModule>
+
 RewriteEngine On
 
 # Blokir akses langsung ke subfolder upload privat
