@@ -63,7 +63,7 @@
   </div>
 </div>
 <?php if (!empty($recaptcha_site_key)): ?>
-<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<script src="https://www.google.com/recaptcha/enterprise.js" async defer></script>
 <?php endif; ?>
 </body>
 </html>
