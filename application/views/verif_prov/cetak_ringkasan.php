@@ -31,7 +31,9 @@ foreach ((array)$items as $it) {
     $total_col3    += $_is_tahap2_ring
         ? ($it->nilai_diajukan ?? 0) + ($it->nilai_belanja_pendukung ?? 0)
         : ($it->nilai_belanja_pendukung ?? 0);
-    $total_salur += ($it->nilai_diajukan ?? 0);
+    $total_salur += $_is_tahap2_ring
+        ? ($it->nilai_diajukan ?? 0)
+        : ($it->nilai_diajukan ?? 0) + ($it->nilai_belanja_pendukung ?? 0);
 }
 ?>
 <!DOCTYPE html>
@@ -157,7 +159,11 @@ body{font-family:'Times New Roman',Times,serif;font-size:10.5pt;color:#000;backg
                 : ($it->nilai_belanja_pendukung ?? 0),
             2, ',', '.') ?></td>
         <td class="td-ctr"><?= _label_tahapan($it->jenis_penyaluran, $it->kode_tahap) ?></td>
-        <td class="td-rp"><strong><?= number_format($it->nilai_diajukan ?? 0, 2, ',', '.') ?></strong></td>
+        <td class="td-rp"><strong><?= number_format(
+            $_is_tahap2_ring
+                ? ($it->nilai_diajukan ?? 0)
+                : ($it->nilai_diajukan ?? 0) + ($it->nilai_belanja_pendukung ?? 0),
+            2, ',', '.') ?></strong></td>
       </tr>
       <?php endforeach; ?>
     </tbody>
