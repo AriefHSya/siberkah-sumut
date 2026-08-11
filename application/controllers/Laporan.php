@@ -48,7 +48,7 @@ class Laporan extends Auth_Controller
         }
 
         $list    = $this->Laporan_model->get_rekap_bkp($tahun, $kabkota_id, $bidang_id);
-        $summary = $this->Laporan_model->get_rekap_summary($tahun, $kabkota_id);
+        $summary = $this->_summarize_rekap_bkp($list);
 
         $this->render('laporan/rekap_bkp', array_merge($this->data, [
             'title'        => 'Rekap Data BKP — SIBERKAH SUMUT',
@@ -75,7 +75,7 @@ class Laporan extends Auth_Controller
         }
 
         $list    = $this->Laporan_model->get_rekap_bkp($tahun, $kabkota_id, $bidang_id);
-        $summary = $this->Laporan_model->get_rekap_summary($tahun, $kabkota_id);
+        $summary = $this->_summarize_rekap_bkp($list);
         $kabkota = $kabkota_id
             ? $this->db->get_where('ref_kabkota',['id'=>$kabkota_id])->row() : NULL;
 
@@ -396,5 +396,25 @@ class Laporan extends Auth_Controller
             'tgl_cetak'    => date('Y-m-d'),
             'user_nama'    => $this->data['current_user']->nama,
         ]);
+    }
+
+    // Hitung summary rekap BKP dari $list (menghindari inflasi SUM akibat JOIN fan-out tahapan)
+    private function _summarize_rekap_bkp($list)
+    {
+        $s = new stdClass();
+        $s->total_bkp       = count($list);
+        $s->total_nilai_bkp = 0;
+        $s->total_kontrak   = 0;
+        $s->total_pendukung = 0;
+        $s->total_pekerjaan = 0;
+        $s->total_disalurkan = 0;
+        foreach ($list as $row) {
+            $s->total_nilai_bkp  += (float)($row->nilai_bkp ?? 0);
+            $s->total_kontrak    += (float)($row->nilai_kontrak ?? 0);
+            $s->total_pendukung  += (float)($row->nilai_belanja_pendukung ?? 0);
+            $s->total_disalurkan += (float)($row->total_disalurkan ?? 0);
+            if (!empty($row->pekerjaan_id)) $s->total_pekerjaan++;
+        }
+        return $s;
     }
 }
