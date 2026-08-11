@@ -166,6 +166,71 @@ class Permohonan extends Auth_Controller
         redirect('permohonan/detail/' . $permohonan_id);
     }
 
+    // ─── EDIT PERMOHONAN (draft only) ────────────────────────────
+
+    public function edit($id)
+    {
+        $this->requirePerm('permohonan.create');
+
+        $permohonan = $this->Permohonan_model->get_by_id($id);
+        if (!$permohonan) { show_404(); return; }
+
+        if ($this->rbac->isKabkota()
+            && (int)$permohonan->kabkota_id !== (int)$this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('permohonan'); return;
+        }
+
+        if ($permohonan->status !== 'draft') {
+            $this->session->set_flashdata('error', 'Permohonan hanya dapat diedit saat berstatus Draft.');
+            redirect('permohonan/detail/'.$id); return;
+        }
+
+        $this->render('permohonan/form_edit', array_merge($this->data, [
+            'title'       => 'Edit Permohonan — SIBERKAH SUMUT',
+            'permohonan'  => $permohonan,
+        ]));
+    }
+
+    public function update($id)
+    {
+        $this->requirePerm('permohonan.create');
+
+        $permohonan = $this->Permohonan_model->get_by_id($id);
+        if (!$permohonan) { show_404(); return; }
+
+        if ($this->rbac->isKabkota()
+            && (int)$permohonan->kabkota_id !== (int)$this->kabkota_id) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('permohonan'); return;
+        }
+
+        if ($permohonan->status !== 'draft') {
+            $this->session->set_flashdata('error', 'Permohonan hanya dapat diedit saat berstatus Draft.');
+            redirect('permohonan/detail/'.$id); return;
+        }
+
+        $no_permohonan  = trim($this->input->post('no_permohonan', TRUE));
+        $tgl_permohonan = $this->input->post('tgl_permohonan', TRUE);
+        $catatan        = trim($this->input->post('catatan', TRUE));
+
+        if (empty($no_permohonan) || empty($tgl_permohonan)) {
+            $this->session->set_flashdata('error', 'Nomor permohonan dan tanggal wajib diisi.');
+            redirect('permohonan/edit/'.$id); return;
+        }
+
+        $this->db->where('id', $id)->update('trx_permohonan', [
+            'no_permohonan'  => $no_permohonan,
+            'tgl_permohonan' => $tgl_permohonan,
+            'catatan'        => $catatan ?: NULL,
+            'updated_at'     => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->log_aktivitas('permohonan.edit', 'Edit permohonan id='.$id);
+        $this->session->set_flashdata('success', 'Permohonan berhasil diperbarui.');
+        redirect('permohonan/detail/'.$id);
+    }
+
     // ─── CETAK REKAP ──────────────────────────────────────────────
 
     public function cetak($id)

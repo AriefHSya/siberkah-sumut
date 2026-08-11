@@ -65,6 +65,10 @@ $dok_types = [
                         && !empty($pm->file_surat_pernyataan_path)
                         && !empty($pm->file_rekap_kegiatan_path);
       ?>
+      <a href="<?= site_url('permohonan/edit/'.$pm->id) ?>" class="btn btn-outline btn-sm">
+        <i class="ti ti-edit"></i> Edit
+      </a>
+      <?php // tombol ajukan di bawah ?>
       <?= form_open(site_url('permohonan/ajukan-kembali/'.$pm->id)) ?>
       <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
       <?php if ($dok_lengkap): ?>
