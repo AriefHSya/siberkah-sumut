@@ -85,6 +85,7 @@
           <th style="text-align:right">Nilai BKP</th>
           <th>Jenis</th>
           <th style="text-align:right">Nilai Kontrak</th>
+          <th style="text-align:right">Nilai Pendukung</th>
           <th>Status</th>
           <th style="text-align:right">Disalurkan</th>
           <th style="text-align:center">SP2D</th>
@@ -106,6 +107,9 @@
         <td class="text-sm" style="text-align:right">
           <?= $row->nilai_kontrak ? rupiah($row->nilai_kontrak) : '<span class="text-muted">—</span>' ?>
         </td>
+        <td class="text-sm" style="text-align:right">
+          <?= $row->nilai_belanja_pendukung ? rupiah($row->nilai_belanja_pendukung) : '<span class="text-muted">—</span>' ?>
+        </td>
         <td><?= $row->status ? badge_status($row->status) : '<span class="badge badge-abu">Belum Input</span>' ?></td>
         <td class="text-sm" style="text-align:right;color:var(--teal-mid);font-weight:500">
           <?= $row->total_disalurkan ? rupiah($row->total_disalurkan) : '—' ?>
@@ -125,6 +129,7 @@
           <td style="text-align:right"><?= rupiah($summary->total_nilai_bkp ?? 0) ?></td>
           <td></td>
           <td style="text-align:right"><?= rupiah($summary->total_kontrak ?? 0) ?></td>
+          <td style="text-align:right"><?= rupiah($summary->total_pendukung ?? 0) ?></td>
           <td></td>
           <td style="text-align:right;color:var(--teal-mid)"><?= rupiah($summary->total_disalurkan ?? 0) ?></td>
           <td></td>

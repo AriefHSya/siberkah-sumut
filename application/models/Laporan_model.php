@@ -183,6 +183,7 @@ class Laporan_model extends CI_Model
             ->select('b.kode_bkp, b.uraian_bkp, b.nilai as nilai_bkp,
                       k.nama as nama_kabkota, bid.nama as nama_bidang,
                       p.id as pekerjaan_id, p.status, p.nilai_kontrak,
+                      p.nilai_belanja_pendukung,
                       p.jenis_penyaluran, p.nama_kegiatan_dok,
                       SUM(pd.nilai_transfer) as total_disalurkan,
                       COUNT(pd.id) as total_sp2d')
@@ -206,6 +207,7 @@ class Laporan_model extends CI_Model
         $this->db->select('COUNT(b.id) as total_bkp,
                            SUM(b.nilai) as total_nilai_bkp,
                            SUM(p.nilai_kontrak) as total_kontrak,
+                           SUM(p.nilai_belanja_pendukung) as total_pendukung,
                            COUNT(p.id) as total_pekerjaan,
                            SUM(pd.nilai_transfer) as total_disalurkan')
             ->from('ref_bkp b')

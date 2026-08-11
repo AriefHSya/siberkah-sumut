@@ -147,7 +147,7 @@ class Laporan extends Auth_Controller
         $f = fopen('php://output', 'w');
         fputcsv($f, ['Kode BKP','Kab/Kota','Bidang','Uraian BKP',
                      'Nilai BKP','Status','Jenis Penyaluran',
-                     'Nilai Kontrak','Total Disalurkan','Total SP2D'], ';');
+                     'Nilai Kontrak','Nilai Pendukung','Total Disalurkan','Total SP2D'], ';');
         foreach ($list as $row) {
             fputcsv($f, [
                 $row->kode_bkp,
@@ -158,6 +158,7 @@ class Laporan extends Auth_Controller
                 $row->status ?? 'Belum Ada Pekerjaan',
                 $row->jenis_penyaluran ?? '—',
                 $row->nilai_kontrak ?? 0,
+                $row->nilai_belanja_pendukung ?? 0,
                 $row->total_disalurkan ?? 0,
                 $row->total_sp2d ?? 0,
             ], ';');
@@ -214,9 +215,10 @@ class Laporan extends Auth_Controller
             ['label'=>'Nilai BKP (Rp)',     'format'=>'rupiah'],
             ['label'=>'Status',             'format'=>'string'],
             ['label'=>'Jenis Penyaluran',   'format'=>'string'],
-            ['label'=>'Nilai Kontrak (Rp)', 'format'=>'rupiah'],
-            ['label'=>'Disalurkan (Rp)',    'format'=>'rupiah'],
-            ['label'=>'Total SP2D',         'format'=>'number'],
+            ['label'=>'Nilai Kontrak (Rp)',   'format'=>'rupiah'],
+            ['label'=>'Nilai Pendukung (Rp)', 'format'=>'rupiah'],
+            ['label'=>'Disalurkan (Rp)',      'format'=>'rupiah'],
+            ['label'=>'Total SP2D',           'format'=>'number'],
         ];
         $rows = [];
         foreach ($list as $r) {
@@ -229,6 +231,7 @@ class Laporan extends Auth_Controller
                 $r->status ?? 'Belum Ada Pekerjaan',
                 $r->jenis_penyaluran ?? '—',
                 $r->nilai_kontrak ?? 0,
+                $r->nilai_belanja_pendukung ?? 0,
                 $r->total_disalurkan ?? 0,
                 $r->total_sp2d ?? 0,
             ];

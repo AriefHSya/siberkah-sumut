@@ -57,14 +57,15 @@ h2{font-size:11pt;text-align:center;text-transform:uppercase;margin:10px 0 8px;f
       <th class="right" style="width:80px">Nilai BKP</th>
       <th style="width:55px">Jenis</th>
       <th class="right" style="width:80px">Kontrak</th>
+      <th class="right" style="width:75px">Pendukung</th>
       <th style="width:70px">Status</th>
       <th class="right" style="width:80px">Disalurkan</th>
     </tr>
   </thead>
   <tbody>
-  <?php $no=1; $g_bkp=0; $g_kontrak=0; $g_sal=0;
+  <?php $no=1; $g_bkp=0; $g_kontrak=0; $g_pend=0; $g_sal=0;
   foreach ($list as $r):
-    $g_bkp+=$r->nilai_bkp; $g_kontrak+=($r->nilai_kontrak??0); $g_sal+=($r->total_disalurkan??0);
+    $g_bkp+=$r->nilai_bkp; $g_kontrak+=($r->nilai_kontrak??0); $g_pend+=($r->nilai_belanja_pendukung??0); $g_sal+=($r->total_disalurkan??0);
     $st_label=['draft'=>'Draft','opd_submitted'=>'Diajukan','inspektorat_approved'=>'Reviu OK',
                'skpkd_kab_approved'=>'Verif. Kab','disalurkan_tahap1'=>'Salur T.I',
                'disalurkan_sekaligus'=>'Disalurkan','dikonfirmasi'=>'Konfirmasi','selesai'=>'Selesai',
@@ -79,6 +80,7 @@ h2{font-size:11pt;text-align:center;text-transform:uppercase;margin:10px 0 8px;f
     <td class="right"><?= number_format($r->nilai_bkp,0,',','.') ?></td>
     <td class="center" style="font-size:7.5pt"><?= $r->jenis_penyaluran ? ucfirst(str_replace(['_',' '],'-',$r->jenis_penyaluran)) : '—' ?></td>
     <td class="right"><?= $r->nilai_kontrak ? number_format($r->nilai_kontrak,0,',','.') : '—' ?></td>
+    <td class="right"><?= $r->nilai_belanja_pendukung ? number_format($r->nilai_belanja_pendukung,0,',','.') : '—' ?></td>
     <td class="center" style="font-size:7.5pt"><?= $r->status ? ($st_label[$r->status] ?? $r->status) : 'Blm Input' ?></td>
     <td class="right"><?= $r->total_disalurkan ? number_format($r->total_disalurkan,0,',','.') : '—' ?></td>
   </tr>
@@ -88,6 +90,7 @@ h2{font-size:11pt;text-align:center;text-transform:uppercase;margin:10px 0 8px;f
     <td class="right"><?= number_format($g_bkp,0,',','.') ?></td>
     <td></td>
     <td class="right"><?= number_format($g_kontrak,0,',','.') ?></td>
+    <td class="right"><?= number_format($g_pend,0,',','.') ?></td>
     <td></td>
     <td class="right"><?= number_format($g_sal,0,',','.') ?></td>
   </tr>
