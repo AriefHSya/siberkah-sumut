@@ -73,6 +73,9 @@ $route['parameter/pejabat-provinsi/simpan']        = 'parameter/pejabat_provinsi
 $route['parameter/logo']                           = 'parameter/logo_provinsi';
 $route['parameter/logo/upload']                    = 'parameter/logo_provinsi_upload';
 $route['parameter/logo/hapus']                     = 'parameter/logo_provinsi_hapus';
+$route['parameter/smtp']                           = 'parameter/smtp_settings';
+$route['parameter/smtp/simpan']                    = 'parameter/smtp_simpan';
+$route['parameter/smtp/test']                      = 'parameter/smtp_test';
 
 // ─── ADMIN / PENGATURAN ───────────────────────────────────────
 $route['admin']                               = 'admin_users/index';

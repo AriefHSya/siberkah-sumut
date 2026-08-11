@@ -1167,4 +1167,120 @@ class Parameter extends Auth_Controller
         }
         $this->json(['ok' => TRUE]);
     }
+
+    // ──────────────────────────────────────────────────────────────────
+    // SMTP / PENGATURAN EMAIL
+    // ──────────────────────────────────────────────────────────────────
+
+    public function smtp_settings()
+    {
+        $this->requirePerm('parameter.view');
+        if (!$this->rbac->isProvinsi()) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('parameter'); return;
+        }
+
+        $keys = ['smtp_host','smtp_port','smtp_crypto','smtp_user','smtp_pass','smtp_from_email','smtp_from_name'];
+        $cfg  = [];
+        foreach ($keys as $k) {
+            $row = $this->db->get_where('ref_app_setting', ['kode' => $k])->row();
+            $cfg[$k] = $row ? $row->nilai : '';
+        }
+
+        $data = $this->data;
+        $data['title']       = 'Pengaturan Email (SMTP)';
+        $data['active_sub']  = 'smtp';
+        $data['cfg']         = $cfg;
+        $this->render('parameter/smtp', $data);
+    }
+
+    public function smtp_simpan()
+    {
+        $this->requirePerm('parameter.view');
+        if (!$this->rbac->isProvinsi()) { show_403(); return; }
+        if ($this->input->method() !== 'post') { redirect('parameter/smtp'); return; }
+
+        $fields = [
+            'smtp_host'       => trim($this->input->post('smtp_host', TRUE)),
+            'smtp_port'       => (int)($this->input->post('smtp_port', TRUE) ?: 587),
+            'smtp_crypto'     => $this->input->post('smtp_crypto', TRUE),
+            'smtp_user'       => trim($this->input->post('smtp_user', TRUE)),
+            'smtp_pass'       => $this->input->post('smtp_pass'),   // plain — jangan trim
+            'smtp_from_email' => trim($this->input->post('smtp_from_email', TRUE)),
+            'smtp_from_name'  => trim($this->input->post('smtp_from_name', TRUE)),
+        ];
+
+        // Password kosong = tidak diubah (biarkan nilai lama)
+        if ($fields['smtp_pass'] === '') {
+            unset($fields['smtp_pass']);
+        }
+
+        foreach ($fields as $k => $v) {
+            $ada = $this->db->get_where('ref_app_setting', ['kode' => $k])->row();
+            if ($ada) {
+                $this->db->where('kode', $k)->update('ref_app_setting', ['nilai' => (string)$v, 'updated_at' => date('Y-m-d H:i:s')]);
+            } else {
+                $this->db->insert('ref_app_setting', ['kode' => $k, 'nilai' => (string)$v, 'updated_at' => date('Y-m-d H:i:s')]);
+            }
+        }
+
+        $this->log_aktivitas('parameter.smtp', 'Update konfigurasi SMTP');
+        $this->session->set_flashdata('success', 'Pengaturan email berhasil disimpan.');
+        redirect('parameter/smtp');
+    }
+
+    public function smtp_test()
+    {
+        $this->requirePerm('parameter.view');
+        if (!$this->rbac->isProvinsi()) { show_403(); return; }
+        if ($this->input->method() !== 'post') { redirect('parameter/smtp'); return; }
+
+        $to = trim($this->input->post('test_email', TRUE));
+        if (empty($to) || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            $this->session->set_flashdata('error', 'Alamat email tujuan tidak valid.');
+            redirect('parameter/smtp'); return;
+        }
+
+        $smtp_host = $this->db->get_where('ref_app_setting', ['kode' => 'smtp_host'])->row();
+        $smtp_user = $this->db->get_where('ref_app_setting', ['kode' => 'smtp_user'])->row();
+        $smtp_pass = $this->db->get_where('ref_app_setting', ['kode' => 'smtp_pass'])->row();
+        $smtp_port = $this->db->get_where('ref_app_setting', ['kode' => 'smtp_port'])->row();
+        $smtp_crypto = $this->db->get_where('ref_app_setting', ['kode' => 'smtp_crypto'])->row();
+        $from_email  = $this->db->get_where('ref_app_setting', ['kode' => 'smtp_from_email'])->row();
+        $from_name   = $this->db->get_where('ref_app_setting', ['kode' => 'smtp_from_name'])->row();
+
+        if (!$smtp_host || empty($smtp_host->nilai)) {
+            $this->session->set_flashdata('error', 'SMTP host belum dikonfigurasi. Simpan pengaturan terlebih dahulu.');
+            redirect('parameter/smtp'); return;
+        }
+
+        $this->load->library('email');
+        $this->email->initialize([
+            'protocol'   => 'smtp',
+            'smtp_host'  => $smtp_host->nilai,
+            'smtp_user'  => $smtp_user ? $smtp_user->nilai : '',
+            'smtp_pass'  => $smtp_pass ? $smtp_pass->nilai : '',
+            'smtp_port'  => $smtp_port ? (int)$smtp_port->nilai : 587,
+            'smtp_crypto'=> ($smtp_crypto && $smtp_crypto->nilai) ? $smtp_crypto->nilai : 'tls',
+            'mailtype'   => 'html',
+            'charset'    => 'UTF-8',
+            'newline'    => "\r\n",
+        ]);
+
+        $fa = $from_email ? $from_email->nilai : ($smtp_user ? $smtp_user->nilai : 'noreply@siberkah.id');
+        $fn = $from_name  ? $from_name->nilai  : 'SIBERKAH SUMUT';
+
+        $this->email->from($fa, $fn);
+        $this->email->to($to);
+        $this->email->subject('[TEST] Email SIBERKAH SUMUT');
+        $this->email->message('<p>Ini adalah email uji coba dari <strong>SIBERKAH SUMUT</strong>. Jika Anda menerima email ini, konfigurasi SMTP sudah benar.</p>');
+
+        if (@$this->email->send()) {
+            $this->log_aktivitas('parameter.smtp.test', 'Kirim email test ke: '.$to);
+            $this->session->set_flashdata('success', 'Email uji coba berhasil dikirim ke <strong>'.htmlspecialchars($to).'</strong>. Periksa kotak masuk Anda.');
+        } else {
+            $this->session->set_flashdata('error', 'Gagal mengirim email. Periksa kembali konfigurasi SMTP.');
+        }
+        redirect('parameter/smtp');
+    }
 }

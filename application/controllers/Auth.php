@@ -155,8 +155,10 @@ class Auth extends Guest_Controller
             redirect('lupa-password'); return;
         }
 
-        $from_email = $this->config->item('smtp_from_email');
-        if (empty($from_email)) {
+        // Cek SMTP tersedia: ref_app_setting (utama) atau config.php/env vars (fallback)
+        $db_smtp = $this->db->get_where('ref_app_setting', ['kode' => 'smtp_host'])->row();
+        $smtp_ok = ($db_smtp && !empty($db_smtp->nilai)) || !empty($this->config->item('smtp_host'));
+        if (!$smtp_ok) {
             $this->session->set_flashdata('error',
                 'Fitur reset password via email belum dikonfigurasi. Hubungi administrator untuk mereset password Anda.');
             redirect('lupa-password'); return;
@@ -292,13 +294,37 @@ class Auth extends Guest_Controller
     }
 
     private function _send_reset_email($user, $token) {
-        $from_email = $this->config->item('smtp_from_email');
-        if (empty($from_email) || empty($user->email)) return FALSE;
+        if (empty($user->email)) return FALSE;
 
-        $reset_url  = site_url('reset-password/' . $token);
-        $app_name   = $this->config->item('app_name');
-        $from_name  = $this->config->item('smtp_from_name');
-        $nama       = htmlspecialchars($user->nama);
+        // Baca SMTP dari ref_app_setting (dikelola via Parameter → Pengaturan Email)
+        // Fallback ke config.php / env vars jika ref_app_setting kosong
+        $db_host  = $this->db->get_where('ref_app_setting', ['kode' => 'smtp_host'])->row();
+        $smtp_host = ($db_host && !empty($db_host->nilai))
+                   ? $db_host->nilai
+                   : $this->config->item('smtp_host');
+        if (empty($smtp_host)) return FALSE;
+
+        $db_user  = $this->db->get_where('ref_app_setting', ['kode' => 'smtp_user'])->row();
+        $db_pass  = $this->db->get_where('ref_app_setting', ['kode' => 'smtp_pass'])->row();
+        $db_port  = $this->db->get_where('ref_app_setting', ['kode' => 'smtp_port'])->row();
+        $db_crypto= $this->db->get_where('ref_app_setting', ['kode' => 'smtp_crypto'])->row();
+        $db_from  = $this->db->get_where('ref_app_setting', ['kode' => 'smtp_from_email'])->row();
+        $db_fname = $this->db->get_where('ref_app_setting', ['kode' => 'smtp_from_name'])->row();
+
+        $smtp_user   = ($db_user  && $db_user->nilai)   ? $db_user->nilai   : $this->config->item('smtp_user');
+        $smtp_pass   = ($db_pass  && $db_pass->nilai)   ? $db_pass->nilai   : $this->config->item('smtp_pass');
+        $smtp_port   = ($db_port  && $db_port->nilai)   ? (int)$db_port->nilai : ($this->config->item('smtp_port') ?: 587);
+        $smtp_crypto = ($db_crypto && $db_crypto->nilai !== NULL && $db_crypto->nilai !== '')
+                     ? $db_crypto->nilai : ($this->config->item('smtp_crypto') ?: 'tls');
+        $from_email  = ($db_from  && $db_from->nilai)   ? $db_from->nilai   : $this->config->item('smtp_from_email');
+        $from_name   = ($db_fname && $db_fname->nilai)  ? $db_fname->nilai  : ($this->config->item('smtp_from_name') ?: 'SIBERKAH SUMUT');
+
+        if (empty($from_email)) $from_email = $smtp_user;
+        if (empty($from_email)) return FALSE;
+
+        $app_name  = $this->config->item('app_name');
+        $reset_url = site_url('reset-password/' . $token);
+        $nama      = htmlspecialchars($user->nama);
 
         $body = '<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;background:#f4f6f9;margin:0;padding:20px">'
             . '<div style="max-width:520px;margin:0 auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">'
@@ -319,25 +345,21 @@ class Auth extends Guest_Controller
             . '</div></body></html>';
 
         $this->load->library('email');
-        $cfg = [
-            'mailtype' => 'html',
-            'charset'  => 'utf-8',
-            'newline'  => "\r\n",
-        ];
-        $smtp_host = $this->config->item('smtp_host');
-        if (!empty($smtp_host)) {
-            $cfg['protocol']  = 'smtp';
-            $cfg['smtp_host'] = $smtp_host;
-            $cfg['smtp_port'] = $this->config->item('smtp_port');
-            $cfg['smtp_user'] = $this->config->item('smtp_user');
-            $cfg['smtp_pass'] = $this->config->item('smtp_pass');
-            $cfg['smtp_crypto'] = $this->config->item('smtp_crypto');
-        }
-        $this->email->initialize($cfg);
+        $this->email->initialize([
+            'protocol'   => 'smtp',
+            'smtp_host'  => $smtp_host,
+            'smtp_user'  => $smtp_user,
+            'smtp_pass'  => $smtp_pass,
+            'smtp_port'  => $smtp_port,
+            'smtp_crypto'=> $smtp_crypto,
+            'mailtype'   => 'html',
+            'charset'    => 'utf-8',
+            'newline'    => "\r\n",
+        ]);
         $this->email->from($from_email, $from_name);
         $this->email->to($user->email);
         $this->email->subject('[' . $app_name . '] Permintaan Reset Password');
         $this->email->message($body);
-        return $this->email->send(FALSE);
+        return @$this->email->send(FALSE);
     }
 }

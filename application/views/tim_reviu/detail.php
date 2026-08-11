@@ -81,7 +81,7 @@
       <tr>
         <td class="text-center text-muted"><?= $a->urutan ?></td>
         <td class="fw-500"><?= htmlspecialchars($a->nama) ?></td>
-        <td class="mono text-sm"><?= $a->nip ? htmlspecialchars($a->nip) : '—' ?></td>
+        <td class="mono text-sm"><?= mask_nip($a->nip ?? '', $this->rbac->isProvinsi()) ?></td>
         <td><?= $a->jabatan ? htmlspecialchars($a->jabatan) : '—' ?></td>
       </tr>
       <?php endforeach; ?>

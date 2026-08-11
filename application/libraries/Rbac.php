@@ -135,6 +135,7 @@ class Rbac
             ['key'=>'pejabat_prov','url'=>'parameter/pejabat-provinsi','label'=>'Pejabat BKAD Provinsi','icon'=>'user-star', 'perm'=>'parameter.pemda.view','provinsi_only'=>TRUE],
             ['key'=>'landing',     'url'=>'parameter/landing',      'label'=>'Tampilan Landing',    'icon'=>'photo',         'perm'=>'parameter.landing.view'],
             ['key'=>'logo',        'url'=>'parameter/logo',         'label'=>'Logo Provinsi',       'icon'=>'trademark',     'perm'=>'parameter.view',       'provinsi_only'=>TRUE],
+            ['key'=>'smtp',        'url'=>'parameter/smtp',         'label'=>'Pengaturan Email',    'icon'=>'mail-cog',      'perm'=>'parameter.view',       'provinsi_only'=>TRUE],
             ['key'=>'log',         'url'=>'parameter/log',          'label'=>'Log Perubahan',       'icon'=>'history',       'perm'=>'parameter.tahun.view'],
         ];
         return array_values(array_filter($sub, function($s) {

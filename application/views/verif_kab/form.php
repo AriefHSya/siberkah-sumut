@@ -287,10 +287,10 @@
         <tr><td class="text-muted text-sm">Nilai Transfer</td>
             <td class="fw-500 text-biru"><?= rupiah($penyaluran->nilai_transfer) ?></td></tr>
         <tr><td class="text-muted text-sm">Rekening Asal (Provinsi)</td>
-            <td class="text-sm"><?= htmlspecialchars($penyaluran->rek_asal ?? '—') ?>
+            <td class="text-sm"><?= mask_rekening($penyaluran->rek_asal ?? '', $this->rbac->isProvinsi()) ?>
               <span class="text-muted"><?= htmlspecialchars($penyaluran->nama_bank_asal ?? '') ?></span></td></tr>
         <tr><td class="text-muted text-sm">Rekening Tujuan (RKUD)</td>
-            <td class="text-sm"><?= htmlspecialchars($penyaluran->rek_tujuan ?? '—') ?>
+            <td class="text-sm"><?= mask_rekening($penyaluran->rek_tujuan ?? '', $this->rbac->isProvinsi()) ?>
               <span class="text-muted"><?= htmlspecialchars($penyaluran->nama_bank_tujuan ?? '') ?></span></td></tr>
         <tr><td class="text-muted text-sm">Status Transfer</td>
             <td><?php
