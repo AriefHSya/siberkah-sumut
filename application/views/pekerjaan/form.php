@@ -376,11 +376,12 @@ $v_rupiah = function($field) use ($p) {
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-    iconUrl:       'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon.png',
-    iconRetinaUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-    shadowUrl:     'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-shadow.png',
+const pinIcon = L.divIcon({
+    className: '',
+    html: '<svg xmlns="http://www.w3.org/2000/svg" width="25" height="41" viewBox="0 0 25 41"><path fill="#1A5EA8" stroke="#fff" stroke-width="1.5" d="M12.5 0C5.6 0 0 5.6 0 12.5c0 9.4 12.5 28.5 12.5 28.5S25 21.9 25 12.5C25 5.6 19.4 0 12.5 0z"/><circle fill="#fff" cx="12.5" cy="12.5" r="4.5"/></svg>',
+    iconSize:   [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor:[0, -41]
 });
 // Data batas waktu dari server (untuk info di form)
 const batasWaktuData = <?= json_encode(array_map(function($bw){
@@ -407,7 +408,7 @@ let marker = null;
 
 // Jika sudah ada koordinat (mode edit), tampilkan marker
 <?php if ($p && $p->latitude && $p->longitude): ?>
-marker = L.marker([<?= $p->latitude ?>, <?= $p->longitude ?>]).addTo(map);
+marker = L.marker([<?= $p->latitude ?>, <?= $p->longitude ?>], {icon: pinIcon}).addTo(map);
 <?php endif; ?>
 
 // Klik peta untuk set marker
@@ -417,7 +418,7 @@ map.on('click', function(e) {
     document.getElementById('lat_input').value = lat;
     document.getElementById('lng_input').value = lng;
     if (marker) marker.remove();
-    marker = L.marker([lat, lng]).addTo(map);
+    marker = L.marker([lat, lng], {icon: pinIcon}).addTo(map);
     marker.bindPopup('<b>Lokasi dipilih</b><br>'+lat+', '+lng).openPopup();
 });
 
@@ -427,7 +428,7 @@ function jumpToCoords() {
     if (isNaN(lat) || isNaN(lng)) { alert('Koordinat tidak valid.'); return; }
     map.setView([lat, lng], 15);
     if (marker) marker.remove();
-    marker = L.marker([lat, lng]).addTo(map);
+    marker = L.marker([lat, lng], {icon: pinIcon}).addTo(map);
     marker.bindPopup(lat+', '+lng).openPopup();
 }
 

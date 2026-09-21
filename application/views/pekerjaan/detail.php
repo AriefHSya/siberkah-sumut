@@ -992,17 +992,18 @@ $semua_dok_kab_ok = !array_filter($dok_revisi_kab, function($d) { return $d['waj
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-    iconUrl:       'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon.png',
-    iconRetinaUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-    shadowUrl:     'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-shadow.png',
+const pinIconD = L.divIcon({
+    className: '',
+    html: '<svg xmlns="http://www.w3.org/2000/svg" width="25" height="41" viewBox="0 0 25 41"><path fill="#1A5EA8" stroke="#fff" stroke-width="1.5" d="M12.5 0C5.6 0 0 5.6 0 12.5c0 9.4 12.5 28.5 12.5 28.5S25 21.9 25 12.5C25 5.6 19.4 0 12.5 0z"/><circle fill="#fff" cx="12.5" cy="12.5" r="4.5"/></svg>',
+    iconSize:   [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor:[0, -41]
 });
 const mapD = L.map('mapDetail').setView([<?= $p->latitude ?>, <?= $p->longitude ?>], 15);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors', maxZoom: 19
 }).addTo(mapD);
-L.marker([<?= $p->latitude ?>, <?= $p->longitude ?>])
+L.marker([<?= $p->latitude ?>, <?= $p->longitude ?>], {icon: pinIconD})
     .addTo(mapD)
     .bindPopup('<b><?= htmlspecialchars($p->kode_bkp, ENT_QUOTES) ?></b><br><?= htmlspecialchars($p->nama_kegiatan_dok ?: $p->uraian_bkp, ENT_QUOTES) ?>')
     .openPopup();
