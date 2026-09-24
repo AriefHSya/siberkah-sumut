@@ -190,12 +190,9 @@ class Verif_prov extends Auth_Controller
         $pekerjaan = $this->Pekerjaan_model->get_by_id($tahapan->pekerjaan_id);
         if (!$pekerjaan) { show_404(); return; }
 
-        // Buat record verifikasi prov jika belum ada
+        // Transisi status: skpkd_kab_approved → skpkd_prov_verif saat admin buka form
         if ($this->rbac->can('verif_prov.approve')
             && $tahapan->status === 'skpkd_kab_approved') {
-            $this->Verifikasi_prov_model->buat_atau_ambil_verif(
-                $tahapan_id, $this->user_id);
-
             $this->db->where('id', $tahapan_id)
                 ->update('trx_tahapan_penyaluran', [
                     'status'     => 'skpkd_prov_verif',
@@ -205,8 +202,15 @@ class Verif_prov extends Auth_Controller
                 $pekerjaan->id, 'skpkd_prov_verif', $this->user_id,
                 'Admin Provinsi mulai verifikasi permohonan pencairan'
             );
-            // Reload tahapan setelah update
             $tahapan = $this->Pekerjaan_model->get_tahapan_by_id($tahapan_id);
+        }
+
+        // Pastikan record verif prov selalu ada saat tahapan sudah di skpkd_prov_verif
+        // (termasuk setelah rollback admin yang menghapus record lama)
+        if ($this->rbac->can('verif_prov.approve')
+            && $tahapan->status === 'skpkd_prov_verif') {
+            $this->Verifikasi_prov_model->buat_atau_ambil_verif(
+                $tahapan_id, $this->user_id);
         }
 
         $verif_prov = $this->Verifikasi_prov_model->get_verif_by_tahapan($tahapan_id);
